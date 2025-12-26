@@ -315,9 +315,9 @@
                 return { ...calculated, hp, cp };
             };
 
-            // --- LÓGICA DE ATIVIDADE (CONVERSÃO EQUIVALENTE) ---
+            // --- LÓGICA DE ATIVIDADE (RESTAURADA: SCORE & TIERS) ---
             const getActivityStats = (activityMap) => {
-                if (!activityMap) return { total: 0, msgs: 0, voiceString: "0h", color: 'text-slate-500' };
+                if (!activityMap) return { total: 0, tier: 'Fantasma', color: 'bg-red-500', icon: '👻' };
                 let total = 0;
                 const today = new Date();
                 for (let i = 0; i < 14; i++) {
@@ -327,20 +327,13 @@
                     total += (activityMap[dateStr] || 0);
                 }
                 
-                // Conversão Equivalente
-                const msgs = total; // 1 Ponto = 1 Mensagem
-                const voiceMinutes = total * 10; // 1 Ponto = 10 Minutos
-                const voiceHours = Math.floor(voiceMinutes / 60);
-                const voiceMinsRemainder = voiceMinutes % 60;
-                const voiceString = `${voiceHours}h${voiceMinsRemainder > 0 ? voiceMinsRemainder + 'm' : ''}`;
-
-                let color = 'text-slate-400'; // Default
-                if (total > 250) color = 'text-purple-400'; // Lendário
-                else if (total > 50) color = 'text-emerald-400'; // Ativo
-                else if (total > 10) color = 'text-blue-400'; // Regular
-                else if (total > 0) color = 'text-yellow-400'; // Baixo
+                let tier = 'Fantasma', color = 'bg-red-500', icon = '👻', width = '5%';
+                if (total > 250) { tier = 'Lendário'; color = 'bg-purple-500'; icon = '👑'; width = '100%'; }
+                else if (total > 50) { tier = 'Ativo'; color = 'bg-emerald-500'; icon = '🔥'; width = '75%'; }
+                else if (total > 10) { tier = 'Regular'; color = 'bg-blue-500'; icon = '😐'; width = '50%'; }
+                else if (total > 0) { tier = 'Adormecido'; color = 'bg-yellow-500'; icon = '💤'; width = '25%'; }
                 
-                return { total, msgs, voiceString, color };
+                return { total, tier, color, icon, width };
             };
 
             // --- AÇÕES DO SISTEMA ---
@@ -978,7 +971,7 @@
                                                 <th className="p-4 cursor-pointer hover:text-white" onClick={() => requestSort('name')}>Nome <SortIcon k="name"/></th>
                                                 <th className="p-4 cursor-pointer hover:text-white" onClick={() => requestSort('ninRole')}>Cargo Nin <SortIcon k="ninRole"/></th>
                                                 <th className="p-4 cursor-pointer hover:text-white" onClick={() => requestSort('joinDate')}>Entrada <SortIcon k="joinDate"/></th>
-                                                <th className="p-4 cursor-pointer hover:text-white" onClick={() => requestSort('activity')}>Atividade (14d) <SortIcon k="activity"/></th>
+                                                <th className="p-4 cursor-pointer hover:text-white" onClick={() => requestSort('activity')}>Atividade <SortIcon k="activity"/></th>
                                                 <th className="p-4 text-center cursor-pointer hover:text-white" onClick={() => requestSort('isLeader')}>Líder <SortIcon k="isLeader"/></th>
                                                 {/* Só mostra coluna Ações se tiver permissão de gerenciar essa org */}
                                                 {canManageOrg(activeTab) && <th className="p-4 text-right">Ações</th>}
@@ -1034,9 +1027,16 @@
                                                         
                                                         {/* COLUNA DE ATIVIDADE */}
                                                         <td className="p-4">
-                                                            <div className="flex flex-col text-sm">
-                                                                <span className="text-emerald-400 font-mono">💬 ~{activity.msgs} msgs</span>
-                                                                <span className="text-blue-400 font-mono">🎙️ ~{activity.voiceString} voz</span>
+                                                            <div className="flex items-center gap-2" title={`Score: ${activity.total} (Mensagens + Voz)`}>
+                                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${activity.color} shadow-lg shadow-${activity.color}/50`}>
+                                                                    <span className="text-lg">{activity.icon}</span>
+                                                                </div>
+                                                                <div className="flex flex-col w-24">
+                                                                    <span className="text-[10px] uppercase font-bold text-slate-400">{activity.tier}</span>
+                                                                    <div className="w-full bg-slate-700 h-1.5 rounded-full overflow-hidden mt-1">
+                                                                        <div className={`h-full ${activity.color}`} style={{ width: activity.width }}></div>
+                                                                    </div>
+                                                                </div>
                                                             </div>
                                                         </td>
 
