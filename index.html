@@ -289,15 +289,21 @@
                 return () => { unsubMembers(); unsubRoster(); unsubRoles(); unsubConfig(); };
             }, []);
 
-            // --- BLOQUEIO DE ROLAGEM (SCROLL LOCK) ---
+            // --- BLOQUEIO DE ROLAGEM (SCROLL LOCK CORRIGIDO) ---
             useEffect(() => {
                 if (selectedMember && editForm) {
+                    // Trava o body e o html
                     document.body.style.overflow = 'hidden';
+                    document.documentElement.style.overflow = 'hidden';
                 } else {
-                    document.body.style.overflow = 'unset';
+                    document.body.style.overflow = '';
+                    document.documentElement.style.overflow = '';
                 }
                 // Cleanup
-                return () => { document.body.style.overflow = 'unset'; }
+                return () => { 
+                    document.body.style.overflow = '';
+                    document.documentElement.style.overflow = '';
+                }
             }, [selectedMember, editForm]);
 
             // --- SISTEMA DE LOGS E HEARTBEAT (MONITORAMENTO) ---
@@ -937,7 +943,7 @@
                     {selectedMember && editForm && (
                         <div className="fixed inset-0 z-[80] bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
                             <div className="bg-slate-800 border border-slate-600 rounded-xl w-full max-w-4xl shadow-2xl animate-fade-in flex flex-col max-h-[95vh]">
-                                <div className="p-6 border-b border-slate-700 flex justify-between items-start bg-slate-900/50 rounded-t-xl">
+                                <div className="p-4 border-b border-slate-700 flex justify-between items-start bg-slate-900/50 rounded-t-xl">
                                     <div>
                                         <h2 className="text-2xl font-bold text-white flex items-center gap-2">
                                             {isCreating ? "Novo Membro" : editForm.name}
@@ -1031,7 +1037,7 @@
                                                 <label htmlFor="leaderCheck" className="text-sm text-white font-bold cursor-pointer select-none flex items-center gap-2"><Crown size={14} className={editForm.isLeader ? "text-yellow-400" : "text-slate-500"}/> Líder da Organização?</label>
                                             </div>
                                         </div>
-                                        <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700 h-full">
+                                        <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700">
                                             <h3 className="text-white font-bold mb-4">Maestrias</h3>
                                             <div className="grid grid-cols-2 gap-3">
                                                 {MASTERIES.map(m => {
@@ -1043,7 +1049,7 @@
                                     </div>
                                 </div>
 
-                                <div className="p-6 border-t border-slate-700 bg-slate-900/50 rounded-b-xl flex justify-between items-center">
+                                <div className="p-4 border-t border-slate-700 bg-slate-900/50 rounded-b-xl flex justify-between items-center">
                                     <span className="text-xs text-slate-500">{remainingPoints < 0 ? "⚠️ Pontos excedidos!" : "Distribuição válida."}</span>
                                     <div className="flex gap-3">
                                         <button onClick={() => setSelectedMember(null)} className="px-6 py-2 text-slate-400 hover:text-white transition-colors">Cancelar</button>
