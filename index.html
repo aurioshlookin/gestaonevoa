@@ -58,7 +58,7 @@
 
     <!-- Aplicação React -->
     <script type="text/babel" data-type="module">
-        import React, { useState, useEffect, useMemo } from 'react';
+        import React, { useState, useEffect, useMemo, useRef } from 'react';
         import { createRoot } from 'react-dom/client';
         import { initializeApp } from "firebase/app";
         import { getAnalytics } from "firebase/analytics";
@@ -74,7 +74,8 @@
             writeBatch,
             query,
             orderBy,
-            limit
+            limit,
+            where
         } from "firebase/firestore";
         import { 
             Swords, Shield, Activity, Ghost, Users, UserPlus, Trash2, 
@@ -82,7 +83,7 @@
             AlertTriangle, Crown, ArrowUp, ArrowDown, ArrowUpDown,
             Heart, Zap, Flame, Droplets, Mountain, Wind, CloudLightning, 
             Cross, Target, Circle, Calendar, Info, Lock, Database, Clock, MessageSquare, Mic, ShieldCheck, UserCog,
-            BookOpen, ChevronDown, ChevronUp, FileText, History
+            BookOpen, ChevronDown, ChevronUp, FileText, History, Globe
         } from 'lucide-react';
 
         // --- CONFIGURAÇÃO DO FIREBASE ---
@@ -111,6 +112,10 @@
             const [discordRoster, setDiscordRoster] = useState([]); 
             const [discordRoles, setDiscordRoles] = useState([]); 
             const [auditLogs, setAuditLogs] = useState([]);
+            
+            // Novos estados para monitoramento
+            const [accessLogs, setAccessLogs] = useState([]);
+            const [onlineUsers, setOnlineUsers] = useState([]);
             
             // Configurações de Mapeamento
             const [roleConfig, setRoleConfig] = useState({}); 
@@ -155,6 +160,9 @@
             const [sortConfig, setSortConfig] = useState({ key: 'rank', direction: 'descending' });
             const [searchTerm, setSearchTerm] = useState("");
             const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+            
+            // Ref para evitar log duplo
+            const hasLoggedAccess = useRef(false);
 
             // --- CONSTANTES DE RPG ---
             const MASTERIES = [
@@ -171,7 +179,7 @@
 
             const STATS = ['Força', 'Fortitude', 'Intelecto', 'Agilidade', 'Chakra'];
 
-            const Icons = { Swords, Shield, Activity, Ghost, Users, UserPlus, Trash2, Save, RefreshCw, AlertCircle, Menu, LogOut, Lock, Search, Settings, X, Info, AlertTriangle, Crown, ArrowUp, ArrowDown, ArrowUpDown, Heart, Zap, Flame, Droplets, Mountain, Wind, CloudLightning, Cross, Target, Circle, Calendar, Database, Clock, MessageSquare, Mic, ShieldCheck, UserCog, BookOpen, ChevronDown, ChevronUp, FileText, History };
+            const Icons = { Swords, Shield, Activity, Ghost, Users, UserPlus, Trash2, Save, RefreshCw, AlertCircle, Menu, LogOut, Lock, Search, Settings, X, Info, AlertTriangle, Crown, ArrowUp, ArrowDown, ArrowUpDown, Heart, Zap, Flame, Droplets, Mountain, Wind, CloudLightning, Cross, Target, Circle, Calendar, Database, Clock, MessageSquare, Mic, ShieldCheck, UserCog, BookOpen, ChevronDown, ChevronUp, FileText, History, Globe };
 
             const ORG_CONFIG = {
                 'sete-laminas': { 
@@ -270,8 +278,50 @@
                 return () => { unsubMembers(); unsubRoster(); unsubRoles(); unsubConfig(); };
             }, []);
 
-            // --- LISTENER DE HISTÓRICO ---
-            // Só ativa se o usuário tiver permissão
+            // --- SISTEMA DE LOGS E HEARTBEAT (MONITORAMENTO) ---
+            useEffect(() => {
+                if (!user) {
+                    hasLoggedAccess.current = false;
+                    return;
+                }
+
+                // 1. Log de Entrada (Executa apenas uma vez quando o usuário é carregado)
+                if (!hasLoggedAccess.current) {
+                    const logAccess = async () => {
+                        try {
+                            await addDoc(collection(db, "access_logs"), {
+                                userId: user.id,
+                                username: user.username || user.displayName,
+                                action: 'Acessou o Painel',
+                                timestamp: new Date().toISOString()
+                            });
+                            hasLoggedAccess.current = true;
+                        } catch (e) { console.error("Erro ao registrar acesso:", e); }
+                    };
+                    logAccess();
+                }
+
+                // 2. Heartbeat (Status Online) - Executa a cada 60s
+                const heartbeat = async () => {
+                    try {
+                        await setDoc(doc(db, "online_status", user.id), {
+                            username: user.username || user.displayName,
+                            userId: user.id,
+                            avatar: user.avatar,
+                            lastSeen: new Date().toISOString()
+                        }, { merge: true });
+                    } catch (e) { console.error("Heartbeat error:", e); }
+                };
+
+                // Executa imediatamente e depois a cada 1 min
+                heartbeat();
+                const interval = setInterval(heartbeat, 60000);
+
+                return () => clearInterval(interval);
+            }, [user]);
+
+            // --- LISTENER DE HISTÓRICO DE MODIFICAÇÃO E ACESSO ---
+            // Só ativa se o usuário estiver na aba correta e tiver permissão
             useEffect(() => {
                 if (activeTab === 'history') {
                     const q = query(collection(db, "audit_logs"), orderBy("timestamp", "desc"), limit(50));
@@ -280,9 +330,33 @@
                     });
                     return () => unsub();
                 }
+                
+                if (activeTab === 'access') {
+                    // Logs de Acesso
+                    const qLogs = query(collection(db, "access_logs"), orderBy("timestamp", "desc"), limit(50));
+                    const unsubLogs = onSnapshot(qLogs, (snap) => {
+                        setAccessLogs(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+                    });
+
+                    // Usuários Online (Heartbeat)
+                    const qOnline = collection(db, "online_status");
+                    const unsubOnline = onSnapshot(qOnline, (snap) => {
+                        const now = new Date();
+                        const activeUsers = snap.docs
+                            .map(doc => doc.data())
+                            .filter(u => {
+                                if(!u.lastSeen) return false;
+                                const diff = (now - new Date(u.lastSeen)) / 1000 / 60; // diff em minutos
+                                return diff <= 5; // Considera online se visto nos últimos 5 min
+                            });
+                        setOnlineUsers(activeUsers);
+                    });
+
+                    return () => { unsubLogs(); unsubOnline(); };
+                }
             }, [activeTab]);
 
-            // --- SISTEMA DE LOGS ---
+            // --- SISTEMA DE LOGS (MODIFICAÇÕES) ---
             const logAction = async (action, target, details, org = null) => {
                 if (!user) return;
                 try {
@@ -336,7 +410,7 @@
             const canManageOrg = (orgId) => checkPermission('EDIT_MEMBER', orgId);
             const canManageSettings = checkPermission('MANAGE_SETTINGS');
 
-            // --- PERMISSÃO PARA VER HISTÓRICO ---
+            // --- PERMISSÃO PARA VER HISTÓRICO & ACESSOS ---
             const canViewHistory = useMemo(() => {
                 if (!user) return false;
                 if (user.id === accessConfig.creatorId) return true;
@@ -1033,9 +1107,14 @@
                             </div>
                             <div className="flex items-center gap-4">
                                 {canViewHistory && (
-                                    <button onClick={() => setActiveTab('history')} className={`p-2 text-slate-400 hover:text-purple-400 transition-colors ${activeTab === 'history' ? 'text-purple-400 bg-purple-400/10 rounded-lg' : ''}`} title="Histórico de Modificações">
-                                        <History size={20} />
-                                    </button>
+                                    <>
+                                        <button onClick={() => setActiveTab('access')} className={`p-2 text-slate-400 hover:text-green-400 transition-colors ${activeTab === 'access' ? 'text-green-400 bg-green-400/10 rounded-lg' : ''}`} title="Monitoramento de Acesso">
+                                            <Globe size={20} />
+                                        </button>
+                                        <button onClick={() => setActiveTab('history')} className={`p-2 text-slate-400 hover:text-purple-400 transition-colors ${activeTab === 'history' ? 'text-purple-400 bg-purple-400/10 rounded-lg' : ''}`} title="Histórico de Modificações">
+                                            <History size={20} />
+                                        </button>
+                                    </>
                                 )}
                                 {/* Botão de Engrenagem só aparece se tiver permissão de gerenciar settings */}
                                 {canManageSettings && (
@@ -1055,6 +1134,7 @@
 
                         {activeTab === 'dashboard' ? (
                             <div className="animate-fade-in space-y-8">
+                                {/* Dashboard Principal (Cubes) */}
                                 {multiOrgUsers.length > 0 && (
                                     <div className="bg-yellow-900/20 border border-yellow-600/30 rounded-xl p-6">
                                         <h3 className="text-yellow-400 font-bold flex items-center gap-2 mb-4"><AlertTriangle size={20} /> Conflitos de Organização</h3>
@@ -1139,6 +1219,68 @@
                                             )}
                                         </tbody>
                                     </table>
+                                </div>
+                            </div>
+                        ) : activeTab === 'access' ? (
+                            <div className="animate-fade-in space-y-8">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-4">
+                                        <button onClick={() => setActiveTab('dashboard')} className="p-2 hover:bg-slate-700 rounded transition-colors text-white">← Voltar</button>
+                                        <div className="p-3 rounded-lg bg-green-900/20 text-green-400"><Globe size={20} /></div>
+                                        <h2 className="text-3xl font-bold mist-title text-white">Monitoramento de Acesso</h2>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    {/* COLUNA 1: ONLINE AGORA */}
+                                    <div className="bg-slate-900/50 border border-green-500/30 rounded-xl p-6 h-full">
+                                        <h3 className="text-xl font-bold text-green-400 mb-4 flex items-center gap-2">
+                                            <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                                            Online Agora ({onlineUsers.length})
+                                        </h3>
+                                        {onlineUsers.length === 0 ? (
+                                            <p className="text-slate-500 italic">Nenhum usuário ativo no momento.</p>
+                                        ) : (
+                                            <div className="space-y-3">
+                                                {onlineUsers.map((u, idx) => (
+                                                    <div key={idx} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg border border-slate-700">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-slate-300 font-bold overflow-hidden">
+                                                                {u.avatar ? <img src={`https://cdn.discordapp.com/avatars/${u.userId}/${u.avatar}.png`} className="w-full h-full" /> : u.username?.charAt(0)}
+                                                            </div>
+                                                            <span className="font-bold text-white">{u.username}</span>
+                                                        </div>
+                                                        <span className="text-xs text-green-400 font-mono">Ativo</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* COLUNA 2: HISTÓRICO DE ACESSO */}
+                                    <div className="glass-panel rounded-xl overflow-hidden border border-slate-700 h-full">
+                                        <div className="p-4 bg-slate-800/50 border-b border-slate-700">
+                                            <h3 className="text-lg font-bold text-slate-300">Últimos Acessos</h3>
+                                        </div>
+                                        <div className="max-h-[500px] overflow-y-auto scroll-custom">
+                                            <table className="w-full text-left">
+                                                <tbody className="divide-y divide-slate-700">
+                                                    {accessLogs.map((log) => (
+                                                        <tr key={log.id} className="hover:bg-slate-800/30">
+                                                            <td className="p-4 text-xs font-mono text-slate-400 w-32">{new Date(log.timestamp).toLocaleString('pt-BR')}</td>
+                                                            <td className="p-4">
+                                                                <span className="font-bold text-cyan-400 block">{log.username}</span>
+                                                                <span className="text-xs text-slate-500">ID: {log.userId}</span>
+                                                            </td>
+                                                            <td className="p-4 text-right">
+                                                                <span className="text-xs bg-slate-800 px-2 py-1 rounded text-slate-300 border border-slate-700">Login no Painel</span>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         ) : (
