@@ -705,7 +705,7 @@
                     logAction("Remover Membro", memberToRemove ? memberToRemove.name : "Desconhecido", "Removido do painel", activeTab);
                     showNotification('Removido com sucesso.', 'success');
                     setDeleteConfirmation(null);
-                } catch (e) { alert(`Erro técnico: ${e.message}`); setDeleteConfirmation(null); }
+                } catch (e) { showNotification(`Erro técnico: ${e.message}`, 'error'); setDeleteConfirmation(null); }
             };
 
             const handleSaveConfig = async () => {
@@ -1572,8 +1572,8 @@
                                                                         if (!mData) return null;
                                                                         return (
                                                                             <div key={m} className={`flex items-center gap-1 ${mData.color} bg-slate-800/50 px-1.5 py-0.5 rounded text-[10px] font-bold border border-${mData.color.split('-')[1]}-500/20`}>
-                                                                            {React.createElement(mData.icon, {size: 12})}
-                                                                            <span>{m}</span>
+                                                                                {React.createElement(mData.icon, {size: 12})}
+                                                                                <span>{m}</span>
                                                                             </div>
                                                                         )
                                                                     })}
