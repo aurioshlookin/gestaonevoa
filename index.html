@@ -1378,13 +1378,14 @@
                                                                         </div>
                                                                     )}
                                                                 </span>
-                                                                <div className="flex items-center gap-1 mt-1">
+                                                                <div className="flex flex-wrap gap-2 mt-1">
                                                                     {memberMasteries.map(m => {
                                                                         const mData = MASTERIES.find(mastery => mastery.id === m);
                                                                         if (!mData) return null;
                                                                         return (
-                                                                            <div key={m} title={m} className={`${mData.color}`}>
-                                                                            {React.createElement(mData.icon, {size: 14})}
+                                                                            <div key={m} className={`flex items-center gap-1 ${mData.color} bg-slate-800/50 px-1.5 py-0.5 rounded text-[10px] font-bold border border-${mData.color.split('-')[1]}-500/20`}>
+                                                                            {React.createElement(mData.icon, {size: 12})}
+                                                                            <span>{m}</span>
                                                                             </div>
                                                                         )
                                                                     })}
@@ -1396,7 +1397,7 @@
                                                         
                                                         {/* COLUNA DE ATIVIDADE */}
                                                         <td className="p-4">
-                                                            <div className="flex items-center gap-2" title={`Detalhes: ${activity.details.msgs} msgs / ${activity.details.voice} voz`}>
+                                                            <div className="flex items-center gap-2" title={`Últimas 2 semanas: ${activity.details.msgs} msgs / ${activity.details.voice} voz`}>
                                                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${activity.color} shadow-lg shadow-${activity.color}/50`}>
                                                                     <span className="text-lg">{activity.icon}</span>
                                                                 </div>
