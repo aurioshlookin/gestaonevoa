@@ -68,9 +68,13 @@
             onSnapshot, 
             doc, 
             setDoc, 
+            addDoc,
             deleteDoc,
             updateDoc,
-            writeBatch
+            writeBatch,
+            query,
+            orderBy,
+            limit
         } from "firebase/firestore";
         import { 
             Swords, Shield, Activity, Ghost, Users, UserPlus, Trash2, 
@@ -78,7 +82,7 @@
             AlertTriangle, Crown, ArrowUp, ArrowDown, ArrowUpDown,
             Heart, Zap, Flame, Droplets, Mountain, Wind, CloudLightning, 
             Cross, Target, Circle, Calendar, Info, Lock, Database, Clock, MessageSquare, Mic, ShieldCheck, UserCog,
-            BookOpen, ChevronDown, ChevronUp
+            BookOpen, ChevronDown, ChevronUp, FileText, History
         } from 'lucide-react';
 
         // --- CONFIGURAÇÃO DO FIREBASE ---
@@ -106,6 +110,7 @@
             const [members, setMembers] = useState([]); 
             const [discordRoster, setDiscordRoster] = useState([]); 
             const [discordRoles, setDiscordRoles] = useState([]); 
+            const [auditLogs, setAuditLogs] = useState([]);
             
             // Configurações de Mapeamento
             const [roleConfig, setRoleConfig] = useState({}); 
@@ -166,7 +171,7 @@
 
             const STATS = ['Força', 'Fortitude', 'Intelecto', 'Agilidade', 'Chakra'];
 
-            const Icons = { Swords, Shield, Activity, Ghost, Users, UserPlus, Trash2, Save, RefreshCw, AlertCircle, Menu, LogOut, Lock, Search, Settings, X, Info, AlertTriangle, Crown, ArrowUp, ArrowDown, ArrowUpDown, Heart, Zap, Flame, Droplets, Mountain, Wind, CloudLightning, Cross, Target, Circle, Calendar, Database, Clock, MessageSquare, Mic, ShieldCheck, UserCog, BookOpen, ChevronDown, ChevronUp };
+            const Icons = { Swords, Shield, Activity, Ghost, Users, UserPlus, Trash2, Save, RefreshCw, AlertCircle, Menu, LogOut, Lock, Search, Settings, X, Info, AlertTriangle, Crown, ArrowUp, ArrowDown, ArrowUpDown, Heart, Zap, Flame, Droplets, Mountain, Wind, CloudLightning, Cross, Target, Circle, Calendar, Database, Clock, MessageSquare, Mic, ShieldCheck, UserCog, BookOpen, ChevronDown, ChevronUp, FileText, History };
 
             const ORG_CONFIG = {
                 'sete-laminas': { 
@@ -265,6 +270,34 @@
                 return () => { unsubMembers(); unsubRoster(); unsubRoles(); unsubConfig(); };
             }, []);
 
+            // --- LISTENER DE HISTÓRICO ---
+            // Só ativa se o usuário tiver permissão
+            useEffect(() => {
+                if (activeTab === 'history') {
+                    const q = query(collection(db, "audit_logs"), orderBy("timestamp", "desc"), limit(50));
+                    const unsub = onSnapshot(q, (snap) => {
+                        setAuditLogs(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+                    });
+                    return () => unsub();
+                }
+            }, [activeTab]);
+
+            // --- SISTEMA DE LOGS ---
+            const logAction = async (action, target, details, org = null) => {
+                if (!user) return;
+                try {
+                    await addDoc(collection(db, "audit_logs"), {
+                        action,
+                        target,
+                        details,
+                        executor: user.username || user.displayName,
+                        executorId: user.id,
+                        org: org || 'Sistema',
+                        timestamp: new Date().toISOString()
+                    });
+                } catch (e) { console.error("Erro ao gerar log:", e); }
+            };
+
             // --- SISTEMA DE PERMISSÕES ---
             const checkPermission = (action, contextOrgId = null) => {
                 if (!user) return false;
@@ -302,6 +335,22 @@
             // Helper para verificar se pode ver os botões de ação
             const canManageOrg = (orgId) => checkPermission('EDIT_MEMBER', orgId);
             const canManageSettings = checkPermission('MANAGE_SETTINGS');
+
+            // --- PERMISSÃO PARA VER HISTÓRICO ---
+            const canViewHistory = useMemo(() => {
+                if (!user) return false;
+                if (user.id === accessConfig.creatorId) return true;
+                const userRoles = user.roles || [];
+                
+                // Globais
+                if (userRoles.includes(accessConfig.kamiRoleId) || 
+                    userRoles.includes(accessConfig.councilRoleId) || 
+                    userRoles.includes(accessConfig.moderatorRoleId)) return true;
+                
+                // Líderes de qualquer org
+                const isLeader = Object.values(leaderRoleConfig).some(roleId => userRoles.includes(roleId));
+                return isLeader;
+            }, [user, accessConfig, leaderRoleConfig]);
 
             // --- VERIFICAÇÃO DE ACESSO AO PAINEL (LOGIN GATE) ---
             const canAccessPanel = useMemo(() => {
@@ -359,7 +408,6 @@
 
             // --- LÓGICA DE ATIVIDADE (RESTAURADA: SCORE & TIERS + DETALHES + FALLBACK) ---
             const getActivityStats = (member) => {
-                // Lê os campos novos do bot (se existirem) ou usa fallback vazio
                 const activityMap = member.activityStats || {};
                 const msgMap = member.dailyMessages || {};
                 const voiceMap = member.dailyVoice || {};
@@ -379,20 +427,16 @@
                     totalVoiceMins += (voiceMap[dateStr] || 0);
                 }
 
-                // FALLBACK: Se os detalhes estiverem zerados mas o score total existir (dados antigos)
-                // Usamos o score total como uma aproximação para não mostrar "0"
                 if (totalMsgs === 0 && totalVoiceMins === 0 && totalScore > 0) {
-                    totalMsgs = totalScore; // Assume que foram mensagens apenas para visualização
+                    totalMsgs = totalScore; 
                 }
 
-                // Cálculo visual de Tier baseado no Score Total
                 let tier = 'Fantasma', color = 'bg-red-500', icon = '👻', width = '5%';
                 if (totalScore > 250) { tier = 'Lendário'; color = 'bg-purple-500'; icon = '👑'; width = '100%'; }
                 else if (totalScore > 50) { tier = 'Ativo'; color = 'bg-emerald-500'; icon = '🔥'; width = '75%'; }
                 else if (totalScore > 10) { tier = 'Regular'; color = 'bg-blue-500'; icon = '😐'; width = '50%'; }
                 else if (totalScore > 0) { tier = 'Adormecido'; color = 'bg-yellow-500'; icon = '💤'; width = '25%'; }
                 
-                // String de voz formatada
                 const voiceHours = Math.floor(totalVoiceMins / 60);
                 const voiceRemMins = totalVoiceMins % 60;
                 const voiceString = `${voiceHours}h ${voiceRemMins}m`;
@@ -455,6 +499,7 @@
 
                 try {
                     await setDoc(doc(db, "membros", docId), memberData);
+                    logAction("Adicionar Membro", newMember.name, `Adicionado em ${ORG_CONFIG[orgId].name} como ${finalNinRole}`, orgId);
                     setNewMember({ name: '', discordId: '', ninRole: '', isLeader: false, specificRoleId: '', joinDate: new Date().toISOString().split('T')[0] });
                     setSearchTerm("");
                     showNotification('Salvo!', 'success');
@@ -465,7 +510,9 @@
                 if(!deleteConfirmation) return;
                 if (!checkPermission('DELETE_MEMBER', activeTab)) return showNotification('Sem permissão para remover.', 'error');
                 try {
+                    const memberToRemove = members.find(m => m.id === deleteConfirmation);
                     await deleteDoc(doc(db, "membros", String(deleteConfirmation)));
+                    logAction("Remover Membro", memberToRemove ? memberToRemove.name : "Desconhecido", "Removido do painel", activeTab);
                     showNotification('Removido com sucesso.', 'success');
                     setDeleteConfirmation(null);
                 } catch (e) { alert(`Erro técnico: ${e.message}`); setDeleteConfirmation(null); }
@@ -480,6 +527,7 @@
                         secLeaderRoleMapping: secLeaderRoleConfig,
                         accessConfig: accessConfig // Salva permissões também
                     }, { merge: true });
+                    logAction("Configurações", "Sistema", "Cargos e Permissões atualizados");
                     showNotification('Configurações Salvas!', 'success');
                     setShowSettings(false);
                 } catch (e) { showNotification('Erro ao salvar.', 'error'); }
@@ -530,6 +578,10 @@
                 try {
                     if (isCreating) await setDoc(doc(db, "membros", docId), payload);
                     else await updateDoc(doc(db, "membros", docId), payload);
+                    
+                    const actionName = isCreating ? "Adicionar Membro" : "Editar Membro";
+                    logAction(actionName, editForm.name, `Level: ${editForm.level}, Rank: ${editForm.ninRole}`, orgId);
+
                     showNotification('Salvo com sucesso!', 'success');
                     setSelectedMember(null); setEditForm(null);
                 } catch (e) { showNotification('Erro: ' + e.message, 'error'); }
@@ -553,6 +605,8 @@
                 try {
                     const orgId = member.org;
                     const newStatus = !member.isLeader;
+                    let actionDetail = "";
+
                     if (newStatus === true) {
                         const currentLeader = members.find(m => m.org === orgId && m.isLeader === true);
                         if (currentLeader && currentLeader.id !== member.id) {
@@ -563,7 +617,13 @@
                         let newRoleForNewLeader = member.ninRole;
                         if (orgId === 'unidade-medica') newRoleForNewLeader = 'Diretor Médico';
                         await updateDoc(doc(db, "membros", member.id), { isLeader: true, ninRole: newRoleForNewLeader });
-                    } else { await updateDoc(doc(db, "membros", member.id), { isLeader: false }); }
+                        actionDetail = "Promovido a Líder";
+                    } else { 
+                        await updateDoc(doc(db, "membros", member.id), { isLeader: false }); 
+                        actionDetail = "Removido da Liderança";
+                    }
+                    
+                    logAction("Alterar Liderança", member.name, actionDetail, orgId);
                     showNotification('Liderança alterada.', 'success');
                 } catch (e) { showNotification('Erro ao alterar.', 'error'); }
             };
@@ -583,39 +643,31 @@
             
             // --- AUTH CORRIGIDA COM SCOPE E PERSISTÊNCIA ---
             const handleLogin = () => { 
-                // CORREÇÃO: Pega a URL completa atual (incluindo subdiretório /gestaonevoa/)
                 const currentPath = window.location.origin + window.location.pathname;
                 const redirectUri = encodeURIComponent(currentPath);
-                
-                // Adicionado 'guilds.members.read' para ler os cargos do usuário no servidor
                 window.location.href = `https://discord.com/api/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&redirect_uri=${redirectUri}&response_type=token&scope=identify%20guilds.members.read`; 
             };
 
             // LÓGICA DE PERSISTÊNCIA E LOGIN
             useEffect(() => { 
-                // 1. Tenta pegar token da URL (Login recente)
                 const f = new URLSearchParams(window.location.hash.slice(1)); 
                 let accessToken = f.get('access_token');
 
-                // 2. Se não tem na URL, tenta pegar do Storage (Persistência)
                 if (!accessToken) {
                     accessToken = localStorage.getItem('discord_access_token');
                 } else {
-                    // Se veio da URL, salva no Storage e limpa a URL
                     localStorage.setItem('discord_access_token', accessToken);
                     window.history.pushState({}, document.title, window.location.pathname);
                 }
 
                 if (accessToken) { 
                     setLoading(true);
-                    // Fetch User Profile
                     fetch('https://discord.com/api/users/@me', {headers:{Authorization:`Bearer ${accessToken}`}})
                     .then(r => {
                         if (!r.ok) throw new Error("Token inválido");
                         return r.json();
                     })
                     .then(userData => {
-                        // Fetch Member Data (Roles) from Guild
                         fetch(`https://discord.com/api/users/@me/guilds/${GUILD_ID}/member`, {headers:{Authorization:`Bearer ${accessToken}`}})
                         .then(r => r.ok ? r.json() : { roles: [] }) 
                         .then(memberData => {
@@ -625,7 +677,7 @@
                     })
                     .catch(err => {
                         console.error("Sessão expirada:", err);
-                        localStorage.removeItem('discord_access_token'); // Limpa token ruim
+                        localStorage.removeItem('discord_access_token'); 
                         setUser(null);
                         setLoading(false);
                     });
@@ -980,6 +1032,11 @@
                                 <h1 className="text-xl md:text-2xl font-bold mist-title text-cyan-50 tracking-wider">Névoa <span className="text-cyan-500">System</span></h1>
                             </div>
                             <div className="flex items-center gap-4">
+                                {canViewHistory && (
+                                    <button onClick={() => setActiveTab('history')} className={`p-2 text-slate-400 hover:text-purple-400 transition-colors ${activeTab === 'history' ? 'text-purple-400 bg-purple-400/10 rounded-lg' : ''}`} title="Histórico de Modificações">
+                                        <History size={20} />
+                                    </button>
+                                )}
                                 {/* Botão de Engrenagem só aparece se tiver permissão de gerenciar settings */}
                                 {canManageSettings && (
                                     <button onClick={() => setShowSettings(true)} className="p-2 text-slate-400 hover:text-cyan-400 transition-colors"><Settings size={20} /></button>
@@ -1031,6 +1088,57 @@
                                             </div>
                                         );
                                     })}
+                                </div>
+                            </div>
+                        ) : activeTab === 'history' ? (
+                            <div className="animate-fade-in">
+                                <div className="flex items-center justify-between mb-8">
+                                    <div className="flex items-center gap-4">
+                                        <button onClick={() => setActiveTab('dashboard')} className="p-2 hover:bg-slate-700 rounded transition-colors text-white">← Voltar</button>
+                                        <div className="p-3 rounded-lg bg-purple-900/20 text-purple-400"><History size={20} /></div>
+                                        <h2 className="text-3xl font-bold mist-title text-white">Histórico de Modificações</h2>
+                                    </div>
+                                </div>
+
+                                <div className="glass-panel rounded-xl overflow-hidden border border-slate-700">
+                                    <table className="w-full text-left">
+                                        <thead className="bg-slate-800/50 text-slate-400 text-xs uppercase">
+                                            <tr>
+                                                <th className="p-4">Data/Hora</th>
+                                                <th className="p-4">Executor</th>
+                                                <th className="p-4">Ação</th>
+                                                <th className="p-4">Alvo</th>
+                                                <th className="p-4">Detalhes</th>
+                                                <th className="p-4">Origem</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-700">
+                                            {auditLogs.length === 0 ? (
+                                                <tr>
+                                                    <td colSpan="6" className="p-8 text-center text-slate-500 italic">Nenhum registro encontrado ainda.</td>
+                                                </tr>
+                                            ) : (
+                                                auditLogs.map((log) => (
+                                                    <tr key={log.id} className="hover:bg-slate-800/30 transition-colors">
+                                                        <td className="p-4 text-xs font-mono text-slate-400">{new Date(log.timestamp).toLocaleString('pt-BR')}</td>
+                                                        <td className="p-4 font-bold text-cyan-400">{log.executor}</td>
+                                                        <td className="p-4">
+                                                            <span className={`px-2 py-1 rounded text-xs font-bold border 
+                                                                ${log.action.includes('Adicionar') ? 'border-emerald-500/30 text-emerald-400 bg-emerald-900/20' : 
+                                                                log.action.includes('Remover') ? 'border-red-500/30 text-red-400 bg-red-900/20' : 
+                                                                log.action.includes('Editar') ? 'border-blue-500/30 text-blue-400 bg-blue-900/20' : 
+                                                                'border-yellow-500/30 text-yellow-400 bg-yellow-900/20'}`}>
+                                                                {log.action}
+                                                            </span>
+                                                        </td>
+                                                        <td className="p-4 text-white font-bold">{log.target}</td>
+                                                        <td className="p-4 text-sm text-slate-300">{log.details}</td>
+                                                        <td className="p-4 text-xs text-slate-500 uppercase">{ORG_CONFIG[log.org]?.name || log.org}</td>
+                                                    </tr>
+                                                ))
+                                            )}
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
                         ) : (
