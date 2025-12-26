@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestão da Névoa</title>
-    <!-- 1. MODIFICAÇÃO: Favicon restaurado para arquivo local -->
     <link rel="icon" type="image/png" href="favicon.png" />
     
     <!-- Tailwind CSS -->
@@ -162,7 +161,7 @@
             // Estado para expandir/colapsar detalhes dos cargos
             const [showRoleDetails, setShowRoleDetails] = useState(false);
 
-            const [sortConfig, setSortConfig] = useState({ key: 'rank', direction: 'descending' });
+            const [sortConfig, setSortConfig] = useState({ key: 'rank', direction: 'ascending' }); // Mudado para ascending padrão (data antiga primeiro)
             const [searchTerm, setSearchTerm] = useState("");
             const [isDropdownOpen, setIsDropdownOpen] = useState(false);
             
@@ -196,7 +195,6 @@
                     border: 'border-red-500/30', 
                     limit: 7, 
                     internalRoles: [
-                        'Espadachim Iniciante',
                         'Lâmina Lança de Chakra (Himarakei)',
                         'Lâmina Rompedora de Armadura (Kabutowari)',
                         'Lâmina Pele de Escama (Samehada)',
@@ -212,8 +210,7 @@
                         { name: 'Lâminas do Trovão (Kiba)', desc: 'Espada Lendária da Névoa.' },
                         { name: 'Lâmina Agulha (Nuibari)', desc: 'Espada Lendária da Névoa.' },
                         { name: 'Lâmina Explosiva (Shibuki)', desc: 'Espada Lendária da Névoa.' },
-                        { name: 'Lâmina Decapitadora (Kubikiribocho)', desc: 'Espada Lendária da Névoa.' },
-                        { name: 'Espadachim Iniciante', desc: 'Aspirante em treinamento.' }
+                        { name: 'Lâmina Decapitadora (Kubikiribocho)', desc: 'Espada Lendária da Névoa.' }
                     ]
                 },
                 'divisao-especial': { 
@@ -905,6 +902,19 @@
             const getSortedMembers = (list) => {
                 return [...list].sort((a, b) => {
                     if (sortConfig.key === 'rank' || sortConfig.key === 'ninRole') {
+                        // LÓGICA PERSONALIZADA SETE LÂMINAS (Líder -> Data de Entrada)
+                        if (activeTab === 'sete-laminas') {
+                            if (a.isLeader && !b.isLeader) return -1;
+                            if (!a.isLeader && b.isLeader) return 1;
+                            
+                            const dateA = new Date(a.joinDate || '9999-12-31').getTime();
+                            const dateB = new Date(b.joinDate || '9999-12-31').getTime();
+                            // Ordena por data (mais antigo primeiro = ascendente)
+                            // Se a direção for descendente (default do clique), inverte
+                            return sortConfig.direction === 'ascending' ? dateA - dateB : dateB - dateA;
+                        }
+
+                        // LÓGICA PADRÃO (Rank do Cargo -> Data -> Líder)
                         const rankA = getRoleRank(a); const rankB = getRoleRank(b);
                         if (rankA !== rankB) return sortConfig.direction === 'ascending' ? rankA - rankB : rankB - rankA;
                         const dateA = new Date(a.joinDate || '9999-12-31').getTime(); const dateB = new Date(b.joinDate || '9999-12-31').getTime();
