@@ -315,25 +315,45 @@
                 return { ...calculated, hp, cp };
             };
 
-            // --- LÓGICA DE ATIVIDADE (RESTAURADA: SCORE & TIERS) ---
-            const getActivityStats = (activityMap) => {
-                if (!activityMap) return { total: 0, tier: 'Fantasma', color: 'bg-red-500', icon: '👻' };
-                let total = 0;
+            // --- LÓGICA DE ATIVIDADE (RESTAURADA: SCORE & TIERS + DETALHES) ---
+            const getActivityStats = (member) => {
+                // Lê os campos novos do bot (se existirem) ou usa fallback vazio
+                const activityMap = member.activityStats || {};
+                const msgMap = member.dailyMessages || {};
+                const voiceMap = member.dailyVoice || {};
+
+                let totalScore = 0;
+                let totalMsgs = 0;
+                let totalVoiceMins = 0;
+
                 const today = new Date();
                 for (let i = 0; i < 14; i++) {
                     const d = new Date();
                     d.setDate(today.getDate() - i);
                     const dateStr = d.toISOString().split('T')[0];
-                    total += (activityMap[dateStr] || 0);
+                    
+                    totalScore += (activityMap[dateStr] || 0);
+                    totalMsgs += (msgMap[dateStr] || 0);
+                    totalVoiceMins += (voiceMap[dateStr] || 0);
                 }
-                
+
+                // Cálculo visual de Tier baseado no Score Total
                 let tier = 'Fantasma', color = 'bg-red-500', icon = '👻', width = '5%';
-                if (total > 250) { tier = 'Lendário'; color = 'bg-purple-500'; icon = '👑'; width = '100%'; }
-                else if (total > 50) { tier = 'Ativo'; color = 'bg-emerald-500'; icon = '🔥'; width = '75%'; }
-                else if (total > 10) { tier = 'Regular'; color = 'bg-blue-500'; icon = '😐'; width = '50%'; }
-                else if (total > 0) { tier = 'Adormecido'; color = 'bg-yellow-500'; icon = '💤'; width = '25%'; }
+                if (totalScore > 250) { tier = 'Lendário'; color = 'bg-purple-500'; icon = '👑'; width = '100%'; }
+                else if (totalScore > 50) { tier = 'Ativo'; color = 'bg-emerald-500'; icon = '🔥'; width = '75%'; }
+                else if (totalScore > 10) { tier = 'Regular'; color = 'bg-blue-500'; icon = '😐'; width = '50%'; }
+                else if (totalScore > 0) { tier = 'Adormecido'; color = 'bg-yellow-500'; icon = '💤'; width = '25%'; }
                 
-                return { total, tier, color, icon, width };
+                // String de voz formatada
+                const voiceHours = Math.floor(totalVoiceMins / 60);
+                const voiceRemMins = totalVoiceMins % 60;
+                const voiceString = `${voiceHours}h ${voiceRemMins}m`;
+
+                return { 
+                    total: totalScore, 
+                    tier, color, icon, width,
+                    details: { msgs: totalMsgs, voice: voiceString }
+                };
             };
 
             // --- AÇÕES DO SISTEMA ---
@@ -513,30 +533,57 @@
 
             const filteredRoster = discordRoster.filter(u => (u.displayName || u.username).toLowerCase().includes(searchTerm.toLowerCase()));
             
-            // --- AUTH CORRIGIDA COM SCOPE ---
+            // --- AUTH CORRIGIDA COM SCOPE E PERSISTÊNCIA ---
             const handleLogin = () => { 
-                const redirectUri = encodeURIComponent(window.location.href.split('#')[0]); 
+                // CORREÇÃO: Pega a URL completa atual (incluindo subdiretório /gestaonevoa/)
+                const currentPath = window.location.origin + window.location.pathname;
+                const redirectUri = encodeURIComponent(currentPath);
+                
                 // Adicionado 'guilds.members.read' para ler os cargos do usuário no servidor
                 window.location.href = `https://discord.com/api/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&redirect_uri=${redirectUri}&response_type=token&scope=identify%20guilds.members.read`; 
             };
 
+            // LÓGICA DE PERSISTÊNCIA E LOGIN
             useEffect(() => { 
+                // 1. Tenta pegar token da URL (Login recente)
                 const f = new URLSearchParams(window.location.hash.slice(1)); 
-                const accessToken = f.get('access_token');
+                let accessToken = f.get('access_token');
+
+                // 2. Se não tem na URL, tenta pegar do Storage (Persistência)
+                if (!accessToken) {
+                    accessToken = localStorage.getItem('discord_access_token');
+                } else {
+                    // Se veio da URL, salva no Storage e limpa a URL
+                    localStorage.setItem('discord_access_token', accessToken);
+                    window.history.pushState({}, document.title, window.location.pathname);
+                }
+
                 if (accessToken) { 
+                    setLoading(true);
                     // Fetch User Profile
                     fetch('https://discord.com/api/users/@me', {headers:{Authorization:`Bearer ${accessToken}`}})
-                    .then(r=>r.json())
+                    .then(r => {
+                        if (!r.ok) throw new Error("Token inválido");
+                        return r.json();
+                    })
                     .then(userData => {
                         // Fetch Member Data (Roles) from Guild
                         fetch(`https://discord.com/api/users/@me/guilds/${GUILD_ID}/member`, {headers:{Authorization:`Bearer ${accessToken}`}})
-                        .then(r => r.ok ? r.json() : { roles: [] }) // Se falhar (não tá no server), retorna roles vazio
+                        .then(r => r.ok ? r.json() : { roles: [] }) 
                         .then(memberData => {
                             setUser({ ...userData, roles: memberData.roles || [] });
-                            window.history.pushState({}, document.title, "/");
+                            setLoading(false);
                         });
-                    }); 
-                } 
+                    })
+                    .catch(err => {
+                        console.error("Sessão expirada:", err);
+                        localStorage.removeItem('discord_access_token'); // Limpa token ruim
+                        setUser(null);
+                        setLoading(false);
+                    });
+                } else {
+                    setLoading(false);
+                }
             }, []);
             
             const showNotification = (msg, type) => { setNotification({ msg, type }); setTimeout(() => setNotification(null), 3000); };
@@ -571,7 +618,7 @@
                         const leaderA = a.isLeader ? 1 : 0; const leaderB = b.isLeader ? 1 : 0; return leaderB - leaderA; 
                     }
                     if (sortConfig.key === 'activity') {
-                        const actA = getActivityStats(a.activityStats).total; const actB = getActivityStats(b.activityStats).total;
+                        const actA = getActivityStats(a).total; const actB = getActivityStats(b).total;
                         return sortConfig.direction === 'ascending' ? actA - actB : actB - actA;
                     }
                     let av = a[sortConfig.key], bv = b[sortConfig.key];
@@ -605,7 +652,7 @@
                         <ShieldCheck size={48} className="mx-auto text-red-500 mb-6" />
                         <h1 className="text-2xl font-bold text-white mb-2">Acesso Negado</h1>
                         <p className="text-slate-400 mb-6">Você não possui permissão para acessar este painel. Certifique-se de possuir um dos cargos configurados no sistema ou entre em contato com um administrador.</p>
-                        <button onClick={() => setUser(null)} className="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-6 rounded transition-colors">Voltar / Logout</button>
+                        <button onClick={() => { localStorage.removeItem('discord_access_token'); setUser(null); }} className="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-6 rounded transition-colors">Voltar / Logout</button>
                     </div>
                 </div>
             );
@@ -893,7 +940,7 @@
                                     <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
                                     <span className="text-xs font-bold text-slate-300 hidden md:inline">{user.username}</span>
                                 </div>
-                                <button onClick={() => setUser(null)} className="text-slate-400 hover:text-red-400 transition-colors"><LogOut size={20} /></button>
+                                <button onClick={() => { localStorage.removeItem('discord_access_token'); setUser(null); }} className="text-slate-400 hover:text-red-400 transition-colors"><LogOut size={20} /></button>
                             </div>
                         </div>
                     </header>
@@ -971,7 +1018,7 @@
                                                 <th className="p-4 cursor-pointer hover:text-white" onClick={() => requestSort('name')}>Nome <SortIcon k="name"/></th>
                                                 <th className="p-4 cursor-pointer hover:text-white" onClick={() => requestSort('ninRole')}>Cargo Nin <SortIcon k="ninRole"/></th>
                                                 <th className="p-4 cursor-pointer hover:text-white" onClick={() => requestSort('joinDate')}>Entrada <SortIcon k="joinDate"/></th>
-                                                <th className="p-4 cursor-pointer hover:text-white" onClick={() => requestSort('activity')}>Atividade <SortIcon k="activity"/></th>
+                                                <th className="p-4 cursor-pointer hover:text-white" onClick={() => requestSort('activity')}>Atividade (14d) <SortIcon k="activity"/></th>
                                                 <th className="p-4 text-center cursor-pointer hover:text-white" onClick={() => requestSort('isLeader')}>Líder <SortIcon k="isLeader"/></th>
                                                 {/* Só mostra coluna Ações se tiver permissão de gerenciar essa org */}
                                                 {canManageOrg(activeTab) && <th className="p-4 text-right">Ações</th>}
@@ -983,7 +1030,7 @@
                                                 const leaderRoleName = member.isLeader && leaderRoleId ? discordRoles.find(r => r.id === leaderRoleId)?.name : null;
                                                 const orgInfo = getMemberOrgsInfo(member.discordId);
                                                 const memberMasteries = member.masteries || [];
-                                                const activity = getActivityStats(member.activityStats);
+                                                const activity = getActivityStats(member);
 
                                                 return (
                                                     <tr key={member.id} 
@@ -1027,7 +1074,7 @@
                                                         
                                                         {/* COLUNA DE ATIVIDADE */}
                                                         <td className="p-4">
-                                                            <div className="flex items-center gap-2" title={`Score: ${activity.total} (Mensagens + Voz)`}>
+                                                            <div className="flex items-center gap-2" title={`Detalhes: ${activity.details.msgs} msgs / ${activity.details.voice} voz`}>
                                                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${activity.color} shadow-lg shadow-${activity.color}/50`}>
                                                                     <span className="text-lg">{activity.icon}</span>
                                                                 </div>
