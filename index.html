@@ -384,6 +384,39 @@
                 } catch (e) { console.error("Erro ao gerar log:", e); }
             };
 
+            // --- IDENTIFICAÇÃO DE CARGO PARA EXIBIÇÃO ---
+            const getUserRoleLabel = useMemo(() => {
+                if (!user) return "";
+                let roles = [];
+
+                // Cargos Especiais
+                if (user.id === accessConfig.creatorId) roles.push("Criador");
+                if (accessConfig.vipIds && accessConfig.vipIds.includes(user.id)) roles.push("VIP");
+                if (user.roles.includes(accessConfig.kamiRoleId)) roles.push("Kage");
+                if (user.roles.includes(accessConfig.councilRoleId)) roles.push("Conselho");
+                if (user.roles.includes(accessConfig.moderatorRoleId)) roles.push("Moderador");
+
+                // Liderança
+                Object.entries(leaderRoleConfig).forEach(([orgId, roleId]) => {
+                    if (user.roles.includes(roleId)) {
+                        roles.push(`Líder ${ORG_CONFIG[orgId]?.name || ''}`);
+                    }
+                });
+
+                // Membros (apenas se não for líder da mesma org para evitar redundância, ou se quiser mostrar ambos remove o check)
+                Object.entries(roleConfig).forEach(([orgId, roleId]) => {
+                    if (user.roles.includes(roleId)) {
+                        const leaderRole = leaderRoleConfig[orgId];
+                        if (!leaderRole || !user.roles.includes(leaderRole)) {
+                             roles.push(`Membro ${ORG_CONFIG[orgId]?.name || ''}`);
+                        }
+                    }
+                });
+
+                if (roles.length === 0) return "Visitante";
+                return roles.join(" & ");
+            }, [user, accessConfig, leaderRoleConfig, roleConfig]);
+
             // --- SISTEMA DE PERMISSÕES ---
             const checkPermission = (action, contextOrgId = null) => {
                 if (!user) return false;
@@ -870,7 +903,7 @@
             if (!user) return (
                 <div className="min-h-screen bg-slate-900 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] flex items-center justify-center p-4 font-mono">
                     <div className="max-w-md w-full bg-slate-800/80 backdrop-blur border border-slate-700 p-8 rounded-2xl text-center shadow-2xl">
-                        <Ghost size={48} className="mx-auto text-cyan-400 mb-6" />
+                        <img src="favicon.png" alt="Logo" className="w-16 h-16 mx-auto mb-6 drop-shadow-[0_0_10px_rgba(34,211,238,0.5)]" />
                         <h1 className="text-3xl font-bold text-white mb-2" style={{ fontFamily: 'Cinzel, serif' }}>Névoa System</h1>
                         <button onClick={handleLogin} className="w-full bg-[#5865F2] hover:bg-[#4752C4] text-white font-bold py-3 rounded mb-4">Entrar com Discord</button>
                     </div>
@@ -906,8 +939,8 @@
                                     <button onClick={() => setSelectedMember(null)} className="text-slate-400 hover:text-white"><X size={24} /></button>
                                 </div>
 
-                                <div className="p-6 overflow-y-auto scroll-custom grid grid-cols-1 lg:grid-cols-2 gap-8">
-                                    <div className="space-y-6">
+                                <div className="p-6 overflow-y-auto scroll-custom grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                    <div className="space-y-4">
                                         {isCreating && (
                                             <div className="bg-cyan-900/20 p-4 rounded-lg border border-cyan-500/30">
                                                 <label className="text-sm font-bold text-cyan-400 mb-2 block">Selecionar Usuário do Discord</label>
@@ -968,7 +1001,7 @@
                                             <div className="bg-blue-900/20 border border-blue-500/30 p-4 rounded-lg text-center"><Zap className="mx-auto text-blue-500 mb-2" /><span className="text-2xl font-bold text-white">{finalVitals.cp}</span><p className="text-xs text-blue-400 uppercase mt-1">Chakra (CP)</p></div>
                                         </div>
                                     </div>
-                                    <div className="space-y-6">
+                                    <div className="space-y-4">
                                         <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700">
                                             <h3 className="text-white font-bold mb-3">Cargos & Função</h3>
                                             <div className="mb-4">
@@ -1235,7 +1268,10 @@
                                 )}
                                 <div className="flex items-center gap-2 px-3 py-1 bg-slate-800 rounded-full border border-slate-700">
                                     <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-                                    <span className="text-xs font-bold text-slate-300 hidden md:inline">{user.username}</span>
+                                    <div className="flex flex-col items-end mr-1">
+                                        <span className="text-xs font-bold text-slate-300 hidden md:inline leading-none mb-0.5">{user.username}</span>
+                                        <span className="text-[10px] text-cyan-400 font-bold uppercase hidden md:inline leading-none">{getUserRoleLabel}</span>
+                                    </div>
                                 </div>
                                 <button onClick={() => { localStorage.removeItem('discord_access_token'); setUser(null); }} className="text-slate-400 hover:text-red-400 transition-colors"><LogOut size={20} /></button>
                             </div>
