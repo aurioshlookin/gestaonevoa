@@ -914,6 +914,27 @@
                             return sortConfig.direction === 'ascending' ? dateA - dateB : dateB - dateA;
                         }
 
+                        // LÓGICA HIERÁRQUICA (Líder -> Rank -> Data)
+                        // Aplica para Médicos, Polícia e ANBU
+                        if (['unidade-medica', 'forca-policial', 'divisao-especial'].includes(activeTab)) {
+                            // 1. Líder sempre no topo
+                            if (a.isLeader && !b.isLeader) return -1;
+                            if (!a.isLeader && b.isLeader) return 1;
+
+                            // 2. Rank (Maior índice primeiro na visualização padrão)
+                            const rankA = getRoleRank(a); 
+                            const rankB = getRoleRank(b);
+                            if (rankA !== rankB) {
+                                // Se ascendente (padrão), mostra do maior rank para o menor (Hierarquia Piramidal)
+                                return sortConfig.direction === 'ascending' ? rankB - rankA : rankA - rankB;
+                            }
+
+                            // 3. Data de Entrada (Mais antigo primeiro)
+                            const dateA = new Date(a.joinDate || '9999-12-31').getTime(); 
+                            const dateB = new Date(b.joinDate || '9999-12-31').getTime();
+                            return dateA - dateB; 
+                        }
+
                         // LÓGICA PADRÃO (Rank do Cargo -> Data -> Líder)
                         const rankA = getRoleRank(a); const rankB = getRoleRank(b);
                         if (rankA !== rankB) return sortConfig.direction === 'ascending' ? rankA - rankB : rankB - rankA;
