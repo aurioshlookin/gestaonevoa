@@ -261,6 +261,30 @@
             const canManageOrg = (orgId) => checkPermission('EDIT_MEMBER', orgId);
             const canManageSettings = checkPermission('MANAGE_SETTINGS');
 
+            // --- VERIFICAÇÃO DE ACESSO AO PAINEL (LOGIN GATE) ---
+            const canAccessPanel = useMemo(() => {
+                if (!user) return false;
+                if (user.id === accessConfig.creatorId) return true; // Creator always access
+
+                const userRoles = user.roles || [];
+                
+                // Coleta todos os IDs de cargos configurados no sistema (incluindo membros simples)
+                const allowedRoles = new Set();
+                
+                // 1. Cargos de Acesso Global
+                if (accessConfig.kamiRoleId) allowedRoles.add(accessConfig.kamiRoleId);
+                if (accessConfig.councilRoleId) allowedRoles.add(accessConfig.councilRoleId);
+                if (accessConfig.moderatorRoleId) allowedRoles.add(accessConfig.moderatorRoleId);
+                
+                // 2. Cargos de Organização (Líderes, Secundários e Membros Comuns)
+                Object.values(roleConfig).forEach(id => { if(id) allowedRoles.add(id); });
+                Object.values(leaderRoleConfig).forEach(id => { if(id) allowedRoles.add(id); });
+                Object.values(secLeaderRoleConfig).forEach(id => { if(id) allowedRoles.add(id); });
+
+                // Verifica se o usuário tem ALGUM desses cargos configurados
+                return userRoles.some(roleId => allowedRoles.has(roleId));
+            }, [user, accessConfig, roleConfig, leaderRoleConfig, secLeaderRoleConfig]);
+
             // --- LÓGICA DE RPG (CÁLCULOS) ---
             const calculateMaxPoints = (level) => {
                 if (level <= 1) return 0; 
@@ -568,7 +592,18 @@
                         <Ghost size={48} className="mx-auto text-cyan-400 mb-6" />
                         <h1 className="text-3xl font-bold text-white mb-2" style={{ fontFamily: 'Cinzel, serif' }}>Névoa System</h1>
                         <button onClick={handleLogin} className="w-full bg-[#5865F2] hover:bg-[#4752C4] text-white font-bold py-3 rounded mb-4">Entrar com Discord</button>
-                        <button onClick={() => setUser({ username: "Admin", id: "demo" })} className="w-full bg-slate-700 text-slate-300 py-2 rounded text-sm">Modo Demo</button>
+                    </div>
+                </div>
+            );
+
+            // TELA DE ACESSO NEGADO
+            if (!canAccessPanel) return (
+                <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 font-mono">
+                    <div className="max-w-md w-full bg-slate-800 border border-red-500/30 p-8 rounded-2xl text-center shadow-2xl">
+                        <ShieldCheck size={48} className="mx-auto text-red-500 mb-6" />
+                        <h1 className="text-2xl font-bold text-white mb-2">Acesso Negado</h1>
+                        <p className="text-slate-400 mb-6">Você não possui permissão para acessar este painel. Certifique-se de possuir um dos cargos configurados no sistema ou entre em contato com um administrador.</p>
+                        <button onClick={() => setUser(null)} className="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-6 rounded transition-colors">Voltar / Logout</button>
                     </div>
                 </div>
             );
