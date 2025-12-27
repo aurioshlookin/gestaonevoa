@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { collection, onSnapshot, doc, setDoc, addDoc, deleteDoc, updateDoc } from "firebase/firestore";
-import { AlertTriangle, ShieldCheck, Eye, EyeOff } from 'lucide-react';
+import { AlertTriangle, ShieldCheck, Eye, EyeOff, HelpCircle } from 'lucide-react';
 
 // --- IMPORTAÇÕES LOCAIS ---
 import { db } from './config/firebase.js';
 import { ORG_CONFIG, STATS } from './config/constants.js';
+import { TUTORIALS } from './config/tutorials.js';
 
 // --- COMPONENTES ---
 import Header from './components/Header.js';
@@ -15,6 +16,7 @@ import SettingsModal from './components/SettingsModal.js';
 import DashboardTab from './components/DashboardTab.js';
 import OrganizationTab from './components/OrganizationTab.js';
 import MonitoringTab from './components/MonitoringTab.js';
+import TutorialOverlay from './components/TutorialOverlay.js';
 
 // --- SISTEMA DE DEBUG DE ERROS ---
 window.addEventListener('error', (event) => {
@@ -60,7 +62,7 @@ const App = () => {
 
     // Estados Globais
     const [user, setUser] = useState(null);
-    const [simulation, setSimulation] = useState(null); // Estado para simulação
+    const [simulation, setSimulation] = useState(null);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('dashboard');
     const [notification, setNotification] = useState(null);
@@ -82,6 +84,9 @@ const App = () => {
     const [selectedMember, setSelectedMember] = useState(null);
     const [isCreating, setIsCreating] = useState(false);
     const [editingOrgId, setEditingOrgId] = useState(null);
+
+    // Estado do Tutorial
+    const [tutorialSteps, setTutorialSteps] = useState(null);
 
     const hasLoggedAccess = useRef(false);
 
@@ -173,7 +178,6 @@ const App = () => {
         window.location.href = `https://discord.com/api/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&redirect_uri=${redirectUri}&response_type=token&scope=identify%20guilds.members.read`; 
     };
 
-    // CORREÇÃO: Logout encerra simulação se ativa, senão faz logout real
     const handleLogout = () => { 
         if (simulation) {
             setSimulation(null);
@@ -183,6 +187,38 @@ const App = () => {
             setUser(null); 
         }
     };
+
+    // --- LÓGICA DE TUTORIAL ---
+    const startTutorial = () => {
+        if (!effectiveUser) return;
+        
+        let roleType = 'member'; // Padrão
+
+        // Determina o cargo mais alto
+        if (effectiveUser.id === accessConfig.creatorId || effectiveUser.roles.includes(accessConfig.kamiRoleId)) {
+            roleType = 'mizukami';
+        } else if (effectiveUser.roles.includes(accessConfig.councilRoleId)) {
+            roleType = 'council';
+        } else {
+            // Verifica se é líder de alguma org
+            const isLeader = Object.values(leaderRoleConfig).some(rid => effectiveUser.roles.includes(rid));
+            if (isLeader) roleType = 'leader';
+        }
+
+        setTutorialSteps(TUTORIALS[roleType]);
+    };
+
+    // Auto-início do tutorial na primeira vez (simulado com sessionStorage)
+    useEffect(() => {
+        if (effectiveUser && !sessionStorage.getItem('tutorial_seen')) {
+            // Pequeno delay para garantir que a interface carregou
+            setTimeout(() => {
+                startTutorial();
+                sessionStorage.setItem('tutorial_seen', 'true');
+            }, 1000);
+        }
+    }, [effectiveUser]);
+
 
     // --- MONITORAMENTO DETALHADO DE NAVEGAÇÃO ---
     useEffect(() => {
@@ -282,7 +318,7 @@ const App = () => {
         let roles = [];
         if (effectiveUser.id === accessConfig.creatorId) roles.push("Criador");
         if (accessConfig.vipIds && accessConfig.vipIds.includes(effectiveUser.id)) roles.push("VIP");
-        if (effectiveUser.roles.includes(accessConfig.kamiRoleId)) roles.push("Kage");
+        if (effectiveUser.roles.includes(accessConfig.kamiRoleId)) roles.push("Mizukami");
         if (effectiveUser.roles.includes(accessConfig.councilRoleId)) roles.push("Conselho");
         if (effectiveUser.roles.includes(accessConfig.moderatorRoleId)) roles.push("Moderador");
         
@@ -485,6 +521,14 @@ const App = () => {
     return (
         <ErrorBoundary>
             {SimulationBanner}
+            {/* COMPONENTE DE TUTORIAL */}
+            {tutorialSteps && (
+                <TutorialOverlay 
+                    steps={tutorialSteps} 
+                    onClose={() => setTutorialSteps(null)} 
+                />
+            )}
+
             <div className="min-h-screen bg-slate-900 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] text-slate-200 font-mono">
                 {notification && <div className={`fixed bottom-4 right-4 p-4 rounded shadow-lg text-white z-50 animate-bounce-in ${notification.type === 'error' ? 'bg-red-600' : 'bg-emerald-600'}`}>{notification.msg}</div>}
 
@@ -544,6 +588,15 @@ const App = () => {
                 />
 
                 <main className="container mx-auto px-6 py-8">
+                    {/* Botão Flutuante de Ajuda - Apenas se não estiver no dashboard */}
+                    <button 
+                        onClick={() => setTutorialSteps(TUTORIALS[getUserRoleLabel.includes('Mizukami') ? 'mizukami' : getUserRoleLabel.includes('Líder') ? 'leader' : 'member'])}
+                        className="fixed bottom-4 left-4 p-3 bg-cyan-600 hover:bg-cyan-500 text-white rounded-full shadow-lg z-50 transition-transform hover:scale-110"
+                        title="Ajuda"
+                    >
+                        <HelpCircle size={24} />
+                    </button>
+
                     {activeTab === 'dashboard' ? (
                         <DashboardTab members={members} roleConfig={roleConfig} multiOrgUsers={multiOrgUsers} onTabChange={setActiveTab} />
                     ) : activeTab === 'access' ? (
