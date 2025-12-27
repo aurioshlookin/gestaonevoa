@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-// Importação unificada para evitar erros de leitura do Loader
 import { BookOpen, ChevronUp, ChevronDown, UserPlus, ArrowUp, ArrowDown, ArrowUpDown, AlertCircle, Crown, Trash2, ArrowLeft, RotateCcw, UserSecret } from 'lucide-react';
 import { ORG_CONFIG, MASTERIES, Icons } from '../config/constants.js';
 import { getActivityStats, formatDate, getMemberOrgsInfo } from '../utils/helpers.js';
@@ -32,7 +31,7 @@ const OrganizationTab = ({
             if (sortConfig.direction === 'ascending') {
                 direction = 'descending';
             } else if (sortConfig.direction === 'descending') {
-                // Terceiro clique: volta ao padrão (null) ou 'rank' default
+                // Terceiro clique: volta ao padrão 'rank'
                 setSortConfig({ key: 'rank', direction: 'ascending' }); 
                 return;
             }
@@ -71,7 +70,6 @@ const OrganizationTab = ({
 
         // Aplica ordenação escolhida
         if (sortConfig.key === 'rank' || sortConfig.key === 'ninRole') {
-            // Se for descending, inverte o resultado do padrão
             const res = sortByRank();
             return sortConfig.direction === 'ascending' ? res : -res;
         }
@@ -147,7 +145,6 @@ const OrganizationTab = ({
                             <BookOpen size={16}/> Cargos {showRoleDetails ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}
                         </button>
                     )}
-                    {/* Botão de Reset de Ordenação Explícito */}
                     <button onClick={resetSort} className="bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors" title="Resetar Ordenação">
                         <RotateCcw size={16}/> Resetar Ordem
                     </button>
@@ -178,7 +175,6 @@ const OrganizationTab = ({
                             <th className="p-4 cursor-pointer hover:text-white" onClick={() => requestSort('role')}>Cargo <SortIcon k="role"/></th>
                             <th className="p-4 cursor-pointer hover:text-white" onClick={() => requestSort('name')}>Nome <SortIcon k="name"/></th>
                             
-                            {/* Coluna Condicional ANBU */}
                             {isAnbu && (
                                 <th className="p-4 cursor-pointer hover:text-white" onClick={() => requestSort('codinome')}>
                                     Codinome <SortIcon k="codinome"/>
@@ -199,7 +195,6 @@ const OrganizationTab = ({
                             const memberMasteries = member.masteries || [];
                             const activity = getActivityStats(member);
                             
-                            // Safety Check: Garante que getMemberOrgsInfo existe antes de chamar
                             const orgInfo = (typeof getMemberOrgsInfo !== 'undefined') ? getMemberOrgsInfo(safeMembers, member.discordId) : null;
 
                             return (
@@ -216,7 +211,6 @@ const OrganizationTab = ({
                                     </td>
                                     <td className="p-4">
                                         <div className="flex flex-col">
-                                            {/* Mostra Nome RP com destaque, e Discord embaixo */}
                                             <span className="font-bold text-white flex items-center gap-2">
                                                 {member.rpName || member.name}
                                                 {orgInfo && (
@@ -225,7 +219,6 @@ const OrganizationTab = ({
                                                     </div>
                                                 )}
                                             </span>
-                                            {/* Se tiver RP Name, mostra o do Discord pequeno embaixo */}
                                             {member.rpName && member.rpName !== member.name && (
                                                 <span className="text-[10px] text-slate-500">Discord: {member.name}</span>
                                             )}
@@ -246,7 +239,6 @@ const OrganizationTab = ({
                                         </div>
                                     </td>
 
-                                    {/* Coluna Condicional ANBU */}
                                     {isAnbu && (
                                         <td className="p-4">
                                             {member.codinome ? (
