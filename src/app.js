@@ -68,6 +68,7 @@ const App = () => {
     const [notification, setNotification] = useState(null);
     const [deleteConfirmation, setDeleteConfirmation] = useState(null);
     const [showSettings, setShowSettings] = useState(false);
+    const [isTutorialEnabled, setIsTutorialEnabled] = useState(true); // Estado do Tutorial Global
     
     // Dados do Banco
     const [members, setMembers] = useState([]);
@@ -96,6 +97,7 @@ const App = () => {
         if (simulation) {
             return {
                 ...user,
+                // Mascaramos ID e Cargos durante a simulação
                 id: 'simulated-user-id', 
                 username: `[Simulação] ${simulation.name}`,
                 roles: simulation.roles || []
@@ -123,6 +125,11 @@ const App = () => {
                         creatorId: data.accessConfig?.creatorId || '',
                         vipIds: data.accessConfig?.vipIds || []
                     });
+                    
+                    // Carrega configuração do tutorial se existir
+                    if (data.tutorialEnabled !== undefined) {
+                        setIsTutorialEnabled(data.tutorialEnabled);
+                    }
                 }
             });
             return () => { unsubMembers(); unsubRoster(); unsubRoles(); unsubConfig(); };
@@ -189,7 +196,7 @@ const App = () => {
 
     // --- LÓGICA DE TUTORIAL ---
     const startTutorial = () => {
-        if (!effectiveUser) return;
+        if (!effectiveUser || !isTutorialEnabled) return; // Bloqueia se desativado
         
         let tutorialKey = 'visitor';
 
@@ -237,16 +244,32 @@ const App = () => {
         }
     };
 
+    // Auto-início se habilitado
     useEffect(() => {
-        if (effectiveUser && !sessionStorage.getItem('tutorial_seen')) {
+        if (effectiveUser && isTutorialEnabled && !sessionStorage.getItem('tutorial_seen')) {
             setTimeout(() => {
                 startTutorial();
                 sessionStorage.setItem('tutorial_seen', 'true');
             }, 1000);
         }
-    }, [effectiveUser]);
+    }, [effectiveUser, isTutorialEnabled]);
 
-    // --- MONITORAMENTO DETALHADO DE NAVEGAÇÃO ---
+    const handleToggleTutorial = async () => {
+        if (simulation) { showNotification('Simulação: Ação bloqueada.', 'error'); return; }
+        
+        const newState = !isTutorialEnabled;
+        setIsTutorialEnabled(newState);
+        
+        // Salva no banco globalmente
+        try {
+            await setDoc(doc(db, "server", "config"), { tutorialEnabled: newState }, { merge: true });
+            showNotification(`Tutorial Global ${newState ? 'Ativado' : 'Desativado'}`, 'success');
+        } catch (e) {
+            console.error("Erro ao salvar config de tutorial:", e);
+        }
+    };
+
+    // --- MONITORAMENTO ---
     useEffect(() => {
         if (!user || loading || simulation) return;
         
@@ -292,6 +315,9 @@ const App = () => {
         if (effectiveUser.id === accessConfig.creatorId) return true;
         if (accessConfig.vipIds && accessConfig.vipIds.includes(effectiveUser.id)) return true;
 
+        // Regra de Gerenciamento de Settings (Só Criador REAL/VIP)
+        if (action === 'MANAGE_SETTINGS' || action === 'VIEW_HISTORY') return false;
+
         const userRoles = effectiveUser.roles || [];
 
         // Admins Globais
@@ -311,14 +337,9 @@ const App = () => {
 
     const canManageOrg = (orgId) => checkPermission('EDIT_MEMBER', orgId);
     
-    // REGRAS DE ACESSO:
+    // Regras Estritas
     const isRealCreator = effectiveUser?.id === accessConfig.creatorId; 
-    const isMizukami = effectiveUser?.roles.includes(accessConfig.kamiRoleId);
-    
-    // Monitoramento: Criador + Mizukami
-    const canViewHistory = isRealCreator || isMizukami; 
-    
-    // Configurações: Apenas Criador
+    const canViewHistory = isRealCreator; 
     const canManageSettings = isRealCreator;
     
     const canAccessPanel = useMemo(() => {
@@ -543,13 +564,14 @@ const App = () => {
         </ErrorBoundary>
     );
 
+    // CORREÇÃO: Define se o usuário pode gerenciar a org atual
     const hasManagePermission = checkPermission('EDIT_MEMBER', editingOrgId || activeTab);
 
     return (
         <ErrorBoundary>
             {SimulationBanner}
             
-            {tutorialSteps && (
+            {tutorialSteps && isTutorialEnabled && (
                 <TutorialOverlay 
                     steps={tutorialSteps} 
                     onClose={() => setTutorialSteps(null)} 
@@ -569,7 +591,7 @@ const App = () => {
                         discordRoles={discordRoles}
                         onClose={() => { setSelectedMember(null); setIsCreating(false); }}
                         onSave={handleSaveMember}
-                        canManage={hasManagePermission} // Permite UI de edição, o bloqueio de salvamento é no handler
+                        canManage={hasManagePermission} 
                         isReadOnly={!hasManagePermission} 
                     />
                 )}
@@ -613,16 +635,20 @@ const App = () => {
                     canManageSettings={canManageSettings}
                     onOpenSettings={() => setShowSettings(true)}
                     onLogout={handleLogout}
+                    onToggleTutorial={handleToggleTutorial}
+                    isTutorialEnabled={isTutorialEnabled}
                 />
 
                 <main className="container mx-auto px-6 py-8">
-                    <button 
-                        onClick={startTutorial}
-                        className="fixed bottom-4 left-4 p-3 bg-cyan-600 hover:bg-cyan-500 text-white rounded-full shadow-lg z-50 transition-transform hover:scale-110"
-                        title="Ajuda"
-                    >
-                        <HelpCircle size={24} />
-                    </button>
+                    {isTutorialEnabled && (
+                        <button 
+                            onClick={startTutorial}
+                            className="fixed bottom-4 left-4 p-3 bg-cyan-600 hover:bg-cyan-500 text-white rounded-full shadow-lg z-50 transition-transform hover:scale-110"
+                            title="Ajuda"
+                        >
+                            <HelpCircle size={24} />
+                        </button>
+                    )}
 
                     {activeTab === 'dashboard' ? (
                         <DashboardTab members={members} roleConfig={roleConfig} multiOrgUsers={multiOrgUsers} onTabChange={setActiveTab} />
@@ -634,7 +660,7 @@ const App = () => {
                             members={members}
                             discordRoles={discordRoles}
                             leaderRoleConfig={leaderRoleConfig}
-                            canManage={canManageOrg(activeTab)} 
+                            canManage={canManageOrg(activeTab)} // Ação permitida para simulação (apenas UI)
                             onOpenCreate={openCreateModal}
                             onEditMember={openEditModal} 
                             onDeleteMember={setDeleteConfirmation}
