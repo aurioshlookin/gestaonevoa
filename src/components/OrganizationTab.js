@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { BookOpen, ChevronUp, ChevronDown, UserPlus, ArrowUp, ArrowDown, ArrowUpDown, AlertCircle, Crown, Trash2, ArrowLeft, RotateCcw } from 'lucide-react';
+import { BookOpen, ChevronUp, ChevronDown, UserPlus, ArrowUp, ArrowDown, ArrowUpDown, AlertCircle, Crown, Trash2, ArrowLeft, RotateCcw, VenetianMask } from 'lucide-react';
 import { ORG_CONFIG, MASTERIES, Icons } from '../config/constants.js';
 import { getActivityStats, formatDate, getMemberOrgsInfo } from '../utils/helpers.js';
 
 const OrganizationTab = ({ 
     orgId, members, discordRoles, leaderRoleConfig, canManage, 
     onOpenCreate, onEditMember, onDeleteMember, onToggleLeader,
-    onBack // Prop para voltar ao dashboard
+    onBack
 }) => {
     const [showRoleDetails, setShowRoleDetails] = useState(false);
     const [sortConfig, setSortConfig] = useState({ key: 'rank', direction: 'ascending' });
@@ -16,22 +16,21 @@ const OrganizationTab = ({
     const safeMembers = Array.isArray(members) ? members : [];
     const orgMembers = safeMembers.filter(m => m.org === orgId);
     
+    const isAnbu = orgId === 'divisao-especial';
+
     const getRoleRank = (member) => { const roles = orgConfig.internalRoles || []; return roles.indexOf(member.ninRole); };
     
-    // Lógica de Ordenação de 3 Estados: Asc -> Desc -> Reset
     const requestSort = (key) => {
+        let direction = 'ascending';
         if (sortConfig.key === key) {
             if (sortConfig.direction === 'ascending') {
-                // 2º Clique: Vira Descendente
-                setSortConfig({ key, direction: 'descending' });
-            } else {
-                // 3º Clique: Reseta para o padrão ('rank' ascendente)
-                setSortConfig({ key: 'rank', direction: 'ascending' });
+                direction = 'descending';
+            } else if (sortConfig.direction === 'descending') {
+                setSortConfig({ key: 'rank', direction: 'ascending' }); 
+                return;
             }
-        } else {
-            // 1º Clique (nova coluna): Vira Ascendente
-            setSortConfig({ key, direction: 'ascending' });
         }
+        setSortConfig({ key, direction });
     };
 
     const resetSort = () => {
@@ -39,26 +38,31 @@ const OrganizationTab = ({
     };
 
     const sortedMembers = [...orgMembers].sort((a, b) => {
-        if (sortConfig.key === 'rank' || sortConfig.key === 'ninRole') {
+        const sortByRank = () => {
             if (orgId === 'sete-laminas') {
                 if (a.isLeader !== b.isLeader) return a.isLeader ? -1 : 1;
                 const dateA = new Date(a.joinDate || '9999-12-31').getTime();
                 const dateB = new Date(b.joinDate || '9999-12-31').getTime();
-                return sortConfig.direction === 'ascending' ? dateA - dateB : dateB - dateA;
+                return dateA - dateB;
             }
             if (['unidade-medica', 'forca-policial', 'divisao-especial'].includes(orgId)) {
                 if (a.isLeader !== b.isLeader) return a.isLeader ? -1 : 1;
                 const rankA = getRoleRank(a);
                 const rankB = getRoleRank(b);
-                if (rankA !== rankB) return sortConfig.direction === 'ascending' ? rankB - rankA : rankA - rankB;
+                if (rankA !== rankB) return rankB - rankA; 
                 const dateA = new Date(a.joinDate || '9999-12-31').getTime();
                 const dateB = new Date(b.joinDate || '9999-12-31').getTime();
                 return dateA - dateB;
             }
             const rankA = getRoleRank(a);
             const rankB = getRoleRank(b);
-            if (rankA !== rankB) return sortConfig.direction === 'ascending' ? rankA - rankB : rankB - rankA;
+            if (rankA !== rankB) return rankB - rankA;
             return (b.isLeader ? 1 : 0) - (a.isLeader ? 1 : 0);
+        };
+
+        if (sortConfig.key === 'rank' || sortConfig.key === 'ninRole') {
+            const res = sortByRank();
+            return sortConfig.direction === 'ascending' ? res : -res;
         }
         
         if (sortConfig.key === 'activity') {
@@ -70,10 +74,14 @@ const OrganizationTab = ({
         let av = a[sortConfig.key];
         let bv = b[sortConfig.key];
         
-        // Prioridade para o Nome RP na ordenação
         if (sortConfig.key === 'name') {
             av = a.rpName || a.name;
             bv = b.rpName || b.name;
+        }
+
+        if (sortConfig.key === 'codinome') {
+            av = a.codinome || '';
+            bv = b.codinome || '';
         }
 
         if (sortConfig.key === 'joinDate') {
@@ -89,21 +97,22 @@ const OrganizationTab = ({
         return av < bv ? (sortConfig.direction === 'ascending' ? -1 : 1) : (sortConfig.direction === 'ascending' ? 1 : -1);
     });
 
-    const SortIcon = ({k}) => sortConfig.key !== k ? <ArrowUpDown size={14} className="opacity-30 ml-1"/> : (sortConfig.direction === 'ascending' ? <ArrowUp size={14} className="text-cyan-400"/> : <ArrowDown size={14} className="text-cyan-400"/>);
+    const SortIcon = ({k}) => {
+        if (sortConfig.key !== k) return <ArrowUpDown size={14} className="opacity-30 ml-1 inline"/>;
+        return sortConfig.direction === 'ascending' 
+            ? <ArrowUp size={14} className="text-cyan-400 inline"/> 
+            : <ArrowDown size={14} className="text-cyan-400 inline"/>;
+    };
 
     // Fallback seguro usando Icons ou ícone padrão
-    const IconComp = (Icons && orgConfig?.icon && Icons[orgConfig.icon]) ? Icons[orgConfig.icon] : Icons.Shield;
+    const IconComp = (typeof Icons !== 'undefined' && Icons[orgConfig?.icon]) ? Icons[orgConfig.icon] : Icons.Shield;
     const ArrowLeftIcon = (Icons && Icons.ArrowLeft) ? Icons.ArrowLeft : ArrowUpDown;
 
     return (
         <div className="animate-fade-in">
-            {/* Header com Botão de Voltar Destacado */}
             <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-4">
-                    <button 
-                        onClick={onBack} 
-                        className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors shadow-sm group"
-                    >
+                    <button onClick={onBack} className="p-2 hover:bg-slate-700 rounded transition-colors text-white flex items-center gap-2" title="Voltar ao Painel">
                         <ArrowLeftIcon size={18} className="group-hover:-translate-x-1 transition-transform"/>
                         <span>Voltar</span>
                     </button>
@@ -118,7 +127,6 @@ const OrganizationTab = ({
                 </span>
             </div>
 
-            {/* Configuração de Tabela e Filtros */}
             <div className="flex justify-between items-end mb-4">
                 <div className="flex gap-2">
                     {orgConfig.roleDetails && (
@@ -126,16 +134,14 @@ const OrganizationTab = ({
                             <BookOpen size={16}/> Cargos {showRoleDetails ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}
                         </button>
                     )}
-                    
-                    {/* Botão de Resetar Ordem */}
-                    <button onClick={resetSort} className="bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 flex items-center gap-2 text-sm text-slate-300 hover:text-white transition-colors">
+                    <button onClick={resetSort} className="bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors" title="Resetar Ordenação">
                         <RotateCcw size={16}/> Resetar Ordem
                     </button>
                 </div>
 
                 {canManage && (
-                    <button onClick={onOpenCreate} className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 px-6 rounded-lg flex items-center gap-2 shadow-lg shadow-cyan-500/20 transition-all hover:scale-105">
-                        <UserPlus size={20} /> Adicionar Novo Membro
+                    <button onClick={onOpenCreate} className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 shadow-lg shadow-cyan-500/20 transition-all hover:scale-105 text-sm">
+                        <UserPlus size={18} /> Adicionar Membro
                     </button>
                 )}
             </div>
@@ -157,6 +163,13 @@ const OrganizationTab = ({
                         <tr>
                             <th className="p-4 cursor-pointer hover:text-white" onClick={() => requestSort('role')}>Cargo <SortIcon k="role"/></th>
                             <th className="p-4 cursor-pointer hover:text-white" onClick={() => requestSort('name')}>Nome <SortIcon k="name"/></th>
+                            
+                            {isAnbu && (
+                                <th className="p-4 cursor-pointer hover:text-white" onClick={() => requestSort('codinome')}>
+                                    Codinome <SortIcon k="codinome"/>
+                                </th>
+                            )}
+
                             <th className="p-4 cursor-pointer hover:text-white" onClick={() => requestSort('ninRole')}>Nin <SortIcon k="ninRole"/></th>
                             <th className="p-4 cursor-pointer hover:text-white" onClick={() => requestSort('joinDate')}>Entrada <SortIcon k="joinDate"/></th>
                             <th className="p-4 cursor-pointer hover:text-white" onClick={() => requestSort('activity')}>Atividade <SortIcon k="activity"/></th>
@@ -170,7 +183,8 @@ const OrganizationTab = ({
                             const leaderRoleName = member.isLeader && leaderRoleId ? discordRoles.find(r => r.id === leaderRoleId)?.name : null;
                             const memberMasteries = member.masteries || [];
                             const activity = getActivityStats(member);
-                            const orgInfo = getMemberOrgsInfo(members, member.discordId);
+                            
+                            const orgInfo = (typeof getMemberOrgsInfo !== 'undefined') ? getMemberOrgsInfo(safeMembers, member.discordId) : null;
 
                             return (
                                 <tr 
@@ -194,7 +208,6 @@ const OrganizationTab = ({
                                                     </div>
                                                 )}
                                             </span>
-                                            {/* Exibe o nome do Discord menor abaixo se tiver nome RP */}
                                             {member.rpName && member.rpName !== member.name && (
                                                 <span className="text-[10px] text-slate-500">Discord: {member.name}</span>
                                             )}
@@ -203,6 +216,7 @@ const OrganizationTab = ({
                                                 {memberMasteries.map(m => {
                                                     const mData = MASTERIES.find(mastery => mastery.id === m);
                                                     if (!mData) return null;
+                                                    // Fallback seguro usando Icons ou o próprio objeto se disponível
                                                     const IconM = (typeof mData.icon === 'object') 
                                                         ? mData.icon 
                                                         : ((Icons && Icons[mData.icon]) ? Icons[mData.icon] : Icons.Activity);
@@ -217,6 +231,17 @@ const OrganizationTab = ({
                                             </div>
                                         </div>
                                     </td>
+
+                                    {isAnbu && (
+                                        <td className="p-4">
+                                            {member.codinome ? (
+                                                <span className="text-purple-400 font-mono flex items-center gap-1">
+                                                    <VenetianMask size={12}/> {member.codinome}
+                                                </span>
+                                            ) : <span className="text-slate-600">-</span>}
+                                        </td>
+                                    )}
+
                                     <td className="p-4"><span className="text-slate-300 text-sm">{member.ninRole}</span></td>
                                     <td className="p-4"><span className="text-slate-300 text-sm font-mono">{formatDate(member.joinDate)}</span></td>
                                     <td className="p-4">
