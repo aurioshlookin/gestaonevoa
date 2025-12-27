@@ -71,6 +71,26 @@ const App = () => {
         return () => { unsubMembers(); unsubRoster(); unsubRoles(); unsubConfig(); };
     }, []);
 
+    // --- SCROLL LOCK CORRIGIDO ---
+    useEffect(() => {
+        // Verifica se qualquer modal está aberto para travar o scroll
+        const isModalOpen = selectedMember || isCreating || showSettings || deleteConfirmation;
+        
+        if (isModalOpen) {
+            document.body.style.overflow = 'hidden';
+            document.documentElement.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+            document.documentElement.style.overflow = '';
+        }
+        
+        // Cleanup para garantir que o scroll volte ao normal se o componente desmontar
+        return () => { 
+            document.body.style.overflow = '';
+            document.documentElement.style.overflow = '';
+        }
+    }, [selectedMember, isCreating, showSettings, deleteConfirmation]);
+
     // --- LOGIN ---
     useEffect(() => { 
         const f = new URLSearchParams(window.location.hash.slice(1)); 
@@ -380,6 +400,7 @@ const App = () => {
                         onEditMember={openEditModal}
                         onDeleteMember={setDeleteConfirmation}
                         onToggleLeader={handleToggleLeader}
+                        onBack={() => setActiveTab('dashboard')}
                     />
                 )}
             </main>
