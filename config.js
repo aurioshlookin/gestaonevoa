@@ -8,9 +8,10 @@ import {
     ChevronUp, FileText, History, Globe, Star
 } from 'lucide-react';
 
-// Define o objeto global
-window.AppConfig = {};
+// Inicializa o namespace global de configuração se não existir
+window.AppConfig = window.AppConfig || {};
 
+// --- Configurações do Firebase ---
 window.AppConfig.firebaseConfig = {
     apiKey: "AIzaSyBtpZZaQElw7ieRgXaD3wJ_7EyNwEB9RVo",
     authDomain: "nevoasystem.firebaseapp.com",
@@ -21,11 +22,22 @@ window.AppConfig.firebaseConfig = {
     measurementId: "G-545J0LDVTY"
 };
 
+// --- Configurações do Discord ---
 window.AppConfig.DISCORD_CLIENT_ID = "1453817939265589452"; 
 window.AppConfig.GUILD_ID = "1410456333391761462";
 
-window.AppConfig.Icons = { Swords, Shield, Activity, Ghost, Users, UserPlus, Trash2, Save, RefreshCw, AlertCircle, Menu, LogOut, Lock, Search, Settings, X, Info, AlertTriangle, Crown, ArrowUp, ArrowDown, ArrowUpDown, Heart, Zap, Flame, Droplets, Mountain, Wind, CloudLightning, Cross, Target, Circle, Calendar, Database, Clock, MessageSquare, Mic, ShieldCheck, UserCog, BookOpen, ChevronDown, ChevronUp, FileText, History, Globe, Star };
+// --- Ícones (Mapeamento para uso dinâmico) ---
+window.AppConfig.Icons = { 
+    Swords, Shield, Activity, Ghost, Users, UserPlus, Trash2, 
+    Save, RefreshCw, AlertCircle, Menu, LogOut, Lock, Search, 
+    Settings, X, Info, AlertTriangle, Crown, ArrowUp, ArrowDown, 
+    ArrowUpDown, Heart, Zap, Flame, Droplets, Mountain, Wind, 
+    CloudLightning, Cross, Target, Circle, Calendar, Database, 
+    Clock, MessageSquare, Mic, ShieldCheck, UserCog, BookOpen, 
+    ChevronDown, ChevronUp, FileText, History, Globe, Star 
+};
 
+// --- Constantes de RPG ---
 window.AppConfig.STATS = ['Força', 'Fortitude', 'Intelecto', 'Agilidade', 'Chakra'];
 
 window.AppConfig.MASTERIES = [
@@ -40,12 +52,25 @@ window.AppConfig.MASTERIES = [
     { id: 'Bolha', icon: Circle, color: 'text-cyan-300' }
 ];
 
+// --- Configuração das Organizações ---
 window.AppConfig.ORG_CONFIG = {
     'sete-laminas': { 
-        id: 'sete-laminas', name: 'Sete Lâminas', icon: 'Swords', 
-        color: 'text-red-400', bgColor: 'bg-red-900/20', border: 'border-red-500/30', 
+        id: 'sete-laminas', 
+        name: 'Sete Lâminas', 
+        icon: 'Swords', 
+        color: 'text-red-400', 
+        bgColor: 'bg-red-900/20', 
+        border: 'border-red-500/30', 
         limit: 7, 
-        internalRoles: ['Lâmina Lança de Chakra (Himarakei)', 'Lâmina Rompedora de Armadura (Kabutowari)', 'Lâmina Pele de Escama (Samehada)', 'Lâminas do Trovão (Kiba)', 'Lâmina Agulha (Nuibari)', 'Lâmina Explosiva (Shibuki)', 'Lâmina Decapitadora (Kubikiribocho)'],
+        internalRoles: [
+            'Lâmina Lança de Chakra (Himarakei)',
+            'Lâmina Rompedora de Armadura (Kabutowari)',
+            'Lâmina Pele de Escama (Samehada)',
+            'Lâminas do Trovão (Kiba)',
+            'Lâmina Agulha (Nuibari)',
+            'Lâmina Explosiva (Shibuki)',
+            'Lâmina Decapitadora (Kubikiribocho)'
+        ],
         roleDetails: [
             { name: 'Lâmina Lança de Chakra (Himarakei)', desc: 'Espada Lendária da Névoa.' },
             { name: 'Lâmina Rompedora de Armadura (Kabutowari)', desc: 'Espada Lendária da Névoa.' },
@@ -57,8 +82,12 @@ window.AppConfig.ORG_CONFIG = {
         ]
     },
     'divisao-especial': { 
-        id: 'divisao-especial', name: 'Divisão Especial (ANBU)', icon: 'Ghost', 
-        color: 'text-purple-400', bgColor: 'bg-purple-900/20', border: 'border-purple-500/30', 
+        id: 'divisao-especial', 
+        name: 'Divisão Especial (ANBU)', 
+        icon: 'Ghost', 
+        color: 'text-purple-400', 
+        bgColor: 'bg-purple-900/20', 
+        border: 'border-purple-500/30', 
         limit: 14, 
         internalRoles: ['Recruta', 'Agente', 'Capitão', 'Comandante'],
         roleDetails: [
@@ -69,8 +98,12 @@ window.AppConfig.ORG_CONFIG = {
         ]
     },
     'forca-policial': { 
-        id: 'forca-policial', name: 'Força Policial', icon: 'Shield', 
-        color: 'text-blue-400', bgColor: 'bg-blue-900/20', border: 'border-blue-500/30', 
+        id: 'forca-policial', 
+        name: 'Força Policial', 
+        icon: 'Shield', 
+        color: 'text-blue-400', 
+        bgColor: 'bg-blue-900/20', 
+        border: 'border-blue-500/30', 
         limit: 20, 
         internalRoles: ['Cadete', 'Oficial', 'Sargento', 'Delegado'],
         roleDetails: [
@@ -81,10 +114,17 @@ window.AppConfig.ORG_CONFIG = {
         ]
     },
     'unidade-medica': { 
-        id: 'unidade-medica', name: 'Unidade Médica', icon: 'Activity', 
-        color: 'text-emerald-400', bgColor: 'bg-emerald-900/20', border: 'border-emerald-500/30', 
+        id: 'unidade-medica', 
+        name: 'Unidade Médica', 
+        icon: 'Activity', 
+        color: 'text-emerald-400', 
+        bgColor: 'bg-emerald-900/20', 
+        border: 'border-emerald-500/30', 
         limit: 20, 
-        internalRoles: ['Estagiário', 'Médico de Campo', 'Médico Júnior', 'Médico Sênior', 'Paramédico', 'Doutor', 'Residente Chefe', 'Diretor Médico'],
+        internalRoles: [
+            'Estagiário', 'Médico de Campo', 'Médico Júnior', 'Médico Sênior', 
+            'Paramédico', 'Doutor', 'Residente Chefe', 'Diretor Médico'
+        ],
         roleDetails: [
             { name: 'Diretor Médico', desc: 'Líder Supremo da Unidade Médica.' },
             { name: 'Residente Chefe', desc: 'Vice-líder, braço direito do Diretor.' },
