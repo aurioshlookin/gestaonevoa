@@ -17,10 +17,10 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
 
-    <!-- Babel para JSX (Mudamos para o CDNJS que é mais estável que o Unpkg) -->
+    <!-- Babel -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.10/babel.min.js"></script>
 
-    <!-- Import Map: Ensina o navegador onde buscar o React e Firebase na web -->
+    <!-- Import Map -->
     <script type="importmap">
     {
         "imports": {
@@ -37,9 +37,9 @@
 <body class="text-slate-200 font-mono">
     <div id="root"></div>
 
-    <!-- LOADER INTELIGENTE V2 (COM DEDUPLICAÇÃO DE IMPORTS) -->
+    <!-- LOADER INTELIGENTE V2 -->
     <script type="module">
-        // Ordem de carregamento
+        // Lista atualizada SEM HistoryTab.js
         const files = [
             'src/config/constants.js',
             'src/utils/helpers.js',
@@ -50,43 +50,22 @@
             'src/components/SettingsModal.js',
             'src/components/DashboardTab.js',
             'src/components/OrganizationTab.js',
-            'src/components/HistoryTab.js',
             'src/components/MonitoringTab.js',
             'src/app.js'
         ];
 
-        // Armazena imports externos para deduplicação
         const externalImports = {}; 
-        // Estrutura: { 'react': { default: 'React', named: Set(['useState', ...]) } }
 
         function parseAndExtractImports(code) {
-            // Regex poderosa para capturar imports ES6 (Default, Named, e mistos)
-            // Ignora imports de efeitos colaterais (import 'css') por enquanto
             const regex = /import\s+(?:([\w\*\s]+),?)?\s*(?:\{([^}]+)\})?\s+from\s+['"]([^'"]+)['"];?/g;
-            
             return code.replace(regex, (match, defaultImport, namedImports, source) => {
-                // Se for import local (começa com .), apenas removemos a linha (pois o código será concatenado)
                 if (source.startsWith('.')) return '';
-
-                // Inicializa o registro da lib se não existir
-                if (!externalImports[source]) {
-                    externalImports[source] = { default: null, named: new Set() };
-                }
-
-                // Captura Default Import (ex: import React ...)
-                if (defaultImport) {
-                    externalImports[source].default = defaultImport.trim();
-                }
-
-                // Captura Named Imports (ex: import { useState, useEffect } ...)
-                if (namedImports) {
-                    namedImports.split(',').forEach(name => {
-                        const cleanName = name.trim();
-                        if (cleanName) externalImports[source].named.add(cleanName);
-                    });
-                }
-
-                // Remove a linha de importação original do código fonte
+                if (!externalImports[source]) externalImports[source] = { default: null, named: new Set() };
+                if (defaultImport) externalImports[source].default = defaultImport.trim();
+                if (namedImports) namedImports.split(',').forEach(name => {
+                    const cleanName = name.trim();
+                    if (cleanName) externalImports[source].named.add(cleanName);
+                });
                 return ''; 
             });
         }
@@ -94,64 +73,39 @@
         async function loadApp() {
             try {
                 let combinedBodyCode = "";
-
                 for (const file of files) {
                     const response = await fetch(file);
                     if (!response.ok) throw new Error(`Não foi possível carregar: ${file}`);
                     let code = await response.text();
-
-                    // 1. Extrai imports externos e remove imports locais
                     code = parseAndExtractImports(code);
-
-                    // 2. Remove Exportações (simula escopo global compartilhado)
                     code = code.replace(/export\s+const\s+/g, 'const ');
                     code = code.replace(/export\s+default\s+\w+;?/g, '');
-                    code = code.replace(/export\s+\{\s*[\w\s,]+\s*\};?/g, ''); // Remove export { A, B }
-
+                    code = code.replace(/export\s+\{\s*[\w\s,]+\s*\};?/g, '');
                     combinedBodyCode += `\n// --- ARQUIVO: ${file} ---\n` + code + "\n";
                 }
 
-                // 3. Reconstrói o Cabeçalho de Imports (Sem duplicatas)
                 let importsHeader = '';
                 for (const [source, data] of Object.entries(externalImports)) {
                     const parts = [];
                     if (data.default) parts.push(data.default);
                     if (data.named.size > 0) parts.push(`{ ${Array.from(data.named).join(', ')} }`);
-                    
-                    if (parts.length > 0) {
-                        importsHeader += `import ${parts.join(', ')} from '${source}';\n`;
-                    }
+                    if (parts.length > 0) importsHeader += `import ${parts.join(', ')} from '${source}';\n`;
                 }
 
                 const finalCode = importsHeader + combinedBodyCode;
 
-                // 4. Transpilação (JSX -> JS) usando Babel
-                if (typeof Babel === 'undefined') {
-                    throw new Error("A biblioteca Babel não foi carregada. Verifique sua conexão ou bloqueadores de anúncio.");
-                }
+                if (typeof Babel === 'undefined') throw new Error("Babel não carregou.");
+                const output = Babel.transform(finalCode, { presets: ['react'] }).code;
 
-                const output = Babel.transform(finalCode, {
-                    presets: ['react']
-                }).code;
-
-                // 5. Injeção e Execução
                 const script = document.createElement('script');
                 script.type = 'module';
                 script.textContent = output;
                 document.body.appendChild(script);
-
                 console.log("✅ Sistema Névoa carregado com sucesso (v2).");
 
             } catch (error) {
                 console.error("❌ Erro fatal no carregamento:", error);
-                document.body.innerHTML = `
-                    <div style="height:100vh; display:flex; align-items:center; justify-content:center; flex-direction:column; color:#ef4444; background:#0f172a; text-align:center;">
-                        <h1 style="font-size:2rem; margin-bottom:1rem;">Erro de Carregamento</h1>
-                        <p style="font-family:monospace; background:#1e293b; padding:1rem; rounded:0.5rem; max-width:80%;">${error.message}</p>
-                        <p style="margin-top:1rem; color:#94a3b8; font-size:0.9rem;">Verifique o console (F12) para detalhes técnicos.</p>
-                        <button onclick="window.location.reload()" style="margin-top:20px; padding:10px 20px; background:#3b82f6; border:none; color:white; border-radius:5px; cursor:pointer;">Tentar Novamente</button>
-                    </div>
-                `;
+                document.body.innerHTML = `<div style="padding:20px; color:red;"><h1>Erro</h1><p>${error.message}</p></div>`;
             }
         }
 
