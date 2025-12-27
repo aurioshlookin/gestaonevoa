@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
-import { 
-    BookOpen, ChevronUp, ChevronDown, UserPlus, ArrowUp, ArrowDown, ArrowUpDown, 
-    AlertCircle, Crown, Trash2, ArrowLeft, RotateCcw, UserSecret
-} from 'lucide-react';
+// Importação unificada para evitar erros de leitura do Loader
+import { BookOpen, ChevronUp, ChevronDown, UserPlus, ArrowUp, ArrowDown, ArrowUpDown, AlertCircle, Crown, Trash2, ArrowLeft, RotateCcw, UserSecret } from 'lucide-react';
 import { ORG_CONFIG, MASTERIES, Icons } from '../config/constants.js';
 import { getActivityStats, formatDate, getMemberOrgsInfo } from '../utils/helpers.js';
 
@@ -94,6 +92,11 @@ const OrganizationTab = ({
             bv = b.rpName || b.name;
         }
 
+        if (sortConfig.key === 'codinome') {
+            av = a.codinome || '';
+            bv = b.codinome || '';
+        }
+
         if (sortConfig.key === 'joinDate') {
             const dateA = new Date(av || '1970-01-01');
             const dateB = new Date(bv || '1970-01-01');
@@ -114,7 +117,8 @@ const OrganizationTab = ({
             : <ArrowDown size={14} className="text-cyan-400 inline"/>;
     };
 
-    const IconComp = Icons[orgConfig.icon] || Icons.Shield;
+    // Fallback seguro se Icons não estiver carregado (evita tela branca)
+    const IconComp = (typeof Icons !== 'undefined' && Icons[orgConfig.icon]) ? Icons[orgConfig.icon] : (Icons?.Shield || AlertCircle);
 
     return (
         <div className="animate-fade-in">
@@ -194,7 +198,9 @@ const OrganizationTab = ({
                             const leaderRoleName = member.isLeader && leaderRoleId ? discordRoles.find(r => r.id === leaderRoleId)?.name : null;
                             const memberMasteries = member.masteries || [];
                             const activity = getActivityStats(member);
-                            const orgInfo = getMemberOrgsInfo(safeMembers, member.discordId);
+                            
+                            // Safety Check: Garante que getMemberOrgsInfo existe antes de chamar
+                            const orgInfo = (typeof getMemberOrgsInfo !== 'undefined') ? getMemberOrgsInfo(safeMembers, member.discordId) : null;
 
                             return (
                                 <tr 
@@ -228,10 +234,10 @@ const OrganizationTab = ({
                                                 {memberMasteries.map(m => {
                                                     const mData = MASTERIES.find(mastery => mastery.id === m);
                                                     if (!mData) return null;
-                                                    const IconM = typeof mData.icon === 'object' ? mData.icon : Icons[mData.icon] || Icons.Activity;
+                                                    const IconM = typeof mData.icon === 'object' ? mData.icon : (typeof Icons !== 'undefined' ? Icons[mData.icon] : Icons.Activity);
                                                     return (
                                                         <div key={m} className={`flex items-center gap-1 ${mData.color} bg-slate-800/50 px-1.5 py-0.5 rounded text-[10px] font-bold border border-${mData.color.split('-')[1]}-500/20`}>
-                                                            {React.createElement(IconM, {size: 12})}
+                                                            {React.createElement(IconM || AlertCircle, {size: 12})}
                                                             <span>{m}</span>
                                                         </div>
                                                     );
