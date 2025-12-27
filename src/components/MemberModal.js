@@ -156,7 +156,7 @@ const MemberModal = ({ member, orgId, isCreating, discordRoster, discordRoles, o
                         </div>
                     </div>
 
-                    {/* Coluna Direita: Cargos */}
+                    {/* Coluna Direita: Cargos e Maestrias */}
                     <div className="space-y-4">
                         <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700">
                             <h3 className="text-white font-bold mb-3">Cargos & Função</h3>
@@ -167,7 +167,7 @@ const MemberModal = ({ member, orgId, isCreating, discordRoster, discordRoles, o
                                 </select>
                             </div>
                             <div className="mb-4">
-                                <label className="text-xs text-slate-400 mb-1 block">Cargo Específico Discord (Opcional)</label>
+                                <label className="text-xs text-slate-400 mb-1 block">Cargo Específico Discord</label>
                                 <select className="w-full bg-slate-800 border border-slate-600 rounded p-2 text-white outline-none text-sm" value={form.specificRoleId} onChange={(e) => setForm({...form, specificRoleId: e.target.value})}>
                                     <option value="">Padrão da Organização</option>
                                     {discordRoles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
