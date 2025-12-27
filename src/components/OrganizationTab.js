@@ -1,8 +1,5 @@
 import React, { useState } from 'react';
-import { 
-    BookOpen, ChevronUp, ChevronDown, UserPlus, ArrowUp, ArrowDown, ArrowUpDown, 
-    AlertCircle, Crown, Trash2, ArrowLeft
-} from 'lucide-react';
+import { BookOpen, ChevronUp, ChevronDown, UserPlus, ArrowUp, ArrowDown, ArrowUpDown, AlertCircle, Crown, Trash2 } from 'lucide-react';
 import { ORG_CONFIG, MASTERIES, Icons } from '../config/constants.js';
 import { getActivityStats, formatDate, getMemberOrgsInfo } from '../utils/helpers.js';
 
@@ -15,7 +12,9 @@ const OrganizationTab = ({
     const [sortConfig, setSortConfig] = useState({ key: 'rank', direction: 'ascending' });
 
     const orgConfig = ORG_CONFIG[orgId];
-    const orgMembers = members.filter(m => m.org === orgId);
+    // Garante array seguro
+    const safeMembers = Array.isArray(members) ? members : [];
+    const orgMembers = safeMembers.filter(m => m.org === orgId);
     
     const getRoleRank = (member) => { const roles = orgConfig.internalRoles || []; return roles.indexOf(member.ninRole); };
     
@@ -73,19 +72,22 @@ const OrganizationTab = ({
 
     const SortIcon = ({k}) => sortConfig.key !== k ? <ArrowUpDown size={14} className="opacity-30 ml-1"/> : (sortConfig.direction === 'ascending' ? <ArrowUp size={14} className="text-cyan-400"/> : <ArrowDown size={14} className="text-cyan-400"/>);
 
-    const IconComp = Icons[orgConfig.icon] || Icons.Shield;
+    // Fallback seguro usando Icons ou ícone padrão
+    const IconComp = (Icons && orgConfig?.icon && Icons[orgConfig.icon]) ? Icons[orgConfig.icon] : Icons.Shield;
+    const ArrowLeftIcon = (Icons && Icons.ArrowLeft) ? Icons.ArrowLeft : ArrowUpDown; // Fallback se ArrowLeft não carregar
 
     return (
         <div className="animate-fade-in">
-            {/* Header com Botão de Voltar Destacado */}
+            {/* Header com Botão de Voltar */}
             <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-4">
                     <button 
                         onClick={onBack} 
-                        className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors shadow-sm group"
+                        className="p-2 hover:bg-slate-700 rounded transition-colors text-white flex items-center gap-2"
+                        title="Voltar ao Painel"
                     >
-                        <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform"/>
-                        <span>Voltar</span>
+                        <ArrowLeftIcon size={20} />
+                        <span className="hidden md:inline">Voltar</span>
                     </button>
                     
                     <div className={`p-3 rounded-lg ${orgConfig.bgColor} ${orgConfig.color}`}>
@@ -144,7 +146,9 @@ const OrganizationTab = ({
                             const leaderRoleName = member.isLeader && leaderRoleId ? discordRoles.find(r => r.id === leaderRoleId)?.name : null;
                             const memberMasteries = member.masteries || [];
                             const activity = getActivityStats(member);
-                            const orgInfo = getMemberOrgsInfo(members, member.discordId);
+                            
+                            // Uso correto da função restaurada
+                            const orgInfo = (typeof getMemberOrgsInfo !== 'undefined') ? getMemberOrgsInfo(safeMembers, member.discordId) : null;
 
                             return (
                                 <tr 
@@ -172,7 +176,11 @@ const OrganizationTab = ({
                                                 {memberMasteries.map(m => {
                                                     const mData = MASTERIES.find(mastery => mastery.id === m);
                                                     if (!mData) return null;
-                                                    const IconM = typeof mData.icon === 'object' ? mData.icon : Icons[mData.icon] || Icons.Activity;
+                                                    // Fallback seguro usando Icons ou o próprio objeto se disponível
+                                                    const IconM = (typeof mData.icon === 'object') 
+                                                        ? mData.icon 
+                                                        : ((Icons && Icons[mData.icon]) ? Icons[mData.icon] : Icons.Activity);
+                                                        
                                                     return (
                                                         <div key={m} className={`flex items-center gap-1 ${mData.color} bg-slate-800/50 px-1.5 py-0.5 rounded text-[10px] font-bold border border-${mData.color.split('-')[1]}-500/20`}>
                                                             {React.createElement(IconM, {size: 12})}
