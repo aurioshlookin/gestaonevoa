@@ -1,5 +1,9 @@
 import React, { useState } from 'react';
-import { BookOpen, ChevronUp, ChevronDown, UserPlus, ArrowUp, ArrowDown, ArrowUpDown, AlertCircle, Crown, Trash2, ArrowLeft, RotateCcw, UserSecret } from 'lucide-react';
+import { 
+    BookOpen, ChevronUp, ChevronDown, UserPlus, 
+    ArrowUp, ArrowDown, ArrowUpDown, AlertCircle, 
+    Crown, Trash2, ArrowLeft, RotateCcw, UserSecret 
+} from 'lucide-react';
 import { ORG_CONFIG, MASTERIES, Icons } from '../config/constants.js';
 import { getActivityStats, formatDate, getMemberOrgsInfo } from '../utils/helpers.js';
 
@@ -9,8 +13,6 @@ const OrganizationTab = ({
     onBack
 }) => {
     const [showRoleDetails, setShowRoleDetails] = useState(false);
-    
-    // Sort config inicializada com 'rank' como padrão
     const [sortConfig, setSortConfig] = useState({ key: 'rank', direction: 'ascending' });
 
     const orgConfig = ORG_CONFIG[orgId];
@@ -22,16 +24,11 @@ const OrganizationTab = ({
 
     const getRoleRank = (member) => { const roles = orgConfig.internalRoles || []; return roles.indexOf(member.ninRole); };
     
-    // Lógica de Ordenação de 3 Estados: Asc -> Desc -> Default (null/reset)
     const requestSort = (key) => {
         let direction = 'ascending';
-        
-        // Se já estiver ordenando pela mesma chave
         if (sortConfig.key === key) {
-            if (sortConfig.direction === 'ascending') {
-                direction = 'descending';
-            } else if (sortConfig.direction === 'descending') {
-                // Terceiro clique: volta ao padrão 'rank'
+            if (sortConfig.direction === 'ascending') direction = 'descending';
+            else if (sortConfig.direction === 'descending') {
                 setSortConfig({ key: 'rank', direction: 'ascending' }); 
                 return;
             }
@@ -44,7 +41,6 @@ const OrganizationTab = ({
     };
 
     const sortedMembers = [...orgMembers].sort((a, b) => {
-        // Ordenação Padrão por Rank (usada como fallback)
         const sortByRank = () => {
             if (orgId === 'sete-laminas') {
                 if (a.isLeader !== b.isLeader) return a.isLeader ? -1 : 1;
@@ -56,19 +52,17 @@ const OrganizationTab = ({
                 if (a.isLeader !== b.isLeader) return a.isLeader ? -1 : 1;
                 const rankA = getRoleRank(a);
                 const rankB = getRoleRank(b);
-                if (rankA !== rankB) return rankB - rankA; // Maior rank primeiro
+                if (rankA !== rankB) return rankB - rankA;
                 const dateA = new Date(a.joinDate || '9999-12-31').getTime();
                 const dateB = new Date(b.joinDate || '9999-12-31').getTime();
                 return dateA - dateB;
             }
-            // Default
             const rankA = getRoleRank(a);
             const rankB = getRoleRank(b);
             if (rankA !== rankB) return rankB - rankA;
             return (b.isLeader ? 1 : 0) - (a.isLeader ? 1 : 0);
         };
 
-        // Aplica ordenação escolhida
         if (sortConfig.key === 'rank' || sortConfig.key === 'ninRole') {
             const res = sortByRank();
             return sortConfig.direction === 'ascending' ? res : -res;
@@ -80,11 +74,9 @@ const OrganizationTab = ({
             return sortConfig.direction === 'ascending' ? actA - actB : actB - actA;
         }
 
-        // Ordenação por propriedades de texto
         let av = a[sortConfig.key];
         let bv = b[sortConfig.key];
         
-        // Prioriza RP Name na ordenação por nome
         if (sortConfig.key === 'name') {
             av = a.rpName || a.name;
             bv = b.rpName || b.name;
@@ -115,12 +107,10 @@ const OrganizationTab = ({
             : <ArrowDown size={14} className="text-cyan-400 inline"/>;
     };
 
-    // Fallback seguro se Icons não estiver carregado (evita tela branca)
-    const IconComp = (typeof Icons !== 'undefined' && Icons[orgConfig.icon]) ? Icons[orgConfig.icon] : (Icons?.Shield || AlertCircle);
+    const IconComp = (typeof Icons !== 'undefined' && Icons[orgConfig?.icon]) ? Icons[orgConfig.icon] : (Icons?.Shield || AlertCircle);
 
     return (
         <div className="animate-fade-in">
-            {/* Header */}
             <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-4">
                     <button onClick={onBack} className="p-2 hover:bg-slate-700 rounded transition-colors text-white flex items-center gap-2" title="Voltar ao Painel">
@@ -137,7 +127,6 @@ const OrganizationTab = ({
                 </span>
             </div>
 
-            {/* Configuração de Tabela e Filtros */}
             <div className="flex justify-between items-end mb-4">
                 <div className="flex gap-2">
                     {orgConfig.roleDetails && (
@@ -227,10 +216,10 @@ const OrganizationTab = ({
                                                 {memberMasteries.map(m => {
                                                     const mData = MASTERIES.find(mastery => mastery.id === m);
                                                     if (!mData) return null;
-                                                    const IconM = typeof mData.icon === 'object' ? mData.icon : (typeof Icons !== 'undefined' ? Icons[mData.icon] : Icons.Activity);
+                                                    const IconM = (typeof mData.icon === 'function' || typeof mData.icon === 'object') ? mData.icon : (Icons[mData.icon] || AlertCircle);
                                                     return (
                                                         <div key={m} className={`flex items-center gap-1 ${mData.color} bg-slate-800/50 px-1.5 py-0.5 rounded text-[10px] font-bold border border-${mData.color.split('-')[1]}-500/20`}>
-                                                            {React.createElement(IconM || AlertCircle, {size: 12})}
+                                                            {React.createElement(IconM, {size: 12})}
                                                             <span>{m}</span>
                                                         </div>
                                                     );
