@@ -5,7 +5,7 @@ import {
     Heart, Zap, Flame, Droplets, Mountain, Wind, CloudLightning, 
     Cross, Target, Circle, Calendar, Info, Lock, Database, Clock, 
     MessageSquare, Mic, ShieldCheck, UserCog, BookOpen, ChevronDown, 
-    ChevronUp, FileText, History, Globe, Star
+    ChevronUp, FileText, History, Globe, Star, RotateCcw, VenetianMask, User
 } from 'lucide-react';
 
 export const STATS = ['Força', 'Fortitude', 'Intelecto', 'Agilidade', 'Chakra'];
@@ -16,7 +16,8 @@ export const Icons = {
     Menu, LogOut, Lock, Search, Settings, X, Info, AlertTriangle, Crown, ArrowUp, ArrowDown, 
     ArrowUpDown, ArrowLeft, Heart, Zap, Flame, Droplets, Mountain, Wind, CloudLightning, 
     Cross, Target, Circle, Calendar, Database, Clock, MessageSquare, Mic, ShieldCheck, 
-    UserCog, BookOpen, ChevronDown, ChevronUp, FileText, History, Globe, Star 
+    UserCog, BookOpen, ChevronDown, ChevronUp, FileText, History, Globe, Star, RotateCcw, 
+    VenetianMask, User
 };
 
 export const MASTERIES = [
