@@ -231,9 +231,6 @@ const App = () => {
         Object.values(leaderRoleConfig).forEach(id => { if(id) allowedRoles.add(id); });
         Object.values(secLeaderRoleConfig).forEach(id => { if(id) allowedRoles.add(id); });
         
-        // Debug
-        // console.log("Cargos Permitidos:", Array.from(allowedRoles));
-        
         return userRoles.some(roleId => allowedRoles.has(roleId));
     }, [user, accessConfig, roleConfig, leaderRoleConfig, secLeaderRoleConfig]);
 
@@ -323,12 +320,11 @@ const App = () => {
             else await updateDoc(doc(db, "membros", docId), payload);
             
             // FECHA O MODAL IMEDIATAMENTE APÓS SUCESSO
-            // Isso previne que um log lento trave a tela
             setSelectedMember(null); 
             setIsCreating(false);
             showNotification('Salvo com sucesso!', 'success');
 
-            // Log roda em background (sem await para não bloquear UI)
+            // Log roda em background
             logAction(isCreating ? "Adicionar Membro" : "Editar Membro", formData.name, `Level: ${formData.level}`, orgId);
             
         } catch (e) { 
@@ -395,7 +391,6 @@ const App = () => {
                     <ShieldCheck size={48} className="mx-auto text-red-500 mb-6" />
                     <h1 className="text-2xl font-bold text-white mb-2">Acesso Negado</h1>
                     <p className="text-slate-400 mb-6">Você não possui permissão. Contate um administrador.</p>
-                    {/* Botão de Debug para ver quais cargos faltam */}
                     <button 
                         onClick={() => {
                             alert("Seus Cargos ID: " + user.roles.join("\n"));
