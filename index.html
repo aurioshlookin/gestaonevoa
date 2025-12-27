@@ -37,18 +37,21 @@
 <body class="text-slate-200 font-mono">
     <div id="root"></div>
 
-    <!-- LOADER INTELIGENTE V3 (AUTO-UPDATE) -->
+    <!-- LOADER INTELIGENTE V3 (AUTO-UPDATE + TUTORIAIS) -->
     <script type="module">
         // --- CONTROLE DE VERSÃO AUTOMÁTICO ---
-        // Usa o timestamp atual para garantir que o navegador nunca use cache antigo
-        // Isso força o download dos arquivos mais recentes a cada recarregamento da página
+        // Força o navegador a baixar novos arquivos a cada refresh
         const APP_VERSION = Date.now();
 
-        // Lista de arquivos (HistoryTab removido)
+        // Lista de arquivos NA ORDEM DE DEPENDÊNCIA
         const files = [
+            // Configurações Básicas
             'src/config/constants.js',
             'src/utils/helpers.js',
             'src/config/firebase.js',
+            'src/config/tutorials.js', // NOVO: Roteiros do tutorial
+            
+            // Componentes UI
             'src/components/Header.js',
             'src/components/LoginScreen.js',
             'src/components/MemberModal.js',
@@ -56,6 +59,9 @@
             'src/components/DashboardTab.js',
             'src/components/OrganizationTab.js',
             'src/components/MonitoringTab.js',
+            'src/components/TutorialOverlay.js', // NOVO: Componente visual do tutorial
+            
+            // Aplicação Principal
             'src/app.js'
         ];
 
@@ -104,7 +110,7 @@
 
                 const finalCode = importsHeader + combinedBodyCode;
 
-                if (typeof Babel === 'undefined') throw new Error("A biblioteca Babel não foi carregada.");
+                if (typeof Babel === 'undefined') throw new Error("A biblioteca Babel não foi carregada. Verifique sua conexão.");
                 
                 const output = Babel.transform(finalCode, { presets: ['react'] }).code;
 
