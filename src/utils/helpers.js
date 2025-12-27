@@ -43,14 +43,13 @@ export const getActivityStats = (member) => {
     cutoffDate.setDate(cutoffDate.getDate() - 14);
     const cutoffStr = cutoffDate.toISOString().split('T')[0];
 
-    // Helper: Itera sobre as chaves existentes no banco em vez de tentar adivinhar a data.
-    // Isso evita erros de Fuso Horário (UTC vs Local) que faziam a atividade aparecer zerada.
+    // Helper: Itera sobre as chaves existentes no banco
     const sumRecent = (map) => {
         let sum = 0;
         for (const [dateKey, value] of Object.entries(map)) {
-            // Comparação de strings ISO (YYYY-MM-DD) funciona corretamente
+            // Compara strings ISO para garantir range correto
             if (dateKey >= cutoffStr) {
-                sum += Number(value) || 0; // Number() evita erro de "10" + "10" = "1010"
+                sum += Number(value) || 0; 
             }
         }
         return sum;
@@ -60,14 +59,22 @@ export const getActivityStats = (member) => {
     totalMsgs = sumRecent(msgMap);
     totalVoiceMins = sumRecent(voiceMap);
 
-    // Fallback: Se não tiver contagem separada de msg/voz mas tiver score (dados antigos), usa score como msg
-    if (totalMsgs === 0 && totalVoiceMins === 0 && totalScore > 0) {
-        totalMsgs = totalScore; 
+    // --- CORREÇÃO DE CONSISTÊNCIA VISUAL ---
+    // Problema: Membros com Score alto (ex: importado/antigo) mas sem logs diários apareciam como "Lendário" mas com "0 msgs".
+    // Solução: Se o Score Total for muito maior que o que as mensagens e voz justificam,
+    // assumimos que a diferença são mensagens válidas que apenas perderam o log detalhado.
+    
+    const voicePoints = Math.floor(totalVoiceMins / 10);
+    // O Score teoricamente é: Msgs + (Voz / 10). Então: Msgs = Score - (Voz / 10)
+    const expectedMsgsFromScore = totalScore - voicePoints;
+
+    // Se tivermos uma discrepância grande (mais de 5 pontos sem explicação), ajustamos as mensagens para o display
+    if (totalMsgs < expectedMsgsFromScore - 5) {
+        totalMsgs = Math.max(totalMsgs, expectedMsgsFromScore);
     }
 
     let tier = 'Fantasma', color = 'bg-red-500', icon = '👻', width = '5%';
     
-    // Tiers baseados no Score Total (Mensagens + Pontos de Voz)
     if (totalScore > 250) { tier = 'Lendário'; color = 'bg-purple-500'; icon = '👑'; width = '100%'; }
     else if (totalScore > 50) { tier = 'Ativo'; color = 'bg-emerald-500'; icon = '🔥'; width = '75%'; }
     else if (totalScore > 10) { tier = 'Regular'; color = 'bg-blue-500'; icon = '😐'; width = '50%'; }
