@@ -38,25 +38,29 @@ export const getActivityStats = (member) => {
     let totalMsgs = 0;
     let totalVoiceMins = 0;
 
-    const today = new Date();
-    
-    for (let i = 0; i < 14; i++) {
-        const d = new Date();
-        d.setDate(today.getDate() - i);
-        const dateStr = d.toISOString().split('T')[0];
-        
-        // CORREÇÃO CRÍTICA: Forçar conversão para Number()
-        // Isso garante que strings ("10") sejam somadas matematicamente (20) e não concatenadas ("1010")
-        const scoreVal = Number(activityMap[dateStr]);
-        const msgVal = Number(msgMap[dateStr]);
-        const voiceVal = Number(voiceMap[dateStr]);
+    // Calcula a data de corte (14 dias atrás)
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - 14);
+    const cutoffStr = cutoffDate.toISOString().split('T')[0];
 
-        if (!isNaN(scoreVal)) totalScore += scoreVal;
-        if (!isNaN(msgVal)) totalMsgs += msgVal;
-        if (!isNaN(voiceVal)) totalVoiceMins += voiceVal;
-    }
+    // Helper: Itera sobre as chaves existentes no banco em vez de tentar adivinhar a data.
+    // Isso evita erros de Fuso Horário (UTC vs Local) que faziam a atividade aparecer zerada.
+    const sumRecent = (map) => {
+        let sum = 0;
+        for (const [dateKey, value] of Object.entries(map)) {
+            // Comparação de strings ISO (YYYY-MM-DD) funciona corretamente
+            if (dateKey >= cutoffStr) {
+                sum += Number(value) || 0; // Number() evita erro de "10" + "10" = "1010"
+            }
+        }
+        return sum;
+    };
 
-    // Fallback para dados antigos
+    totalScore = sumRecent(activityMap);
+    totalMsgs = sumRecent(msgMap);
+    totalVoiceMins = sumRecent(voiceMap);
+
+    // Fallback: Se não tiver contagem separada de msg/voz mas tiver score (dados antigos), usa score como msg
     if (totalMsgs === 0 && totalVoiceMins === 0 && totalScore > 0) {
         totalMsgs = totalScore; 
     }
