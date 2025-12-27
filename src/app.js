@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { collection, onSnapshot, doc, setDoc, addDoc, deleteDoc, updateDoc } from "firebase/firestore";
-import { AlertTriangle, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 
 // --- IMPORTAÇÕES LOCAIS ---
 import { db } from './config/firebase.js';
@@ -60,6 +60,7 @@ const App = () => {
 
     // Estados Globais
     const [user, setUser] = useState(null);
+    const [simulation, setSimulation] = useState(null); // Estado para simulação { name: string, roles: [], isGuest: boolean }
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('dashboard');
     const [notification, setNotification] = useState(null);
@@ -83,6 +84,22 @@ const App = () => {
     const [editingOrgId, setEditingOrgId] = useState(null);
 
     const hasLoggedAccess = useRef(false);
+
+    // --- CÁLCULO DO USUÁRIO EFETIVO (SIMULAÇÃO) ---
+    const effectiveUser = useMemo(() => {
+        if (!user) return null;
+        if (simulation) {
+            return {
+                ...user,
+                // Se for simulação, mascaramos o ID para evitar que ele seja reconhecido como Criador/VIP real
+                // a menos que estejamos simulando o próprio criador (o que não faz muito sentido, mas ok)
+                id: 'simulated-user-id', 
+                username: `[Simulação] ${simulation.name}`,
+                roles: simulation.roles || []
+            };
+        }
+        return user;
+    }, [user, simulation]);
 
     // --- EFEITOS (Data Fetching) ---
     useEffect(() => {
@@ -161,7 +178,8 @@ const App = () => {
 
     // --- MONITORAMENTO DETALHADO DE NAVEGAÇÃO ---
     useEffect(() => {
-        if (!user || loading) return;
+        // Se estiver simulando, NÃO gera logs para não sujar o banco
+        if (!user || loading || simulation) return;
         
         let pageName = activeTab;
         if (activeTab === 'dashboard') pageName = 'Painel Inicial';
@@ -176,7 +194,7 @@ const App = () => {
                 timestamp: new Date().toISOString()
             }).catch(err => console.error("Erro ao logar navegação:", err));
         }
-    }, [activeTab, user, loading]);
+    }, [activeTab, user, loading, simulation]);
 
     useEffect(() => {
         if (!user) return;
@@ -189,7 +207,8 @@ const App = () => {
     }, [user]);
 
     const logAction = async (action, target, details, org = null) => {
-        if (!user) return;
+        // Não loga ações durante simulação
+        if (!user || simulation) return;
         try {
             await addDoc(collection(db, "audit_logs"), {
                 action, target, details, executor: user.username || user.displayName, executorId: user.id, org: org || 'Sistema', timestamp: new Date().toISOString()
@@ -199,12 +218,21 @@ const App = () => {
 
     // --- PERMISSÕES ---
     const checkPermission = (action, contextOrgId = null) => {
-        if (!user) return false;
-        if (user.id === accessConfig.creatorId) return true;
-        if (accessConfig.vipIds && accessConfig.vipIds.includes(user.id)) return true;
-        const userRoles = user.roles || [];
+        if (!effectiveUser) return false;
+        
+        // 1. Criador e VIPs (Checa ID real se não estiver simulando, ou ID efetivo)
+        if (effectiveUser.id === accessConfig.creatorId) return true;
+        if (accessConfig.vipIds && accessConfig.vipIds.includes(effectiveUser.id)) return true;
+
+        const userRoles = effectiveUser.roles || [];
+
+        // 2. Admins Globais
         if (userRoles.includes(accessConfig.kamiRoleId) || userRoles.includes(accessConfig.councilRoleId)) return true;
-        if (action === 'MANAGE_SETTINGS') return false;
+
+        // 3. Bloqueios Específicos
+        if (action === 'MANAGE_SETTINGS') return false; // Apenas Criador (checado antes ou no canManageSettings)
+
+        // 4. Edição (Líderes)
         if (action === 'EDIT_MEMBER' || action === 'ADD_MEMBER' || action === 'DELETE_MEMBER') {
             if (userRoles.includes(accessConfig.moderatorRoleId)) return false;
             if (contextOrgId) {
@@ -216,20 +244,21 @@ const App = () => {
     };
 
     const canManageOrg = (orgId) => checkPermission('EDIT_MEMBER', orgId);
-    const canManageSettings = checkPermission('MANAGE_SETTINGS');
     
-    const canViewHistory = useMemo(() => {
-        if (!user) return false;
-        if (user.id === accessConfig.creatorId || (accessConfig.vipIds && accessConfig.vipIds.includes(user.id))) return true;
-        const userRoles = user.roles || [];
-        if (userRoles.includes(accessConfig.kamiRoleId) || userRoles.includes(accessConfig.councilRoleId) || userRoles.includes(accessConfig.moderatorRoleId)) return true;
-        return Object.values(leaderRoleConfig).some(roleId => userRoles.includes(roleId));
-    }, [user, accessConfig, leaderRoleConfig]);
-
+    // --- REGRAS ESTRITAS PARA MONITORAMENTO E CONFIGURAÇÕES ---
+    // Apenas o ID EXATO do Criador pode ver, independente de cargos (a menos que esteja simulando outro user)
+    const isRealCreator = effectiveUser?.id === accessConfig.creatorId;
+    
+    const canViewHistory = isRealCreator; 
+    const canManageSettings = isRealCreator;
+    
     const canAccessPanel = useMemo(() => {
-        if (!user) return false;
-        if (user.id === accessConfig.creatorId || (accessConfig.vipIds && accessConfig.vipIds.includes(user.id))) return true;
-        const userRoles = user.roles || [];
+        if (!effectiveUser) return false;
+        // Criador e VIPs sempre acessam
+        if (effectiveUser.id === accessConfig.creatorId) return true;
+        if (accessConfig.vipIds && accessConfig.vipIds.includes(effectiveUser.id)) return true;
+
+        const userRoles = effectiveUser.roles || [];
         const allowedRoles = new Set();
         
         if (accessConfig.kamiRoleId) allowedRoles.add(accessConfig.kamiRoleId);
@@ -240,25 +269,36 @@ const App = () => {
         Object.values(secLeaderRoleConfig).forEach(id => { if(id) allowedRoles.add(id); });
         
         return userRoles.some(roleId => allowedRoles.has(roleId));
-    }, [user, accessConfig, roleConfig, leaderRoleConfig, secLeaderRoleConfig]);
+    }, [effectiveUser, accessConfig, roleConfig, leaderRoleConfig, secLeaderRoleConfig]);
 
     const getUserRoleLabel = useMemo(() => {
-        if (!user) return "";
+        if (!effectiveUser) return "";
         let roles = [];
-        if (user.id === accessConfig.creatorId) roles.push("Criador");
-        if (accessConfig.vipIds && accessConfig.vipIds.includes(user.id)) roles.push("VIP");
-        if (user.roles.includes(accessConfig.kamiRoleId)) roles.push("Kage");
-        if (user.roles.includes(accessConfig.councilRoleId)) roles.push("Conselho");
-        if (user.roles.includes(accessConfig.moderatorRoleId)) roles.push("Moderador");
-        Object.entries(leaderRoleConfig).forEach(([orgId, roleId]) => { if (user.roles.includes(roleId)) roles.push(`Líder ${ORG_CONFIG[orgId]?.name || ''}`); });
+        // Labels especiais
+        if (effectiveUser.id === accessConfig.creatorId) roles.push("Criador");
+        if (accessConfig.vipIds && accessConfig.vipIds.includes(effectiveUser.id)) roles.push("VIP");
+        if (effectiveUser.roles.includes(accessConfig.kamiRoleId)) roles.push("Kage");
+        if (effectiveUser.roles.includes(accessConfig.councilRoleId)) roles.push("Conselho");
+        if (effectiveUser.roles.includes(accessConfig.moderatorRoleId)) roles.push("Moderador");
+        
+        Object.entries(leaderRoleConfig).forEach(([orgId, roleId]) => { 
+            if (effectiveUser.roles.includes(roleId)) roles.push(`Líder ${ORG_CONFIG[orgId]?.name || ''}`); 
+        });
+        
+        Object.entries(roleConfig).forEach(([orgId, roleId]) => {
+            const isLeader = leaderRoleConfig[orgId] && effectiveUser.roles.includes(leaderRoleConfig[orgId]);
+            if (effectiveUser.roles.includes(roleId) && !isLeader) {
+                roles.push(`Membro ${ORG_CONFIG[orgId]?.name || ''}`);
+            }
+        });
+
         if (roles.length === 0) return "Visitante";
         return roles.join(" & ");
-    }, [user, accessConfig, leaderRoleConfig]);
+    }, [effectiveUser, accessConfig, leaderRoleConfig, roleConfig]);
 
     // --- HELPERS E CÁLCULOS ---
     const showNotification = (msg, type) => { setNotification({ msg, type }); setTimeout(() => setNotification(null), 3000); };
     
-    // CORREÇÃO: useMemo definido ANTES do return para estar disponível no render
     const multiOrgUsers = useMemo(() => {
         const memberMap = {};
         members.forEach(m => {
@@ -273,8 +313,14 @@ const App = () => {
     const openCreateModal = () => { setIsCreating(true); setSelectedMember(null); setEditingOrgId(activeTab); };
     const openEditModal = (member) => { setIsCreating(false); setSelectedMember(member); setEditingOrgId(member.org); };
 
-    // --- FUNÇÃO DE SALVAMENTO COM LOG DETALHADO (DIFF) ---
+    // --- FUNÇÃO DE SALVAMENTO ---
     const handleSaveMember = async (formData) => {
+        // Bloqueia ações reais se estiver em simulação
+        if (simulation) {
+            showNotification('Modo Simulação: Ações são bloqueadas.', 'error');
+            return;
+        }
+
         try {
             const orgId = isCreating ? editingOrgId : selectedMember.org;
             if (!checkPermission(isCreating ? 'ADD_MEMBER' : 'EDIT_MEMBER', orgId)) return showNotification('Sem permissão.', 'error');
@@ -350,6 +396,7 @@ const App = () => {
     };
 
     const handleDeleteMember = async (id) => {
+        if (simulation) { showNotification('Simulação: Ação bloqueada.', 'error'); return; }
         if (!checkPermission('DELETE_MEMBER', activeTab)) return showNotification('Sem permissão.', 'error');
         try {
             const memberToRemove = members.find(m => m.id === id);
@@ -361,6 +408,7 @@ const App = () => {
     };
 
     const handleToggleLeader = async (member) => {
+        if (simulation) { showNotification('Simulação: Ação bloqueada.', 'error'); return; }
         if (!checkPermission('EDIT_MEMBER', member.org)) return showNotification('Sem permissão.', 'error');
         try {
             const orgId = member.org; const newStatus = !member.isLeader;
@@ -380,6 +428,7 @@ const App = () => {
     };
 
     const handleSaveConfig = async (newConfig) => {
+        if (simulation) { showNotification('Simulação: Ação bloqueada.', 'error'); return; }
         if (!canManageSettings) return showNotification('Apenas Admins.', 'error');
         try {
             await setDoc(doc(db, "server", "config"), newConfig, { merge: true });
@@ -392,15 +441,38 @@ const App = () => {
     // --- RENDER ---
     if (!user) return <ErrorBoundary><LoginScreen onLogin={handleLogin} /></ErrorBoundary>;
 
+    // BANNER DE SIMULAÇÃO
+    const SimulationBanner = simulation ? (
+        <div className="bg-orange-600 text-white text-center py-2 px-4 font-bold sticky top-0 z-[60] flex justify-center items-center gap-4 shadow-md">
+            <div className="flex items-center gap-2">
+                <Eye size={20}/>
+                <span>Modo Simulação: Visualizando como <u>{simulation.name}</u></span>
+            </div>
+            <button 
+                onClick={() => { setSimulation(null); setActiveTab('dashboard'); }} 
+                className="bg-white text-orange-600 px-3 py-1 rounded text-xs uppercase font-bold hover:bg-orange-50 transition-colors"
+            >
+                Sair da Simulação
+            </button>
+        </div>
+    ) : null;
+
     if (!canAccessPanel) return (
         <ErrorBoundary>
+            {SimulationBanner}
             <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 font-mono">
                 <div className="max-w-md w-full bg-slate-800 border border-red-500/30 p-8 rounded-2xl text-center shadow-2xl">
                     <ShieldCheck size={48} className="mx-auto text-red-500 mb-6" />
                     <h1 className="text-2xl font-bold text-white mb-2">Acesso Negado</h1>
-                    <p className="text-slate-400 mb-6">Você não possui permissão. Contate um administrador.</p>
-                    <button onClick={() => {alert("Seus Cargos ID: " + user.roles.join("\n")); console.log("Cargos:", user.roles);}} className="text-xs text-slate-500 hover:text-slate-300 underline mb-4 block mx-auto">Ver meus IDs de Cargo</button>
-                    <button onClick={handleLogout} className="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-6 rounded transition-colors">Voltar / Logout</button>
+                    <p className="text-slate-400 mb-6">Esta conta não possui permissão de acesso.</p>
+                    {simulation ? (
+                        <p className="text-orange-400 text-xs mb-4">Você está simulando um usuário sem permissão.</p>
+                    ) : (
+                        <>
+                            <button onClick={() => {alert("Seus Cargos ID: " + user.roles.join("\n")); console.log("Cargos:", user.roles);}} className="text-xs text-slate-500 hover:text-slate-300 underline mb-4 block mx-auto">Ver meus IDs de Cargo</button>
+                            <button onClick={handleLogout} className="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-6 rounded transition-colors">Voltar / Logout</button>
+                        </>
+                    )}
                 </div>
             </div>
         </ErrorBoundary>
@@ -408,6 +480,7 @@ const App = () => {
 
     return (
         <ErrorBoundary>
+            {SimulationBanner}
             <div className="min-h-screen bg-slate-900 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] text-slate-200 font-mono">
                 {notification && <div className={`fixed bottom-4 right-4 p-4 rounded shadow-lg text-white z-50 animate-bounce-in ${notification.type === 'error' ? 'bg-red-600' : 'bg-emerald-600'}`}>{notification.msg}</div>}
 
@@ -434,6 +507,7 @@ const App = () => {
                         discordRoster={discordRoster}
                         onClose={() => setShowSettings(false)}
                         onSave={handleSaveConfig}
+                        onSimulate={(simData) => { setSimulation(simData); setShowSettings(false); }}
                         canManageSettings={canManageSettings}
                     />
                 )}
@@ -453,7 +527,7 @@ const App = () => {
                 )}
 
                 <Header 
-                    user={user}
+                    user={effectiveUser}
                     userRoleLabel={getUserRoleLabel}
                     loading={loading}
                     activeTab={activeTab}
