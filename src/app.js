@@ -5,7 +5,7 @@ import { AlertTriangle, ShieldCheck } from 'lucide-react';
 
 // --- IMPORTAÇÕES LOCAIS ---
 import { db } from './config/firebase.js';
-import { ORG_CONFIG } from './config/constants.js';
+import { ORG_CONFIG, STATS } from './config/constants.js';
 
 // --- COMPONENTES ---
 import Header from './components/Header.js';
@@ -145,9 +145,6 @@ const App = () => {
                 .then(r => r.ok ? r.json() : { roles: [] }) 
                 .then(memberData => { 
                     const userRoles = memberData.roles || [];
-                    console.log("--- DEBUG CARGOS DISCORD ---");
-                    console.log("Seus Cargos (IDs):", userRoles);
-                    console.log("----------------------------");
                     setUser({ ...userData, roles: userRoles }); 
                     setLoading(false); 
                 });
@@ -163,7 +160,39 @@ const App = () => {
 
     const handleLogout = () => { localStorage.removeItem('discord_access_token'); setUser(null); };
 
-    // --- LOGS & MONITORAMENTO ---
+    // --- MONITORAMENTO DETALHADO DE NAVEGAÇÃO ---
+    // Registra cada troca de aba como uma ação no banco
+    useEffect(() => {
+        if (!user || loading) return;
+
+        // Resolve o nome legível da página
+        let pageName = activeTab;
+        if (activeTab === 'dashboard') pageName = 'Painel Inicial';
+        else if (activeTab === 'history') pageName = 'Histórico';
+        else if (activeTab === 'access') pageName = 'Monitoramento';
+        else if (ORG_CONFIG[activeTab]) pageName = ORG_CONFIG[activeTab].name;
+
+        // Salva log de navegação
+        addDoc(collection(db, "access_logs"), {
+            userId: user.id,
+            username: user.username || user.displayName,
+            action: `Navegou: ${pageName}`,
+            timestamp: new Date().toISOString()
+        }).catch(err => console.error("Erro ao logar navegação:", err));
+
+    }, [activeTab, user, loading]);
+
+    // Heartbeat (Online Status)
+    useEffect(() => {
+        if (!user) return;
+        const heartbeat = () => setDoc(doc(db, "online_status", user.id), {
+            username: user.username || user.displayName, userId: user.id, avatar: user.avatar, lastSeen: new Date().toISOString()
+        }, { merge: true }).catch(console.error);
+        heartbeat();
+        const interval = setInterval(heartbeat, 60000);
+        return () => clearInterval(interval);
+    }, [user]);
+
     const logAction = async (action, target, details, org = null) => {
         if (!user) return;
         try {
@@ -172,21 +201,6 @@ const App = () => {
             });
         } catch (e) { console.warn("Falha ao salvar log (ação principal ok):", e); }
     };
-
-    useEffect(() => {
-        if (!user) { hasLoggedAccess.current = false; return; }
-        if (!hasLoggedAccess.current) {
-            addDoc(collection(db, "access_logs"), {
-                userId: user.id, username: user.username || user.displayName, action: 'Acessou o Painel', timestamp: new Date().toISOString()
-            }).then(() => { hasLoggedAccess.current = true; }).catch(console.error);
-        }
-        const heartbeat = () => setDoc(doc(db, "online_status", user.id), {
-            username: user.username || user.displayName, userId: user.id, avatar: user.avatar, lastSeen: new Date().toISOString()
-        }, { merge: true }).catch(console.error);
-        heartbeat();
-        const interval = setInterval(heartbeat, 60000);
-        return () => clearInterval(interval);
-    }, [user]);
 
     // --- PERMISSÕES ---
     const checkPermission = (action, contextOrgId = null) => {
@@ -223,7 +237,6 @@ const App = () => {
         const userRoles = user.roles || [];
         const allowedRoles = new Set();
         
-        // Adiciona todos os cargos que permitem acesso
         if (accessConfig.kamiRoleId) allowedRoles.add(accessConfig.kamiRoleId);
         if (accessConfig.councilRoleId) allowedRoles.add(accessConfig.councilRoleId);
         if (accessConfig.moderatorRoleId) allowedRoles.add(accessConfig.moderatorRoleId);
@@ -243,12 +256,10 @@ const App = () => {
         if (user.roles.includes(accessConfig.councilRoleId)) roles.push("Conselho");
         if (user.roles.includes(accessConfig.moderatorRoleId)) roles.push("Moderador");
         
-        // Verifica Liderança
         Object.entries(leaderRoleConfig).forEach(([orgId, roleId]) => { 
             if (user.roles.includes(roleId)) roles.push(`Líder ${ORG_CONFIG[orgId]?.name || ''}`); 
         });
         
-        // Verifica Membro Comum (Se não for líder)
         Object.entries(roleConfig).forEach(([orgId, roleId]) => {
             const isLeader = leaderRoleConfig[orgId] && user.roles.includes(leaderRoleConfig[orgId]);
             if (user.roles.includes(roleId) && !isLeader) {
@@ -277,16 +288,15 @@ const App = () => {
     const openCreateModal = () => { setIsCreating(true); setSelectedMember(null); setEditingOrgId(activeTab); };
     const openEditModal = (member) => { setIsCreating(false); setSelectedMember(member); setEditingOrgId(member.org); };
 
+    // --- FUNÇÃO DE SALVAMENTO COM LOG DETALHADO (DIFF) ---
     const handleSaveMember = async (formData) => {
         try {
             const orgId = isCreating ? editingOrgId : selectedMember.org;
             if (!checkPermission(isCreating ? 'ADD_MEMBER' : 'EDIT_MEMBER', orgId)) return showNotification('Sem permissão.', 'error');
             
-            // Validações
             if (!formData.name || !formData.discordId || !formData.ninRole) return showNotification('Campos obrigatórios!', 'error');
             if (isCreating && members.filter(m => m.org === orgId).length >= ORG_CONFIG[orgId].limit) return showNotification('Limite atingido!', 'error');
 
-            // Resolve cargo discord
             let finalRoleId = formData.specificRoleId || roleConfig[orgId];
             let finalRoleName = "Membro";
             if (finalRoleId) {
@@ -294,12 +304,40 @@ const App = () => {
                 if (r) finalRoleName = r.name;
             }
 
+            // GERAÇÃO DO LOG DETALHADO DE MUDANÇAS (DIFF)
+            let detailsLog = "";
+            if (isCreating) {
+                detailsLog = `Criado: ${formData.rpName || formData.name} (${formData.ninRole})`;
+            } else {
+                const changes = [];
+                // Compara campos principais
+                if (selectedMember.name !== formData.name) changes.push(`Discord: ${selectedMember.name} -> ${formData.name}`);
+                if (selectedMember.rpName !== formData.rpName) changes.push(`Nome RP: ${selectedMember.rpName || '(vazio)'} -> ${formData.rpName}`);
+                if (selectedMember.codinome !== formData.codinome) changes.push(`Codinome: ${selectedMember.codinome || '(vazio)'} -> ${formData.codinome}`);
+                if (selectedMember.level != formData.level) changes.push(`Nível: ${selectedMember.level} -> ${formData.level}`);
+                if (selectedMember.ninRole !== formData.ninRole) changes.push(`Cargo: ${selectedMember.ninRole} -> ${formData.ninRole}`);
+                if (selectedMember.isLeader !== formData.isLeader) changes.push(`Líder: ${selectedMember.isLeader ? 'Sim' : 'Não'} -> ${formData.isLeader ? 'Sim' : 'Não'}`);
+                
+                // Compara Atributos
+                const statsChanged = STATS.filter(s => selectedMember.stats[s] != formData.stats[s]);
+                if (statsChanged.length > 0) {
+                    const statsDiff = statsChanged.map(s => `${s}: ${selectedMember.stats[s]}->${formData.stats[s]}`).join(', ');
+                    changes.push(`Atributos [${statsDiff}]`);
+                }
+
+                // Compara Maestrias
+                const oldMasteries = (selectedMember.masteries || []).sort().join(',');
+                const newMasteries = (formData.masteries || []).sort().join(',');
+                if (oldMasteries !== newMasteries) changes.push(`Maestrias alteradas`);
+
+                detailsLog = changes.length > 0 ? changes.join(' | ') : "Edição sem alterações visíveis";
+            }
+
             // Resolve conflito de liderança
             if (formData.isLeader) {
                 const currentLeader = members.find(m => m.org === orgId && m.isLeader === true && m.discordId !== formData.discordId);
                 if (currentLeader) {
                     let newRole = currentLeader.ninRole;
-                    // Fallback para Unidade Médica
                     if (orgId === 'unidade-medica' && currentLeader.ninRole === 'Diretor Médico') newRole = 'Residente Chefe';
                     await updateDoc(doc(db, "membros", currentLeader.id), { isLeader: false, ninRole: newRole });
                 }
@@ -315,17 +353,14 @@ const App = () => {
 
             const docId = isCreating ? `${formData.discordId}_${orgId}` : selectedMember.id;
             
-            // OPERAÇÃO PRINCIPAL DO BANCO
             if (isCreating) await setDoc(doc(db, "membros", docId), payload);
             else await updateDoc(doc(db, "membros", docId), payload);
             
-            // FECHA O MODAL IMEDIATAMENTE APÓS SUCESSO
             setSelectedMember(null); 
             setIsCreating(false);
             showNotification('Salvo com sucesso!', 'success');
 
-            // Log roda em background
-            logAction(isCreating ? "Adicionar Membro" : "Editar Membro", formData.name, `Level: ${formData.level}`, orgId);
+            logAction(isCreating ? "Adicionar Membro" : "Editar Membro", formData.name, detailsLog, orgId);
             
         } catch (e) { 
             console.error(e);
@@ -339,11 +374,10 @@ const App = () => {
             const memberToRemove = members.find(m => m.id === id);
             await deleteDoc(doc(db, "membros", String(id)));
             
-            // Fecha modal primeiro
             setDeleteConfirmation(null);
             showNotification('Removido.', 'success');
             
-            logAction("Remover Membro", memberToRemove ? memberToRemove.name : "Desconhecido", "Removido", activeTab);
+            logAction("Remover Membro", memberToRemove ? memberToRemove.name : "Desconhecido", "Removido da organização", activeTab);
         } catch (e) { showNotification(`Erro: ${e.message}`, 'error'); setDeleteConfirmation(null); }
     };
 
@@ -363,7 +397,7 @@ const App = () => {
             } else { await updateDoc(doc(db, "membros", member.id), { isLeader: false }); }
             
             showNotification('Liderança alterada.', 'success');
-            logAction("Alterar Liderança", member.name, newStatus ? "Promovido" : "Removido", orgId);
+            logAction("Alterar Liderança", member.name, newStatus ? "Promovido a Líder" : "Removido da Liderança", orgId);
         } catch (e) { showNotification('Erro.', 'error'); }
     };
 
