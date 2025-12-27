@@ -28,17 +28,19 @@ const Header = ({
                         <>
                             <button 
                                 onClick={() => setActiveTab('access')} 
-                                className={`p-2 text-slate-400 hover:text-green-400 transition-colors ${activeTab === 'access' ? 'text-green-400 bg-green-400/10 rounded-lg' : ''}`} 
+                                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${activeTab === 'access' ? 'bg-green-500/10 text-green-400 border border-green-500/30' : 'text-slate-400 hover:text-green-400 hover:bg-slate-800'}`} 
                                 title="Monitoramento de Acesso"
                             >
                                 <Globe size={20} />
+                                <span className="hidden md:inline font-bold text-sm">Monitoramento</span>
                             </button>
                             <button 
                                 onClick={() => setActiveTab('history')} 
-                                className={`p-2 text-slate-400 hover:text-purple-400 transition-colors ${activeTab === 'history' ? 'text-purple-400 bg-purple-400/10 rounded-lg' : ''}`} 
+                                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${activeTab === 'history' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/30' : 'text-slate-400 hover:text-purple-400 hover:bg-slate-800'}`} 
                                 title="Histórico de Modificações"
                             >
                                 <History size={20} />
+                                <span className="hidden md:inline font-bold text-sm">Histórico</span>
                             </button>
                         </>
                     )}
