@@ -17,7 +17,71 @@ import OrganizationTab from './components/OrganizationTab.js';
 import HistoryTab from './components/HistoryTab.js';
 import MonitoringTab from './components/MonitoringTab.js';
 
+// --- SISTEMA DE DEBUG DE ERROS (Adicionado) ---
+// Captura erros globais de script e mostra na tela
+window.addEventListener('error', (event) => {
+    const errorBox = document.getElementById('debug-error-box') || document.createElement('div');
+    errorBox.id = 'debug-error-box';
+    errorBox.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:auto; max-height:50vh; overflow:auto; background:rgba(150,0,0,0.95); color:white; padding:20px; z-index:99999; font-family:monospace; border-bottom: 2px solid red;';
+    errorBox.innerHTML += `
+        <div style="margin-bottom:10px; border-bottom:1px solid #ffcccc; padding-bottom:5px;">
+            <strong>⚠️ Erro Global Detectado:</strong><br/>
+            ${event.message}<br/>
+            <small style="opacity:0.8">${event.filename}:${event.lineno}</small>
+        </div>
+    `;
+    document.body.appendChild(errorBox);
+    console.error("Global Error:", event);
+});
+
+// Componente para capturar erros de Renderização do React
+class ErrorBoundary extends React.Component {
+    constructor(props) {
+        super(props);
+        this.state = { hasError: false, error: null, errorInfo: null };
+    }
+
+    static getDerivedStateFromError(error) {
+        return { hasError: true };
+    }
+
+    componentDidCatch(error, errorInfo) {
+        this.setState({ error, errorInfo });
+        console.error("React Error:", error, errorInfo);
+    }
+
+    render() {
+        if (this.state.hasError) {
+            return (
+                <div className="min-h-screen bg-slate-900 text-red-400 p-8 font-mono">
+                    <div className="max-w-3xl mx-auto bg-slate-800 border border-red-500 rounded p-6 shadow-2xl">
+                        <h1 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
+                            <AlertTriangle className="text-red-500"/> Algo deu errado!
+                        </h1>
+                        <div className="bg-black/50 p-4 rounded mb-4 overflow-auto max-h-60">
+                            <p className="font-bold text-red-300">{this.state.error && this.state.error.toString()}</p>
+                        </div>
+                        <details className="text-xs text-slate-500 cursor-pointer">
+                            <summary className="mb-2 hover:text-white">Ver Stack Trace</summary>
+                            <pre className="whitespace-pre-wrap">{this.state.errorInfo && this.state.errorInfo.componentStack}</pre>
+                        </details>
+                        <button 
+                            onClick={() => window.location.reload()} 
+                            className="mt-6 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded transition-colors"
+                        >
+                            Tentar Recarregar
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+        return this.props.children; 
+    }
+}
+
 const App = () => {
+    console.log("App iniciado..."); // Log para confirmar inicialização
+
     // Configurações
     const DISCORD_CLIENT_ID = "1453817939265589452"; 
     const GUILD_ID = "1410456333391761462"; 
@@ -50,32 +114,35 @@ const App = () => {
 
     // --- EFEITOS (Data Fetching) ---
     useEffect(() => {
-        const unsubMembers = onSnapshot(collection(db, "membros"), (snap) => setMembers(snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))), () => setLoading(false));
-        const unsubRoster = onSnapshot(doc(db, "server", "roster"), (doc) => { if (doc.exists()) setDiscordRoster(doc.data().users || []); });
-        const unsubRoles = onSnapshot(doc(db, "server", "roles"), (doc) => { if (doc.exists()) setDiscordRoles(doc.data().list || []); });
-        const unsubConfig = onSnapshot(doc(db, "server", "config"), (doc) => { 
-            if (doc.exists()) {
-                const data = doc.data();
-                setRoleConfig(data.roleMapping || {});
-                setLeaderRoleConfig(data.leaderRoleMapping || {});
-                setSecLeaderRoleConfig(data.secLeaderRoleMapping || {});
-                setAccessConfig({
-                    kamiRoleId: data.accessConfig?.kamiRoleId || '',
-                    councilRoleId: data.accessConfig?.councilRoleId || '',
-                    moderatorRoleId: data.accessConfig?.moderatorRoleId || '',
-                    creatorId: data.accessConfig?.creatorId || '',
-                    vipIds: data.accessConfig?.vipIds || []
-                });
-            }
-        });
-        return () => { unsubMembers(); unsubRoster(); unsubRoles(); unsubConfig(); };
+        try {
+            const unsubMembers = onSnapshot(collection(db, "membros"), (snap) => setMembers(snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))), () => setLoading(false));
+            const unsubRoster = onSnapshot(doc(db, "server", "roster"), (doc) => { if (doc.exists()) setDiscordRoster(doc.data().users || []); });
+            const unsubRoles = onSnapshot(doc(db, "server", "roles"), (doc) => { if (doc.exists()) setDiscordRoles(doc.data().list || []); });
+            const unsubConfig = onSnapshot(doc(db, "server", "config"), (doc) => { 
+                if (doc.exists()) {
+                    const data = doc.data();
+                    setRoleConfig(data.roleMapping || {});
+                    setLeaderRoleConfig(data.leaderRoleMapping || {});
+                    setSecLeaderRoleConfig(data.secLeaderRoleMapping || {});
+                    setAccessConfig({
+                        kamiRoleId: data.accessConfig?.kamiRoleId || '',
+                        councilRoleId: data.accessConfig?.councilRoleId || '',
+                        moderatorRoleId: data.accessConfig?.moderatorRoleId || '',
+                        creatorId: data.accessConfig?.creatorId || '',
+                        vipIds: data.accessConfig?.vipIds || []
+                    });
+                }
+            });
+            return () => { unsubMembers(); unsubRoster(); unsubRoles(); unsubConfig(); };
+        } catch (err) {
+            console.error("Erro ao conectar com Firebase:", err);
+            setNotification({ msg: "Erro de conexão com banco de dados.", type: "error" });
+        }
     }, []);
 
-    // --- SCROLL LOCK (Bloqueio de Rolagem) ---
-    // Atualizado para usar setProperty com 'important' para garantir que funcione
+    // --- SCROLL LOCK REFORÇADO ---
     useEffect(() => {
         const isModalOpen = selectedMember || isCreating || showSettings || deleteConfirmation;
-        
         if (isModalOpen) {
             document.body.style.setProperty('overflow', 'hidden', 'important');
             document.documentElement.style.setProperty('overflow', 'hidden', 'important');
@@ -83,8 +150,6 @@ const App = () => {
             document.body.style.removeProperty('overflow');
             document.documentElement.style.removeProperty('overflow');
         }
-        
-        // Limpeza ao desmontar
         return () => { 
             document.body.style.removeProperty('overflow');
             document.documentElement.style.removeProperty('overflow');
@@ -217,40 +282,40 @@ const App = () => {
     const openEditModal = (member) => { setIsCreating(false); setSelectedMember(member); setEditingOrgId(member.org); };
 
     const handleSaveMember = async (formData) => {
-        const orgId = isCreating ? editingOrgId : selectedMember.org;
-        if (!checkPermission(isCreating ? 'ADD_MEMBER' : 'EDIT_MEMBER', orgId)) return showNotification('Sem permissão.', 'error');
-        
-        // Validações
-        if (!formData.name || !formData.discordId || !formData.ninRole) return showNotification('Campos obrigatórios!', 'error');
-        if (isCreating && members.filter(m => m.org === orgId).length >= ORG_CONFIG[orgId].limit) return showNotification('Limite atingido!', 'error');
-
-        // Resolve cargo discord
-        let finalRoleId = formData.specificRoleId || roleConfig[orgId];
-        let finalRoleName = "Membro";
-        if (finalRoleId) {
-            const r = discordRoles.find(role => role.id === finalRoleId);
-            if (r) finalRoleName = r.name;
-        }
-
-        // Resolve conflito de liderança
-        if (formData.isLeader) {
-            const currentLeader = members.find(m => m.org === orgId && m.isLeader === true && m.discordId !== formData.discordId);
-            if (currentLeader) {
-                let newRole = currentLeader.ninRole;
-                if (orgId === 'unidade-medica' && currentLeader.ninRole === 'Diretor Médico') newRole = 'Residente Chefe';
-                await updateDoc(doc(db, "membros", currentLeader.id), { isLeader: false, ninRole: newRole });
-            }
-        }
-        
-        let finalNinRole = formData.ninRole;
-        if (formData.isLeader && orgId === 'unidade-medica') finalNinRole = 'Diretor Médico';
-
-        const payload = {
-            ...formData, org: orgId, role: finalRoleName, specificRoleId: finalRoleId, ninRole: finalNinRole,
-            status: 'Ativo', updatedAt: new Date().toISOString(), statsUpdatedAt: new Date().toISOString()
-        };
-
         try {
+            const orgId = isCreating ? editingOrgId : selectedMember.org;
+            if (!checkPermission(isCreating ? 'ADD_MEMBER' : 'EDIT_MEMBER', orgId)) return showNotification('Sem permissão.', 'error');
+            
+            // Validações
+            if (!formData.name || !formData.discordId || !formData.ninRole) return showNotification('Campos obrigatórios!', 'error');
+            if (isCreating && members.filter(m => m.org === orgId).length >= ORG_CONFIG[orgId].limit) return showNotification('Limite atingido!', 'error');
+
+            // Resolve cargo discord
+            let finalRoleId = formData.specificRoleId || roleConfig[orgId];
+            let finalRoleName = "Membro";
+            if (finalRoleId) {
+                const r = discordRoles.find(role => role.id === finalRoleId);
+                if (r) finalRoleName = r.name;
+            }
+
+            // Resolve conflito de liderança
+            if (formData.isLeader) {
+                const currentLeader = members.find(m => m.org === orgId && m.isLeader === true && m.discordId !== formData.discordId);
+                if (currentLeader) {
+                    let newRole = currentLeader.ninRole;
+                    if (orgId === 'unidade-medica' && currentLeader.ninRole === 'Diretor Médico') newRole = 'Residente Chefe';
+                    await updateDoc(doc(db, "membros", currentLeader.id), { isLeader: false, ninRole: newRole });
+                }
+            }
+            
+            let finalNinRole = formData.ninRole;
+            if (formData.isLeader && orgId === 'unidade-medica') finalNinRole = 'Diretor Médico';
+
+            const payload = {
+                ...formData, org: orgId, role: finalRoleName, specificRoleId: finalRoleId, ninRole: finalNinRole,
+                status: 'Ativo', updatedAt: new Date().toISOString(), statsUpdatedAt: new Date().toISOString()
+            };
+
             const docId = isCreating ? `${formData.discordId}_${orgId}` : selectedMember.id;
             if (isCreating) await setDoc(doc(db, "membros", docId), payload);
             else await updateDoc(doc(db, "membros", docId), payload);
@@ -258,7 +323,10 @@ const App = () => {
             logAction(isCreating ? "Adicionar Membro" : "Editar Membro", formData.name, `Level: ${formData.level}`, orgId);
             showNotification('Salvo!', 'success');
             setSelectedMember(null); setIsCreating(false);
-        } catch (e) { showNotification('Erro: ' + e.message, 'error'); }
+        } catch (e) { 
+            console.error(e);
+            showNotification('Erro: ' + e.message, 'error'); 
+        }
     };
 
     const handleDeleteMember = async (id) => {
@@ -300,113 +368,122 @@ const App = () => {
     };
 
     // --- RENDER ---
-    if (!user) return <LoginScreen onLogin={handleLogin} />;
+    if (!user) return (
+        <ErrorBoundary>
+            <LoginScreen onLogin={handleLogin} />
+        </ErrorBoundary>
+    );
 
     if (!canAccessPanel) return (
-        <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 font-mono">
-            <div className="max-w-md w-full bg-slate-800 border border-red-500/30 p-8 rounded-2xl text-center shadow-2xl">
-                <ShieldCheck size={48} className="mx-auto text-red-500 mb-6" />
-                <h1 className="text-2xl font-bold text-white mb-2">Acesso Negado</h1>
-                <p className="text-slate-400 mb-6">Você não possui permissão. Contate um administrador.</p>
-                <button onClick={handleLogout} className="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-6 rounded transition-colors">Voltar / Logout</button>
+        <ErrorBoundary>
+            <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 font-mono">
+                <div className="max-w-md w-full bg-slate-800 border border-red-500/30 p-8 rounded-2xl text-center shadow-2xl">
+                    <ShieldCheck size={48} className="mx-auto text-red-500 mb-6" />
+                    <h1 className="text-2xl font-bold text-white mb-2">Acesso Negado</h1>
+                    <p className="text-slate-400 mb-6">Você não possui permissão. Contate um administrador.</p>
+                    <button onClick={handleLogout} className="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-6 rounded transition-colors">Voltar / Logout</button>
+                </div>
             </div>
-        </div>
+        </ErrorBoundary>
     );
 
     return (
-        <div className="min-h-screen bg-slate-900 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] text-slate-200 font-mono">
-            {/* Componentes Globais */}
-            {notification && (
-                <div className={`fixed bottom-4 right-4 p-4 rounded shadow-lg text-white z-50 animate-bounce-in ${notification.type === 'error' ? 'bg-red-600' : 'bg-emerald-600'}`}>
-                    {notification.msg}
-                </div>
-            )}
-
-            {/* Modais */}
-            {(selectedMember || isCreating) && (
-                <MemberModal 
-                    member={selectedMember} 
-                    orgId={editingOrgId}
-                    isCreating={isCreating}
-                    discordRoster={discordRoster}
-                    discordRoles={discordRoles}
-                    onClose={() => { setSelectedMember(null); setIsCreating(false); }}
-                    onSave={handleSaveMember}
-                    canManage={checkPermission('EDIT_MEMBER', editingOrgId)}
-                />
-            )}
-
-            {showSettings && (
-                <SettingsModal 
-                    roleConfig={roleConfig}
-                    leaderRoleConfig={leaderRoleConfig}
-                    secLeaderRoleConfig={secLeaderRoleConfig}
-                    accessConfig={accessConfig}
-                    discordRoles={discordRoles}
-                    discordRoster={discordRoster}
-                    onClose={() => setShowSettings(false)}
-                    onSave={handleSaveConfig}
-                    canManageSettings={canManageSettings}
-                />
-            )}
-
-            {deleteConfirmation && (
-                <div className="fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="bg-slate-800 border border-slate-600 rounded-xl p-6 max-w-md w-full shadow-2xl animate-fade-in text-center">
-                        <AlertTriangle className="mx-auto text-yellow-400 mb-4" size={48} />
-                        <h3 className="text-xl font-bold text-white mb-2">Confirmar Exclusão</h3>
-                        <p className="text-slate-400 text-sm mb-6">Tem certeza?</p>
-                        <div className="flex justify-center gap-3">
-                            <button onClick={() => setDeleteConfirmation(null)} className="px-4 py-2 text-slate-300">Cancelar</button>
-                            <button onClick={() => handleDeleteMember(deleteConfirmation)} className="bg-red-600 hover:bg-red-500 text-white px-6 py-2 rounded font-bold">Excluir</button>
-                        </div>
+        <ErrorBoundary>
+            <div className="min-h-screen bg-slate-900 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] text-slate-200 font-mono">
+                {notification && (
+                    <div className={`fixed bottom-4 right-4 p-4 rounded shadow-lg text-white z-50 animate-bounce-in ${notification.type === 'error' ? 'bg-red-600' : 'bg-emerald-600'}`}>
+                        {notification.msg}
                     </div>
-                </div>
-            )}
+                )}
 
-            {/* Layout Principal */}
-            <Header 
-                user={user}
-                userRoleLabel={getUserRoleLabel}
-                loading={loading}
-                activeTab={activeTab}
-                setActiveTab={setActiveTab}
-                canViewHistory={canViewHistory}
-                canManageSettings={canManageSettings}
-                onOpenSettings={() => setShowSettings(true)}
-                onLogout={handleLogout}
-            />
-
-            <main className="container mx-auto px-6 py-8">
-                {activeTab === 'dashboard' ? (
-                    <DashboardTab 
-                        members={members}
-                        roleConfig={roleConfig}
-                        multiOrgUsers={multiOrgUsers}
-                        onTabChange={setActiveTab}
-                    />
-                ) : activeTab === 'history' ? (
-                    <HistoryTab onBack={() => setActiveTab('dashboard')} />
-                ) : activeTab === 'access' ? (
-                    <MonitoringTab onBack={() => setActiveTab('dashboard')} />
-                ) : (
-                    <OrganizationTab 
-                        orgId={activeTab}
-                        members={members}
+                {(selectedMember || isCreating) && (
+                    <MemberModal 
+                        member={selectedMember} 
+                        orgId={editingOrgId}
+                        isCreating={isCreating}
+                        discordRoster={discordRoster}
                         discordRoles={discordRoles}
-                        leaderRoleConfig={leaderRoleConfig}
-                        canManage={canManageOrg(activeTab)}
-                        onOpenCreate={openCreateModal}
-                        onEditMember={openEditModal}
-                        onDeleteMember={setDeleteConfirmation}
-                        onToggleLeader={handleToggleLeader}
-                        onBack={() => setActiveTab('dashboard')}
+                        onClose={() => { setSelectedMember(null); setIsCreating(false); }}
+                        onSave={handleSaveMember}
+                        canManage={checkPermission('EDIT_MEMBER', editingOrgId)}
                     />
                 )}
-            </main>
-        </div>
+
+                {showSettings && (
+                    <SettingsModal 
+                        roleConfig={roleConfig}
+                        leaderRoleConfig={leaderRoleConfig}
+                        secLeaderRoleConfig={secLeaderRoleConfig}
+                        accessConfig={accessConfig}
+                        discordRoles={discordRoles}
+                        discordRoster={discordRoster}
+                        onClose={() => setShowSettings(false)}
+                        onSave={handleSaveConfig}
+                        canManageSettings={canManageSettings}
+                    />
+                )}
+
+                {deleteConfirmation && (
+                    <div className="fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+                        <div className="bg-slate-800 border border-slate-600 rounded-xl p-6 max-w-md w-full shadow-2xl animate-fade-in text-center">
+                            <AlertTriangle className="mx-auto text-yellow-400 mb-4" size={48} />
+                            <h3 className="text-xl font-bold text-white mb-2">Confirmar Exclusão</h3>
+                            <p className="text-slate-400 text-sm mb-6">Tem certeza?</p>
+                            <div className="flex justify-center gap-3">
+                                <button onClick={() => setDeleteConfirmation(null)} className="px-4 py-2 text-slate-300">Cancelar</button>
+                                <button onClick={() => handleDeleteMember(deleteConfirmation)} className="bg-red-600 hover:bg-red-500 text-white px-6 py-2 rounded font-bold">Excluir</button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                <Header 
+                    user={user}
+                    userRoleLabel={getUserRoleLabel}
+                    loading={loading}
+                    activeTab={activeTab}
+                    setActiveTab={setActiveTab}
+                    canViewHistory={canViewHistory}
+                    canManageSettings={canManageSettings}
+                    onOpenSettings={() => setShowSettings(true)}
+                    onLogout={handleLogout}
+                />
+
+                <main className="container mx-auto px-6 py-8">
+                    {activeTab === 'dashboard' ? (
+                        <DashboardTab 
+                            members={members}
+                            roleConfig={roleConfig}
+                            multiOrgUsers={multiOrgUsers}
+                            onTabChange={setActiveTab}
+                        />
+                    ) : activeTab === 'history' ? (
+                        <HistoryTab onBack={() => setActiveTab('dashboard')} />
+                    ) : activeTab === 'access' ? (
+                        <MonitoringTab onBack={() => setActiveTab('dashboard')} />
+                    ) : (
+                        <OrganizationTab 
+                            orgId={activeTab}
+                            members={members}
+                            discordRoles={discordRoles}
+                            leaderRoleConfig={leaderRoleConfig}
+                            canManage={canManageOrg(activeTab)}
+                            onOpenCreate={openCreateModal}
+                            onEditMember={openEditModal}
+                            onDeleteMember={setDeleteConfirmation}
+                            onToggleLeader={handleToggleLeader}
+                            onBack={() => setActiveTab('dashboard')}
+                        />
+                    )}
+                </main>
+            </div>
+        </ErrorBoundary>
     );
 };
 
 const root = createRoot(document.getElementById('root'));
-root.render(<App />);
+root.render(
+    <ErrorBoundary>
+        <App />
+    </ErrorBoundary>
+);
