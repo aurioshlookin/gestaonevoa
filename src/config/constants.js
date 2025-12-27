@@ -1,13 +1,22 @@
-import { Swords, Shield, Activity, Ghost, Users, UserPlus, Trash2, Save, RefreshCw, AlertCircle, Menu, LogOut, Search, Settings, X, AlertTriangle, Crown, ArrowUp, ArrowDown, ArrowUpDown, ArrowLeft, Heart, Zap, Flame, Droplets, Mountain, Wind, CloudLightning, Cross, Target, Circle, Calendar, Info, Lock, Database, Clock, MessageSquare, Mic, ShieldCheck, UserCog, BookOpen, ChevronDown, ChevronUp, FileText, History, Globe, Star, RotateCcw, UserSecret } from 'lucide-react';
+import { 
+    Swords, Shield, Activity, Ghost, Users, UserPlus, Trash2, 
+    Save, RefreshCw, AlertCircle, Menu, LogOut, Search, Settings, X, 
+    AlertTriangle, Crown, ArrowUp, ArrowDown, ArrowUpDown, ArrowLeft,
+    Heart, Zap, Flame, Droplets, Mountain, Wind, CloudLightning, 
+    Cross, Target, Circle, Calendar, Info, Lock, Database, Clock, 
+    MessageSquare, Mic, ShieldCheck, UserCog, BookOpen, ChevronDown, 
+    ChevronUp, FileText, History, Globe, Star
+} from 'lucide-react';
 
 export const STATS = ['Força', 'Fortitude', 'Intelecto', 'Agilidade', 'Chakra'];
 
+// Objeto com todos os ícones para facilitar o uso dinâmico
 export const Icons = { 
     Swords, Shield, Activity, Ghost, Users, UserPlus, Trash2, Save, RefreshCw, AlertCircle, 
     Menu, LogOut, Lock, Search, Settings, X, Info, AlertTriangle, Crown, ArrowUp, ArrowDown, 
     ArrowUpDown, ArrowLeft, Heart, Zap, Flame, Droplets, Mountain, Wind, CloudLightning, 
     Cross, Target, Circle, Calendar, Database, Clock, MessageSquare, Mic, ShieldCheck, 
-    UserCog, BookOpen, ChevronDown, ChevronUp, FileText, History, Globe, Star, RotateCcw, UserSecret 
+    UserCog, BookOpen, ChevronDown, ChevronUp, FileText, History, Globe, Star 
 };
 
 export const MASTERIES = [
