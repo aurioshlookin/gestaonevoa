@@ -312,6 +312,21 @@ const App = () => {
         setSelectedMember({ org: orgId });
     };
 
+    // --- FUNÇÃO openEditModal ADICIONADA AQUI ---
+    const openEditModal = (member) => {
+        setIsCreating(false);
+        const defaultStats = { Força: 5, Fortitude: 5, Intelecto: 5, Agilidade: 5, Chakra: 5 };
+        setEditForm({
+            ...member,
+            level: member.level || 1,
+            guildBonus: member.guildBonus || false,
+            masteries: member.masteries || [],
+            stats: member.stats || defaultStats,
+            joinDate: member.joinDate || new Date().toISOString().split('T')[0]
+        });
+        setSelectedMember(member);
+    };
+
     const handleSaveEdit = async () => {
         if (!selectedMember || !editForm) return;
         const orgId = isCreating ? activeTab : selectedMember.org;
