@@ -1,9 +1,5 @@
 import React, { useState } from 'react';
-import { 
-    BookOpen, ChevronUp, ChevronDown, UserPlus, 
-    ArrowUp, ArrowDown, ArrowUpDown, AlertCircle, 
-    Crown, Trash2, ArrowLeft, RotateCcw, UserSecret 
-} from 'lucide-react';
+import { BookOpen, ChevronUp, ChevronDown, UserPlus, ArrowUp, ArrowDown, ArrowUpDown, AlertCircle, Crown, Trash2, ArrowLeft, RotateCcw, UserSecret } from 'lucide-react';
 import { ORG_CONFIG, MASTERIES, Icons } from '../config/constants.js';
 import { getActivityStats, formatDate, getMemberOrgsInfo } from '../utils/helpers.js';
 
