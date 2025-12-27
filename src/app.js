@@ -96,8 +96,7 @@ const App = () => {
         if (simulation) {
             return {
                 ...user,
-                // Mascaramos ID e Cargos durante a simulação
-                id: 'simulated-user-id', 
+                id: 'simulated-user-id', // ID falso para testar permissões de criador
                 username: `[Simulação] ${simulation.name}`,
                 roles: simulation.roles || []
             };
@@ -188,97 +187,28 @@ const App = () => {
         }
     };
 
-    // --- LÓGICA DE TUTORIAL ---
-    const startTutorial = () => {
-        if (!effectiveUser) return;
-        
-        let roleType = 'member'; // Padrão
-
-        // Determina o cargo mais alto
-        if (effectiveUser.id === accessConfig.creatorId || effectiveUser.roles.includes(accessConfig.kamiRoleId)) {
-            roleType = 'mizukami';
-        } else if (effectiveUser.roles.includes(accessConfig.councilRoleId)) {
-            roleType = 'council';
-        } else {
-            // Verifica se é líder de alguma org
-            const isLeader = Object.values(leaderRoleConfig).some(rid => effectiveUser.roles.includes(rid));
-            if (isLeader) roleType = 'leader';
-        }
-
-        setTutorialSteps(TUTORIALS[roleType]);
-    };
-
-    // Auto-início do tutorial na primeira vez (simulado com sessionStorage)
-    useEffect(() => {
-        if (effectiveUser && !sessionStorage.getItem('tutorial_seen')) {
-            // Pequeno delay para garantir que a interface carregou
-            setTimeout(() => {
-                startTutorial();
-                sessionStorage.setItem('tutorial_seen', 'true');
-            }, 1000);
-        }
-    }, [effectiveUser]);
-
-
-    // --- MONITORAMENTO DETALHADO DE NAVEGAÇÃO ---
-    useEffect(() => {
-        if (!user || loading || simulation) return;
-        
-        let pageName = activeTab;
-        if (activeTab === 'dashboard') pageName = 'Painel Inicial';
-        else if (activeTab === 'access') pageName = 'Monitoramento';
-        else if (ORG_CONFIG[activeTab]) pageName = ORG_CONFIG[activeTab].name;
-
-        if (pageName && activeTab !== 'history') {
-            addDoc(collection(db, "access_logs"), {
-                userId: user.id,
-                username: user.username || user.displayName,
-                action: `Navegou: ${pageName}`,
-                timestamp: new Date().toISOString()
-            }).catch(err => console.error("Erro ao logar navegação:", err));
-        }
-    }, [activeTab, user, loading, simulation]);
-
-    useEffect(() => {
-        if (!user) return;
-        const heartbeat = () => setDoc(doc(db, "online_status", user.id), {
-            username: user.username || user.displayName, userId: user.id, avatar: user.avatar, lastSeen: new Date().toISOString()
-        }, { merge: true }).catch(console.error);
-        heartbeat();
-        const interval = setInterval(heartbeat, 60000);
-        return () => clearInterval(interval);
-    }, [user]);
-
-    const logAction = async (action, target, details, org = null) => {
-        if (!user || simulation) return;
-        try {
-            await addDoc(collection(db, "audit_logs"), {
-                action, target, details, executor: user.username || user.displayName, executorId: user.id, org: org || 'Sistema', timestamp: new Date().toISOString()
-            });
-        } catch (e) { console.warn("Falha ao salvar log (ação principal ok):", e); }
-    };
-
-    // --- PERMISSÕES ---
+    // --- PERMISSÕES REFINADAS ---
     const checkPermission = (action, contextOrgId = null) => {
         if (!effectiveUser) return false;
         
-        // Criador e VIPs
+        // 1. Criador e VIPs (Acesso Total)
         if (effectiveUser.id === accessConfig.creatorId) return true;
         if (accessConfig.vipIds && accessConfig.vipIds.includes(effectiveUser.id)) return true;
 
+        // 2. Bloqueio de Configurações/Monitoramento para não-Criadores
+        if (action === 'MANAGE_SETTINGS' || action === 'VIEW_HISTORY') return false;
+
         const userRoles = effectiveUser.roles || [];
 
-        // Admins Globais
-        if (userRoles.includes(accessConfig.kamiRoleId) || userRoles.includes(accessConfig.councilRoleId)) return true;
+        // 3. Admins Globais (Mizukami e Conselho) - Podem editar tudo
+        if (userRoles.includes(accessConfig.kamiRoleId) || userRoles.includes(accessConfig.councilRoleId)) {
+            return true;
+        }
 
-        // Regra de Gerenciamento de Settings (Só Criador/VIP/Admin Global)
-        if (action === 'MANAGE_SETTINGS') return false; 
-
-        // Regra de Edição de Membros
-        if (action === 'EDIT_MEMBER' || action === 'ADD_MEMBER' || action === 'DELETE_MEMBER') {
-            if (userRoles.includes(accessConfig.moderatorRoleId)) return false;
+        // 4. Edição por Líderes (Restrito à organização)
+        if (['EDIT_MEMBER', 'ADD_MEMBER', 'DELETE_MEMBER'].includes(action)) {
+            if (userRoles.includes(accessConfig.moderatorRoleId)) return false; // Moderador só vê
             
-            // Líderes só editam sua própria org
             if (contextOrgId) {
                 const leaderRoleId = leaderRoleConfig[contextOrgId];
                 if (leaderRoleId && userRoles.includes(leaderRoleId)) return true;
@@ -289,14 +219,14 @@ const App = () => {
 
     const canManageOrg = (orgId) => checkPermission('EDIT_MEMBER', orgId);
     
-    // CORREÇÃO: Usa effectiveUser para checar se é o criador durante a simulação
-    const isRealCreator = effectiveUser?.id === accessConfig.creatorId; 
-    const canViewHistory = isRealCreator; 
-    const canManageSettings = isRealCreator;
+    // Regras Estritas: Apenas o criador real (ou simulado como criador) vê esses botões
+    const canViewHistory = checkPermission('VIEW_HISTORY'); 
+    const canManageSettings = checkPermission('MANAGE_SETTINGS');
     
-    // Acesso ao Painel: Permite se tiver qualquer cargo válido
+    // Acesso ao Painel
     const canAccessPanel = useMemo(() => {
         if (!effectiveUser) return false;
+        // Criador e VIPs sempre acessam
         if (effectiveUser.id === accessConfig.creatorId) return true;
         if (accessConfig.vipIds && accessConfig.vipIds.includes(effectiveUser.id)) return true;
 
@@ -337,7 +267,79 @@ const App = () => {
         return roles.join(" & ");
     }, [effectiveUser, accessConfig, leaderRoleConfig, roleConfig]);
 
-    // --- HELPERS E CÁLCULOS ---
+    // --- LÓGICA DE TUTORIAL E NAVEGAÇÃO ---
+    const startTutorial = () => {
+        if (!effectiveUser) return;
+        
+        let roleType = 'member'; 
+        if (effectiveUser.id === accessConfig.creatorId || effectiveUser.roles.includes(accessConfig.kamiRoleId)) {
+            roleType = 'mizukami';
+        } else if (effectiveUser.roles.includes(accessConfig.councilRoleId)) {
+            roleType = 'council';
+        } else {
+            const isLeader = Object.values(leaderRoleConfig).some(rid => effectiveUser.roles.includes(rid));
+            if (isLeader) roleType = 'leader';
+        }
+
+        setTutorialSteps(TUTORIALS[roleType]);
+    };
+
+    // Callback chamado pelo TutorialOverlay quando o passo muda
+    const handleTutorialStepChange = (step) => {
+        if (step.navigate) {
+            setActiveTab(step.navigate);
+        }
+    };
+
+    // Auto-início
+    useEffect(() => {
+        if (effectiveUser && !sessionStorage.getItem('tutorial_seen')) {
+            setTimeout(() => {
+                startTutorial();
+                sessionStorage.setItem('tutorial_seen', 'true');
+            }, 1000);
+        }
+    }, [effectiveUser]);
+
+    // --- MONITORAMENTO ---
+    useEffect(() => {
+        if (!user || loading || simulation) return;
+        
+        let pageName = activeTab;
+        if (activeTab === 'dashboard') pageName = 'Painel Inicial';
+        else if (activeTab === 'access') pageName = 'Monitoramento';
+        else if (ORG_CONFIG[activeTab]) pageName = ORG_CONFIG[activeTab].name;
+
+        if (pageName && activeTab !== 'history') {
+            addDoc(collection(db, "access_logs"), {
+                userId: user.id,
+                username: user.username || user.displayName,
+                action: `Navegou: ${pageName}`,
+                timestamp: new Date().toISOString()
+            }).catch(err => console.error("Erro ao logar navegação:", err));
+        }
+    }, [activeTab, user, loading, simulation]);
+
+    useEffect(() => {
+        if (!user) return;
+        const heartbeat = () => setDoc(doc(db, "online_status", user.id), {
+            username: user.username || user.displayName, userId: user.id, avatar: user.avatar, lastSeen: new Date().toISOString()
+        }, { merge: true }).catch(console.error);
+        heartbeat();
+        const interval = setInterval(heartbeat, 60000);
+        return () => clearInterval(interval);
+    }, [user]);
+
+    const logAction = async (action, target, details, org = null) => {
+        if (!user || simulation) return;
+        try {
+            await addDoc(collection(db, "audit_logs"), {
+                action, target, details, executor: user.username || user.displayName, executorId: user.id, org: org || 'Sistema', timestamp: new Date().toISOString()
+            });
+        } catch (e) { console.warn("Falha ao salvar log (ação principal ok):", e); }
+    };
+
+    // --- HELPERS E ACTIONS ---
     const showNotification = (msg, type) => { setNotification({ msg, type }); setTimeout(() => setNotification(null), 3000); };
     
     const multiOrgUsers = useMemo(() => {
@@ -350,16 +352,11 @@ const App = () => {
         return Object.values(memberMap).filter(u => u.orgs.length > 1);
     }, [members]);
 
-    // --- ACTIONS: MEMBROS ---
     const openCreateModal = () => { setIsCreating(true); setSelectedMember(null); setEditingOrgId(activeTab); };
     const openEditModal = (member) => { setIsCreating(false); setSelectedMember(member); setEditingOrgId(member.org); };
 
-    // --- FUNÇÃO DE SALVAMENTO ---
     const handleSaveMember = async (formData) => {
-        if (simulation) {
-            showNotification('Simulação: Ação bloqueada.', 'error');
-            return;
-        }
+        if (simulation) { showNotification('Simulação: Ação bloqueada.', 'error'); return; }
 
         try {
             const orgId = isCreating ? editingOrgId : selectedMember.org;
@@ -398,7 +395,7 @@ const App = () => {
                 const newMasteries = (formData.masteries || []).sort().join(',');
                 if (oldMasteries !== newMasteries) changes.push(`Maestrias alteradas`);
 
-                detailsLog = changes.length > 0 ? changes.join(' | ') : "Edição (sem alterações detectadas)";
+                detailsLog = changes.length > 0 ? changes.join(' | ') : "Edição sem alterações";
             }
 
             if (formData.isLeader) {
@@ -515,17 +512,17 @@ const App = () => {
         </ErrorBoundary>
     );
 
-    // CORREÇÃO: Define se o usuário pode gerenciar a org atual
     const hasManagePermission = checkPermission('EDIT_MEMBER', editingOrgId || activeTab);
 
     return (
         <ErrorBoundary>
             {SimulationBanner}
-            {/* COMPONENTE DE TUTORIAL */}
+            
             {tutorialSteps && (
                 <TutorialOverlay 
                     steps={tutorialSteps} 
                     onClose={() => setTutorialSteps(null)} 
+                    onStepChange={handleTutorialStepChange} // Novo: Passa a função de navegação
                 />
             )}
 
@@ -541,8 +538,8 @@ const App = () => {
                         discordRoles={discordRoles}
                         onClose={() => { setSelectedMember(null); setIsCreating(false); }}
                         onSave={handleSaveMember}
-                        canManage={hasManagePermission && !simulation} // Bloqueia edição se não tiver permissão OU estiver simulando
-                        isReadOnly={!hasManagePermission || simulation} // Novo: Passa estado de leitura para o modal
+                        canManage={hasManagePermission && !simulation} 
+                        isReadOnly={!hasManagePermission || simulation} 
                     />
                 )}
 
@@ -588,9 +585,8 @@ const App = () => {
                 />
 
                 <main className="container mx-auto px-6 py-8">
-                    {/* Botão Flutuante de Ajuda - Apenas se não estiver no dashboard */}
                     <button 
-                        onClick={() => setTutorialSteps(TUTORIALS[getUserRoleLabel.includes('Mizukami') ? 'mizukami' : getUserRoleLabel.includes('Líder') ? 'leader' : 'member'])}
+                        onClick={startTutorial}
                         className="fixed bottom-4 left-4 p-3 bg-cyan-600 hover:bg-cyan-500 text-white rounded-full shadow-lg z-50 transition-transform hover:scale-110"
                         title="Ajuda"
                     >
@@ -607,9 +603,9 @@ const App = () => {
                             members={members}
                             discordRoles={discordRoles}
                             leaderRoleConfig={leaderRoleConfig}
-                            canManage={canManageOrg(activeTab) && !simulation} // Só mostra botões de ação se puder gerenciar E não estiver simulando
+                            canManage={canManageOrg(activeTab) && !simulation} 
                             onOpenCreate={openCreateModal}
-                            onEditMember={openEditModal} // Abre modal para todos (leitura ou edição)
+                            onEditMember={openEditModal} 
                             onDeleteMember={setDeleteConfirmation}
                             onToggleLeader={handleToggleLeader}
                             onBack={() => setActiveTab('dashboard')}
