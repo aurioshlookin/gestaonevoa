@@ -60,7 +60,7 @@ const App = () => {
 
     // Estados Globais
     const [user, setUser] = useState(null);
-    const [simulation, setSimulation] = useState(null); // Estado para simulação { name: string, roles: [], isGuest: boolean }
+    const [simulation, setSimulation] = useState(null); // Estado para simulação
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('dashboard');
     const [notification, setNotification] = useState(null);
@@ -91,8 +91,7 @@ const App = () => {
         if (simulation) {
             return {
                 ...user,
-                // Se for simulação, mascaramos o ID para evitar que ele seja reconhecido como Criador/VIP real
-                // a menos que estejamos simulando o próprio criador (o que não faz muito sentido, mas ok)
+                // Mascaramos ID e Cargos durante a simulação
                 id: 'simulated-user-id', 
                 username: `[Simulação] ${simulation.name}`,
                 roles: simulation.roles || []
@@ -174,11 +173,19 @@ const App = () => {
         window.location.href = `https://discord.com/api/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&redirect_uri=${redirectUri}&response_type=token&scope=identify%20guilds.members.read`; 
     };
 
-    const handleLogout = () => { localStorage.removeItem('discord_access_token'); setUser(null); };
+    // CORREÇÃO: Logout encerra simulação se ativa, senão faz logout real
+    const handleLogout = () => { 
+        if (simulation) {
+            setSimulation(null);
+            showNotification('Simulação encerrada.', 'success');
+        } else {
+            localStorage.removeItem('discord_access_token'); 
+            setUser(null); 
+        }
+    };
 
     // --- MONITORAMENTO DETALHADO DE NAVEGAÇÃO ---
     useEffect(() => {
-        // Se estiver simulando, NÃO gera logs para não sujar o banco
         if (!user || loading || simulation) return;
         
         let pageName = activeTab;
@@ -207,7 +214,6 @@ const App = () => {
     }, [user]);
 
     const logAction = async (action, target, details, org = null) => {
-        // Não loga ações durante simulação
         if (!user || simulation) return;
         try {
             await addDoc(collection(db, "audit_logs"), {
@@ -220,21 +226,23 @@ const App = () => {
     const checkPermission = (action, contextOrgId = null) => {
         if (!effectiveUser) return false;
         
-        // 1. Criador e VIPs (Checa ID real se não estiver simulando, ou ID efetivo)
+        // Criador e VIPs
         if (effectiveUser.id === accessConfig.creatorId) return true;
         if (accessConfig.vipIds && accessConfig.vipIds.includes(effectiveUser.id)) return true;
 
         const userRoles = effectiveUser.roles || [];
 
-        // 2. Admins Globais
+        // Admins Globais
         if (userRoles.includes(accessConfig.kamiRoleId) || userRoles.includes(accessConfig.councilRoleId)) return true;
 
-        // 3. Bloqueios Específicos
-        if (action === 'MANAGE_SETTINGS') return false; // Apenas Criador (checado antes ou no canManageSettings)
+        // Regra de Gerenciamento de Settings (Só Criador/VIP/Admin Global)
+        if (action === 'MANAGE_SETTINGS') return false; 
 
-        // 4. Edição (Líderes)
+        // Regra de Edição de Membros
         if (action === 'EDIT_MEMBER' || action === 'ADD_MEMBER' || action === 'DELETE_MEMBER') {
             if (userRoles.includes(accessConfig.moderatorRoleId)) return false;
+            
+            // Líderes só editam sua própria org
             if (contextOrgId) {
                 const leaderRoleId = leaderRoleConfig[contextOrgId];
                 if (leaderRoleId && userRoles.includes(leaderRoleId)) return true;
@@ -245,16 +253,14 @@ const App = () => {
 
     const canManageOrg = (orgId) => checkPermission('EDIT_MEMBER', orgId);
     
-    // --- REGRAS ESTRITAS PARA MONITORAMENTO E CONFIGURAÇÕES ---
-    // Apenas o ID EXATO do Criador pode ver, independente de cargos (a menos que esteja simulando outro user)
-    const isRealCreator = effectiveUser?.id === accessConfig.creatorId;
-    
+    // Regras Estritas para Monitoramento e Configurações (Só Criador REAL)
+    const isRealCreator = user?.id === accessConfig.creatorId; 
     const canViewHistory = isRealCreator; 
     const canManageSettings = isRealCreator;
     
+    // Acesso ao Painel: Permite se tiver qualquer cargo válido
     const canAccessPanel = useMemo(() => {
         if (!effectiveUser) return false;
-        // Criador e VIPs sempre acessam
         if (effectiveUser.id === accessConfig.creatorId) return true;
         if (accessConfig.vipIds && accessConfig.vipIds.includes(effectiveUser.id)) return true;
 
@@ -274,7 +280,6 @@ const App = () => {
     const getUserRoleLabel = useMemo(() => {
         if (!effectiveUser) return "";
         let roles = [];
-        // Labels especiais
         if (effectiveUser.id === accessConfig.creatorId) roles.push("Criador");
         if (accessConfig.vipIds && accessConfig.vipIds.includes(effectiveUser.id)) roles.push("VIP");
         if (effectiveUser.roles.includes(accessConfig.kamiRoleId)) roles.push("Kage");
@@ -315,9 +320,8 @@ const App = () => {
 
     // --- FUNÇÃO DE SALVAMENTO ---
     const handleSaveMember = async (formData) => {
-        // Bloqueia ações reais se estiver em simulação
         if (simulation) {
-            showNotification('Modo Simulação: Ações são bloqueadas.', 'error');
+            showNotification('Simulação: Ação bloqueada.', 'error');
             return;
         }
 
@@ -448,10 +452,7 @@ const App = () => {
                 <Eye size={20}/>
                 <span>Modo Simulação: Visualizando como <u>{simulation.name}</u></span>
             </div>
-            <button 
-                onClick={() => { setSimulation(null); setActiveTab('dashboard'); }} 
-                className="bg-white text-orange-600 px-3 py-1 rounded text-xs uppercase font-bold hover:bg-orange-50 transition-colors"
-            >
+            <button onClick={handleLogout} className="bg-white text-orange-600 px-3 py-1 rounded text-xs uppercase font-bold hover:bg-orange-50 transition-colors">
                 Sair da Simulação
             </button>
         </div>
@@ -478,6 +479,9 @@ const App = () => {
         </ErrorBoundary>
     );
 
+    // CORREÇÃO: Define se o usuário pode gerenciar a org atual
+    const hasManagePermission = checkPermission('EDIT_MEMBER', editingOrgId || activeTab);
+
     return (
         <ErrorBoundary>
             {SimulationBanner}
@@ -493,7 +497,8 @@ const App = () => {
                         discordRoles={discordRoles}
                         onClose={() => { setSelectedMember(null); setIsCreating(false); }}
                         onSave={handleSaveMember}
-                        canManage={checkPermission('EDIT_MEMBER', editingOrgId)}
+                        canManage={hasManagePermission && !simulation} // Bloqueia edição se não tiver permissão OU estiver simulando
+                        isReadOnly={!hasManagePermission || simulation} // Novo: Passa estado de leitura para o modal
                     />
                 )}
 
@@ -549,9 +554,9 @@ const App = () => {
                             members={members}
                             discordRoles={discordRoles}
                             leaderRoleConfig={leaderRoleConfig}
-                            canManage={canManageOrg(activeTab)}
+                            canManage={canManageOrg(activeTab) && !simulation} // Só mostra botões de ação se puder gerenciar E não estiver simulando
                             onOpenCreate={openCreateModal}
-                            onEditMember={openEditModal}
+                            onEditMember={openEditModal} // Abre modal para todos (leitura ou edição)
                             onDeleteMember={setDeleteConfirmation}
                             onToggleLeader={handleToggleLeader}
                             onBack={() => setActiveTab('dashboard')}
