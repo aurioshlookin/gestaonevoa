@@ -12,7 +12,6 @@ const OrganizationTab = ({
     const [sortConfig, setSortConfig] = useState({ key: 'rank', direction: 'ascending' });
 
     const orgConfig = ORG_CONFIG[orgId];
-    // Garante array seguro
     const safeMembers = Array.isArray(members) ? members : [];
     const orgMembers = safeMembers.filter(m => m.org === orgId);
     
@@ -104,19 +103,19 @@ const OrganizationTab = ({
             : <ArrowDown size={14} className="text-cyan-400 inline"/>;
     };
 
-    // Fallback seguro usando Icons ou ícone padrão
+    // Fallback seguro se Icons não estiver carregado
     const IconComp = (typeof Icons !== 'undefined' && Icons[orgConfig?.icon]) ? Icons[orgConfig.icon] : Icons.Shield;
     const ArrowLeftIcon = (Icons && Icons.ArrowLeft) ? Icons.ArrowLeft : ArrowUpDown;
 
     return (
         <div className="animate-fade-in">
+            {/* Header */}
             <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-4">
                     <button onClick={onBack} className="p-2 hover:bg-slate-700 rounded transition-colors text-white flex items-center gap-2" title="Voltar ao Painel">
                         <ArrowLeftIcon size={18} className="group-hover:-translate-x-1 transition-transform"/>
                         <span>Voltar</span>
                     </button>
-                    
                     <div className={`p-3 rounded-lg ${orgConfig.bgColor} ${orgConfig.color}`}>
                         {React.createElement(IconComp)}
                     </div>
@@ -190,7 +189,7 @@ const OrganizationTab = ({
                                 <tr 
                                     key={member.id} 
                                     className={`hover:bg-slate-800/30 transition-colors cursor-pointer ${member.isLeader ? 'bg-yellow-900/10' : ''}`} 
-                                    onClick={() => { if(canManage) onEditMember(member); }}
+                                    onClick={() => onEditMember(member)} // Clica sempre abre o modal (mesmo sem canManage)
                                 >
                                     <td className="p-4">
                                         <div className="flex flex-col gap-1 items-start">
@@ -216,7 +215,6 @@ const OrganizationTab = ({
                                                 {memberMasteries.map(m => {
                                                     const mData = MASTERIES.find(mastery => mastery.id === m);
                                                     if (!mData) return null;
-                                                    // Fallback seguro usando Icons ou o próprio objeto se disponível
                                                     const IconM = (typeof mData.icon === 'object') 
                                                         ? mData.icon 
                                                         : ((Icons && Icons[mData.icon]) ? Icons[mData.icon] : Icons.Activity);
