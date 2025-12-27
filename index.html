@@ -37,9 +37,9 @@
 <body class="text-slate-200 font-mono">
     <div id="root"></div>
 
-    <!-- LOADER INTELIGENTE -->
+    <!-- LOADER INTELIGENTE V2 (COM DEDUPLICAÇÃO DE IMPORTS) -->
     <script type="module">
-        // Ordem de carregamento: Dependências primeiro, depois componentes, por fim o App.
+        // Ordem de carregamento
         const files = [
             'src/config/constants.js',
             'src/utils/helpers.js',
@@ -55,43 +55,88 @@
             'src/app.js'
         ];
 
+        // Armazena imports externos para deduplicação
+        const externalImports = {}; 
+        // Estrutura: { 'react': { default: 'React', named: Set(['useState', ...]) } }
+
+        function parseAndExtractImports(code) {
+            // Regex poderosa para capturar imports ES6 (Default, Named, e mistos)
+            // Ignora imports de efeitos colaterais (import 'css') por enquanto
+            const regex = /import\s+(?:([\w\*\s]+),?)?\s*(?:\{([^}]+)\})?\s+from\s+['"]([^'"]+)['"];?/g;
+            
+            return code.replace(regex, (match, defaultImport, namedImports, source) => {
+                // Se for import local (começa com .), apenas removemos a linha (pois o código será concatenado)
+                if (source.startsWith('.')) return '';
+
+                // Inicializa o registro da lib se não existir
+                if (!externalImports[source]) {
+                    externalImports[source] = { default: null, named: new Set() };
+                }
+
+                // Captura Default Import (ex: import React ...)
+                if (defaultImport) {
+                    externalImports[source].default = defaultImport.trim();
+                }
+
+                // Captura Named Imports (ex: import { useState, useEffect } ...)
+                if (namedImports) {
+                    namedImports.split(',').forEach(name => {
+                        const cleanName = name.trim();
+                        if (cleanName) externalImports[source].named.add(cleanName);
+                    });
+                }
+
+                // Remove a linha de importação original do código fonte
+                return ''; 
+            });
+        }
+
         async function loadApp() {
             try {
-                let combinedCode = "";
+                let combinedBodyCode = "";
 
                 for (const file of files) {
                     const response = await fetch(file);
                     if (!response.ok) throw new Error(`Não foi possível carregar: ${file}`);
                     let code = await response.text();
 
-                    // --- LIMPEZA DE CÓDIGO (Simula um Build) ---
-                    
-                    // 1. Remove linhas de importação LOCAL (ex: import Header from './Header.js')
-                    // Mantém imports externos (ex: import ... from 'react')
-                    code = code.replace(/^import\s+.*from\s+['"]\..*['"];?/gm, '');
+                    // 1. Extrai imports externos e remove imports locais
+                    code = parseAndExtractImports(code);
 
-                    // 2. Remove Exportações (Pois tudo rodará no mesmo escopo global do módulo)
-                    // "export const X" vira "const X"
+                    // 2. Remove Exportações (simula escopo global compartilhado)
                     code = code.replace(/export\s+const\s+/g, 'const ');
-                    // "export default X" é removido (o componente X já foi declarado antes)
                     code = code.replace(/export\s+default\s+\w+;?/g, '');
+                    code = code.replace(/export\s+\{\s*[\w\s,]+\s*\};?/g, ''); // Remove export { A, B }
 
-                    combinedCode += `\n// --- ARQUIVO: ${file} ---\n` + code + "\n";
+                    combinedBodyCode += `\n// --- ARQUIVO: ${file} ---\n` + code + "\n";
                 }
 
-                // 3. Transpilação (JSX -> JS)
-                // Usamos apenas o preset 'react'. Não usamos 'env' para manter os 'imports' nativos funcionando.
-                const output = Babel.transform(combinedCode, {
+                // 3. Reconstrói o Cabeçalho de Imports (Sem duplicatas)
+                let importsHeader = '';
+                for (const [source, data] of Object.entries(externalImports)) {
+                    const parts = [];
+                    if (data.default) parts.push(data.default);
+                    if (data.named.size > 0) parts.push(`{ ${Array.from(data.named).join(', ')} }`);
+                    
+                    if (parts.length > 0) {
+                        importsHeader += `import ${parts.join(', ')} from '${source}';\n`;
+                    }
+                }
+
+                const finalCode = importsHeader + combinedBodyCode;
+
+                // 4. Transpilação (JSX -> JS) usando Babel
+                const output = Babel.transform(finalCode, {
                     presets: ['react']
                 }).code;
 
-                // 4. Injeção e Execução
+                // 5. Injeção e Execução
                 const script = document.createElement('script');
                 script.type = 'module';
                 script.textContent = output;
                 document.body.appendChild(script);
 
-                console.log("✅ Sistema Névoa carregado com sucesso.");
+                console.log("✅ Sistema Névoa carregado com sucesso (v2).");
 
             } catch (error) {
                 console.error("❌ Erro fatal no carregamento:", error);
@@ -99,6 +144,7 @@
                     <div style="height:100vh; display:flex; align-items:center; justify-content:center; flex-direction:column; color:#ef4444; background:#0f172a;">
                         <h1 style="font-size:2rem; margin-bottom:1rem;">Erro de Carregamento</h1>
                         <p style="font-family:monospace; background:#1e293b; padding:1rem; rounded:0.5rem;">${error.message}</p>
+                        <p style="margin-top:1rem; color:#94a3b8; font-size:0.9rem;">Verifique o console (F12) para detalhes técnicos.</p>
                     </div>
                 `;
             }
