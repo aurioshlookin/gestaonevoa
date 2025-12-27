@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Crown, Calendar, Activity, Clock, Heart, Zap, User } from 'lucide-react';
+import { X, Crown, Calendar, Activity, Clock, Heart, Zap, User, UserSecret } from 'lucide-react';
 import { ORG_CONFIG, STATS, MASTERIES, Icons } from '../config/constants.js';
 import { calculateMaxPoints, calculateStats, formatDateTime } from '../utils/helpers.js';
 
@@ -8,6 +8,7 @@ const MemberModal = ({ member, orgId, isCreating, discordRoster, discordRoles, o
     const [form, setForm] = useState({
         name: member?.name || '', // Nome do Discord
         rpName: member?.rpName || '', // Nome do Personagem (NOVO)
+        codinome: member?.codinome || '', // Codinome (ANBU)
         discordId: member?.discordId || '',
         org: orgId,
         ninRole: member?.ninRole || ORG_CONFIG[orgId].internalRoles[0],
@@ -29,6 +30,8 @@ const MemberModal = ({ member, orgId, isCreating, discordRoster, discordRoles, o
     const remainingPoints = maxPoints - usedPoints;
     const finalVitals = calculateStats(form.stats, form.guildBonus);
     
+    const isAnbu = orgId === 'divisao-especial';
+
     // Filtro do dropdown de usuários
     const filteredRoster = discordRoster.filter(u => 
         (u.displayName || u.username).toLowerCase().includes(searchTerm.toLowerCase())
@@ -39,7 +42,7 @@ const MemberModal = ({ member, orgId, isCreating, discordRoster, discordRoles, o
             ...form, 
             name: user.displayName || user.username, 
             discordId: user.id,
-            // Preenche o nome RP com o do Discord se estiver vazio
+            // Preenche o nome RP com o do Discord se estiver vazio, facilitando a edição
             rpName: form.rpName || user.displayName || user.username 
         });
         setSearchTerm(user.displayName || user.username);
@@ -113,19 +116,36 @@ const MemberModal = ({ member, orgId, isCreating, discordRoster, discordRoles, o
                             </div>
                         )}
 
-                        {/* NOVO CAMPO: NOME DO PERSONAGEM */}
-                        <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700">
-                            <label className="text-sm font-bold text-white mb-1 block flex items-center gap-2">
-                                <User size={14} className="text-cyan-400"/> Nome do Personagem (RP)
-                            </label>
-                            <input 
-                                type="text" 
-                                className="w-full bg-slate-800 border border-slate-600 rounded p-2 text-white outline-none focus:border-cyan-500"
-                                placeholder={form.name || "Nome no jogo"}
-                                value={form.rpName} 
-                                onChange={(e) => setForm({...form, rpName: e.target.value})} 
-                            />
-                            <p className="text-[10px] text-slate-500 mt-1">Este nome substituirá o do Discord na tabela.</p>
+                        {/* CAMPOS DE NOME E CODINOME */}
+                        <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700 space-y-3">
+                            <div>
+                                <label className="text-sm font-bold text-white mb-1 block flex items-center gap-2">
+                                    <User size={14} className="text-cyan-400"/> Nome do Personagem
+                                </label>
+                                <input 
+                                    type="text" 
+                                    className="w-full bg-slate-800 border border-slate-600 rounded p-2 text-white outline-none focus:border-cyan-500"
+                                    placeholder={form.name || "Nome no jogo"}
+                                    value={form.rpName} 
+                                    onChange={(e) => setForm({...form, rpName: e.target.value})} 
+                                />
+                                <p className="text-[10px] text-slate-500 mt-1">Este nome terá prioridade na exibição.</p>
+                            </div>
+
+                            {isAnbu && (
+                                <div>
+                                    <label className="text-sm font-bold text-purple-400 mb-1 block flex items-center gap-2">
+                                        <UserSecret size={14}/> Codinome (ANBU)
+                                    </label>
+                                    <input 
+                                        type="text" 
+                                        className="w-full bg-slate-800 border border-purple-500/50 rounded p-2 text-white outline-none focus:border-purple-500"
+                                        placeholder="Ex: Corvo"
+                                        value={form.codinome} 
+                                        onChange={(e) => setForm({...form, codinome: e.target.value})} 
+                                    />
+                                </div>
+                            )}
                         </div>
 
                         <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700 flex items-center justify-between flex-wrap gap-4">
