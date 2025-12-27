@@ -17,7 +17,7 @@
     <!-- Babel para JSX -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-    <!-- Import Map: Define onde buscar as bibliotecas -->
+    <!-- Import Map (Para bibliotecas externas) -->
     <script type="importmap">
     {
         "imports": {
@@ -47,7 +47,14 @@
 <body class="text-slate-200 font-mono">
     <div id="root"></div>
 
-    <!-- Ponto de Entrada: Carrega o App.js, que importa o resto -->
+    <!-- CARREGAMENTO DOS ARQUIVOS EM ORDEM (CRÍTICO) -->
+    <!-- 1. Configurações -->
+    <script type="text/babel" data-type="module" src="./config.js"></script>
+    <!-- 2. Serviços (Firebase e Lógica) -->
+    <script type="text/babel" data-type="module" src="./services.js"></script>
+    <!-- 3. Componentes Visuais -->
+    <script type="text/babel" data-type="module" src="./components.js"></script>
+    <!-- 4. Aplicação Principal -->
     <script type="text/babel" data-type="module" src="./app.js"></script>
 </body>
 </html>
