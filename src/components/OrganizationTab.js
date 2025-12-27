@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
     BookOpen, ChevronUp, ChevronDown, UserPlus, ArrowUp, ArrowDown, ArrowUpDown, 
-    AlertCircle, Crown, Trash2
+    AlertCircle, Crown, Trash2, ArrowLeft
 } from 'lucide-react';
 import { ORG_CONFIG, MASTERIES, Icons } from '../config/constants.js';
 import { getActivityStats, formatDate, getMemberOrgsInfo } from '../utils/helpers.js';
@@ -9,7 +9,7 @@ import { getActivityStats, formatDate, getMemberOrgsInfo } from '../utils/helper
 const OrganizationTab = ({ 
     orgId, members, discordRoles, leaderRoleConfig, canManage, 
     onOpenCreate, onEditMember, onDeleteMember, onToggleLeader,
-    onBack // Nova prop para navegar de volta
+    onBack // Prop para voltar ao dashboard
 }) => {
     const [showRoleDetails, setShowRoleDetails] = useState(false);
     const [sortConfig, setSortConfig] = useState({ key: 'rank', direction: 'ascending' });
@@ -77,10 +77,16 @@ const OrganizationTab = ({
 
     return (
         <div className="animate-fade-in">
+            {/* Header com Botão de Voltar Destacado */}
             <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-4">
-                    {/* BOTÃO DE VOLTAR RESTAURADO */}
-                    <button onClick={onBack} className="p-2 hover:bg-slate-700 rounded transition-colors text-white">← Voltar</button>
+                    <button 
+                        onClick={onBack} 
+                        className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors shadow-sm group"
+                    >
+                        <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform"/>
+                        <span>Voltar</span>
+                    </button>
                     
                     <div className={`p-3 rounded-lg ${orgConfig.bgColor} ${orgConfig.color}`}>
                         {React.createElement(IconComp)}
