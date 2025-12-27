@@ -8,16 +8,15 @@ import { getActivityStats, formatDate, getMemberOrgsInfo } from '../utils/helper
 
 const OrganizationTab = ({ 
     orgId, members, discordRoles, leaderRoleConfig, canManage, 
-    onOpenCreate, onEditMember, onDeleteMember, onToggleLeader 
+    onOpenCreate, onEditMember, onDeleteMember, onToggleLeader,
+    onBack // Nova prop para navegar de volta
 }) => {
     const [showRoleDetails, setShowRoleDetails] = useState(false);
     const [sortConfig, setSortConfig] = useState({ key: 'rank', direction: 'ascending' });
 
     const orgConfig = ORG_CONFIG[orgId];
-    // Filtra apenas membros desta organização para exibir
     const orgMembers = members.filter(m => m.org === orgId);
     
-    // Helper de Ordenação
     const getRoleRank = (member) => { const roles = orgConfig.internalRoles || []; return roles.indexOf(member.ninRole); };
     
     const requestSort = (key) => {
@@ -80,6 +79,9 @@ const OrganizationTab = ({
         <div className="animate-fade-in">
             <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-4">
+                    {/* BOTÃO DE VOLTAR RESTAURADO */}
+                    <button onClick={onBack} className="p-2 hover:bg-slate-700 rounded transition-colors text-white">← Voltar</button>
+                    
                     <div className={`p-3 rounded-lg ${orgConfig.bgColor} ${orgConfig.color}`}>
                         {React.createElement(IconComp)}
                     </div>
@@ -136,8 +138,6 @@ const OrganizationTab = ({
                             const leaderRoleName = member.isLeader && leaderRoleId ? discordRoles.find(r => r.id === leaderRoleId)?.name : null;
                             const memberMasteries = member.masteries || [];
                             const activity = getActivityStats(member);
-                            
-                            // Correção: Usando o helper com a lista completa de membros
                             const orgInfo = getMemberOrgsInfo(members, member.discordId);
 
                             return (
