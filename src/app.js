@@ -253,8 +253,8 @@ const App = () => {
 
     const canManageOrg = (orgId) => checkPermission('EDIT_MEMBER', orgId);
     
-    // Regras Estritas para Monitoramento e Configurações (Só Criador REAL)
-    const isRealCreator = user?.id === accessConfig.creatorId; 
+    // CORREÇÃO: Usa effectiveUser para checar se é o criador durante a simulação
+    const isRealCreator = effectiveUser?.id === accessConfig.creatorId; 
     const canViewHistory = isRealCreator; 
     const canManageSettings = isRealCreator;
     
