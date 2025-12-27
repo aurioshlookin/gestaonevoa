@@ -82,12 +82,24 @@ export const ORG_CONFIG = {
         bgColor: 'bg-blue-900/20', 
         border: 'border-blue-500/30', 
         limit: 20, 
-        internalRoles: ['Cadete', 'Oficial', 'Sargento', 'Delegado'],
+        // Ordem do MENOR rank para o MAIOR (para a lógica de ordenação funcionar)
+        internalRoles: [
+            'Oficial',
+            'Investigador', 
+            'Tenente', 
+            'Capitão', 
+            'Coronel', 
+            'Subchefe', 
+            'Chefe'
+        ],
         roleDetails: [
-            { name: 'Delegado', desc: 'Chefe da força policial e responsável pela ordem.' },
-            { name: 'Sargento', desc: 'Oficial superior responsável por coordenar patrulhas.' },
-            { name: 'Oficial', desc: 'Policial padrão com autoridade de prisão.' },
-            { name: 'Cadete', desc: 'Membro em treinamento na academia.' }
+            { name: 'Chefe', desc: 'Líder supremo da Força Policial.' },
+            { name: 'Subchefe', desc: 'Segundo em comando, auxilia na administração.' },
+            { name: 'Coronel', desc: 'Comandante de alto escalão.' },
+            { name: 'Capitão', desc: 'Responsável por liderar companhias.' },
+            { name: 'Tenente', desc: 'Oficial superior de campo.' },
+            { name: 'Investigador', desc: 'Especialista em investigações criminais.' },
+            { name: 'Oficial', desc: 'Patrulheiro e mantenedor da ordem.' }
         ]
     },
     'unidade-medica': { 
