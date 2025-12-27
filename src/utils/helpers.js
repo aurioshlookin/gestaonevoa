@@ -43,11 +43,11 @@ export const getActivityStats = (member) => {
     cutoffDate.setDate(cutoffDate.getDate() - 14);
     const cutoffStr = cutoffDate.toISOString().split('T')[0];
 
-    // Helper: Itera sobre as chaves existentes no banco
+    // Helper: Soma valores dos últimos 14 dias garantindo tipo numérico
     const sumRecent = (map) => {
         let sum = 0;
         for (const [dateKey, value] of Object.entries(map)) {
-            // Compara strings ISO para garantir range correto
+            // Garante que só pega datas recentes e converte para número
             if (dateKey >= cutoffStr) {
                 sum += Number(value) || 0; 
             }
@@ -59,22 +59,24 @@ export const getActivityStats = (member) => {
     totalMsgs = sumRecent(msgMap);
     totalVoiceMins = sumRecent(voiceMap);
 
-    // --- CORREÇÃO DE CONSISTÊNCIA VISUAL ---
-    // Problema: Membros com Score alto (ex: importado/antigo) mas sem logs diários apareciam como "Lendário" mas com "0 msgs".
-    // Solução: Se o Score Total for muito maior que o que as mensagens e voz justificam,
-    // assumimos que a diferença são mensagens válidas que apenas perderam o log detalhado.
-    
-    const voicePoints = Math.floor(totalVoiceMins / 10);
-    // O Score teoricamente é: Msgs + (Voz / 10). Então: Msgs = Score - (Voz / 10)
-    const expectedMsgsFromScore = totalScore - voicePoints;
+    // --- CORREÇÃO DE CONSISTÊNCIA VISUAL (AGRESSIVA) ---
+    // Se o usuário tem Score, ele DEVE ter mensagens ou voz justificando isso no tooltip.
+    // Calculamos quantas mensagens seriam necessárias para ter esse score (descontando a voz).
+    const pointsFromVoice = Math.floor(totalVoiceMins / 10);
+    const impliedMessages = totalScore - pointsFromVoice;
 
-    // Se tivermos uma discrepância grande (mais de 5 pontos sem explicação), ajustamos as mensagens para o display
-    if (totalMsgs < expectedMsgsFromScore - 5) {
-        totalMsgs = Math.max(totalMsgs, expectedMsgsFromScore);
+    // Se o número de mensagens logadas for menor que o implicado pelo score, usamos o implicado.
+    // Isso conserta o caso "Lendário com 2 mensagens".
+    if (totalMsgs < impliedMessages) {
+        totalMsgs = impliedMessages;
     }
+
+    // Garante que não fique negativo em casos raros de dados sujos
+    totalMsgs = Math.max(0, totalMsgs);
 
     let tier = 'Fantasma', color = 'bg-red-500', icon = '👻', width = '5%';
     
+    // Tiers baseados no Score Total
     if (totalScore > 250) { tier = 'Lendário'; color = 'bg-purple-500'; icon = '👑'; width = '100%'; }
     else if (totalScore > 50) { tier = 'Ativo'; color = 'bg-emerald-500'; icon = '🔥'; width = '75%'; }
     else if (totalScore > 10) { tier = 'Regular'; color = 'bg-blue-500'; icon = '😐'; width = '50%'; }
