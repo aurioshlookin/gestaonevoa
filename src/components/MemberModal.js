@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, Crown, Calendar, Activity, Clock, Heart, Zap, User, UserSecret } from 'lucide-react';
+import { 
+    X, Crown, Calendar, Activity, Clock, 
+    Heart, Zap, User, UserSecret 
+} from 'lucide-react';
 import { ORG_CONFIG, STATS, MASTERIES, Icons } from '../config/constants.js';
 import { calculateMaxPoints, calculateStats, formatDateTime } from '../utils/helpers.js';
 
@@ -11,7 +14,7 @@ const MemberModal = ({ member, orgId, isCreating, discordRoster, discordRoles, o
         codinome: member?.codinome || '', // Codinome (ANBU)
         discordId: member?.discordId || '',
         org: orgId,
-        ninRole: member?.ninRole || ORG_CONFIG[orgId].internalRoles[0],
+        ninRole: member?.ninRole || ORG_CONFIG[orgId]?.internalRoles[0] || 'Membro',
         specificRoleId: member?.specificRoleId || '',
         isLeader: member?.isLeader || false,
         level: member?.level || 1,
@@ -76,7 +79,7 @@ const MemberModal = ({ member, orgId, isCreating, discordRoster, discordRoles, o
                             {form.isLeader && <Crown size={20} className="text-yellow-400" />}
                         </h2>
                         <p className="text-slate-400 text-sm font-mono">
-                            {isCreating ? `Adicionando à ${ORG_CONFIG[orgId].name}` : `Ninja da ${ORG_CONFIG[orgId].name}`}
+                            {isCreating ? `Adicionando à ${ORG_CONFIG[orgId]?.name}` : `Ninja da ${ORG_CONFIG[orgId]?.name}`}
                         </p>
                     </div>
                     <button onClick={onClose} className="text-slate-400 hover:text-white"><X size={24} /></button>
@@ -202,7 +205,7 @@ const MemberModal = ({ member, orgId, isCreating, discordRoster, discordRoles, o
                             <div className="mb-4">
                                 <label className="text-xs text-slate-400 mb-1 block">Cargo Nin Online</label>
                                 <select className="w-full bg-slate-800 border border-slate-600 rounded p-2 text-white outline-none" value={form.ninRole} onChange={(e) => setForm({...form, ninRole: e.target.value})}>
-                                    {ORG_CONFIG[orgId].internalRoles.map(r => <option key={r} value={r}>{r}</option>)}
+                                    {ORG_CONFIG[orgId]?.internalRoles.map(r => <option key={r} value={r}>{r}</option>)}
                                 </select>
                             </div>
                             <div className="mb-4">
@@ -225,8 +228,8 @@ const MemberModal = ({ member, orgId, isCreating, discordRoster, discordRoles, o
                             <div className="grid grid-cols-2 gap-3">
                                 {MASTERIES.map(m => {
                                     const isActive = form.masteries.includes(m.id);
-                                    // Fallback seguro para ícones
-                                    const IconComp = (typeof m.icon === 'object' ? m.icon : (typeof Icons !== 'undefined' ? Icons[m.icon] : Icons.Activity)) || Activity;
+                                    // CORREÇÃO: Verificação segura para renderizar ícone, seja componente ou string
+                                    const IconComp = (typeof m.icon === 'function' || typeof m.icon === 'object') ? m.icon : (Icons[m.icon] || Activity);
 
                                     return (
                                         <div key={m.id} onClick={() => toggleMastery(m.id)} className={`cursor-pointer p-3 rounded border flex items-center gap-3 transition-all ${isActive ? 'bg-slate-700 border-cyan-500/50' : 'bg-slate-800 border-slate-700 hover:bg-slate-700/50'}`}>
