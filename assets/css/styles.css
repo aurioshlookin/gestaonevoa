@@ -1,0 +1,19 @@
+body {
+    background-color: #0f172a; /* slate-900 */
+}
+.mist-title { font-family: 'Cinzel', serif; }
+.glass-panel { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(148, 163, 184, 0.1); }
+.scroll-custom::-webkit-scrollbar { width: 8px; }
+.scroll-custom::-webkit-scrollbar-track { background: #1e293b; }
+.scroll-custom::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+
+/* Animações simples */
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.animate-fade-in { animation: fadeIn 0.5s ease-out; }
+
+@keyframes bounceIn {
+    0% { transform: scale(0.1); opacity: 0; }
+    60% { transform: scale(1.2); opacity: 1; }
+    100% { transform: scale(1); }
+}
+.animate-bounce-in { animation: bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55); }
