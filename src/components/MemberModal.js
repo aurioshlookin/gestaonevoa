@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { X, Crown, Calendar, Activity, Clock, Heart, Zap } from 'lucide-react';
+import { X, Crown, Calendar, Activity, Clock, Heart, Zap, User, UserSecret } from 'lucide-react';
 import { ORG_CONFIG, STATS, MASTERIES, Icons } from '../config/constants.js';
 import { calculateMaxPoints, calculateStats, formatDateTime } from '../utils/helpers.js';
 
 const MemberModal = ({ member, orgId, isCreating, discordRoster, discordRoles, onClose, onSave, canManage }) => {
     // Inicializa o estado com os dados do membro ou valores padrão
     const [form, setForm] = useState({
-        name: member?.name || '',
+        name: member?.name || '', // Nome do Discord (para vínculo)
+        rpName: member?.rpName || '', // Nome do Personagem (Novo)
+        codinome: member?.codinome || '', // Codinome (Apenas ANBU)
         discordId: member?.discordId || '',
         org: orgId,
         ninRole: member?.ninRole || ORG_CONFIG[orgId].internalRoles[0],
@@ -28,13 +30,21 @@ const MemberModal = ({ member, orgId, isCreating, discordRoster, discordRoles, o
     const remainingPoints = maxPoints - usedPoints;
     const finalVitals = calculateStats(form.stats, form.guildBonus);
     
+    const isAnbu = orgId === 'divisao-especial';
+
     // Filtro do dropdown de usuários
     const filteredRoster = discordRoster.filter(u => 
         (u.displayName || u.username).toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     const handleSelectUser = (user) => {
-        setForm({ ...form, name: user.displayName || user.username, discordId: user.id });
+        setForm({ 
+            ...form, 
+            name: user.displayName || user.username, 
+            discordId: user.id,
+            // Se não tiver nome RP definido, sugere o do Discord, mas deixa editável
+            rpName: form.rpName || user.displayName || user.username 
+        });
         setSearchTerm(user.displayName || user.username);
         setIsDropdownOpen(false);
     };
@@ -64,7 +74,7 @@ const MemberModal = ({ member, orgId, isCreating, discordRoster, discordRoles, o
                 <div className="p-4 border-b border-slate-700 flex justify-between items-start bg-slate-900/50 rounded-t-xl">
                     <div>
                         <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                            {isCreating ? "Novo Membro" : form.name}
+                            {isCreating ? "Novo Membro" : (form.rpName || form.name)}
                             {form.isLeader && <Crown size={20} className="text-yellow-400" />}
                         </h2>
                         <p className="text-slate-400 text-sm font-mono">
@@ -75,15 +85,16 @@ const MemberModal = ({ member, orgId, isCreating, discordRoster, discordRoles, o
                 </div>
 
                 <div className="p-4 overflow-y-auto scroll-custom grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    {/* Coluna Esquerda: Stats */}
+                    {/* Coluna Esquerda: Dados Básicos e Stats */}
                     <div className="space-y-4">
+                        {/* Seletor de Discord (Só aparece na criação para vincular) */}
                         {isCreating && (
                             <div className="bg-cyan-900/20 p-4 rounded-lg border border-cyan-500/30">
-                                <label className="text-sm font-bold text-cyan-400 mb-2 block">Selecionar Usuário</label>
+                                <label className="text-sm font-bold text-cyan-400 mb-2 block">Vincular Discord</label>
                                 <div className="relative">
                                     <input 
                                         type="text" 
-                                        placeholder="Buscar..." 
+                                        placeholder="Buscar usuário..." 
                                         className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:border-cyan-500 outline-none" 
                                         value={searchTerm} 
                                         onChange={(e) => { setSearchTerm(e.target.value); setIsDropdownOpen(true); }} 
@@ -102,10 +113,43 @@ const MemberModal = ({ member, orgId, isCreating, discordRoster, discordRoles, o
                                         </>
                                     )}
                                 </div>
-                                {form.name && <p className="text-xs text-emerald-400 mt-2">Selecionado: {form.name}</p>}
+                                {form.name && <p className="text-xs text-emerald-400 mt-2">Vinculado: {form.name}</p>}
                             </div>
                         )}
 
+                        {/* Campos de Identificação */}
+                        <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700 space-y-3">
+                            <div>
+                                <label className="text-sm font-bold text-white mb-1 block flex items-center gap-2">
+                                    <User size={14} className="text-cyan-400"/> Nome do Personagem (RP)
+                                </label>
+                                <input 
+                                    type="text" 
+                                    className="w-full bg-slate-800 border border-slate-600 rounded p-2 text-white outline-none focus:border-cyan-500"
+                                    placeholder={form.name || "Nome no jogo"}
+                                    value={form.rpName} 
+                                    onChange={(e) => setForm({...form, rpName: e.target.value})} 
+                                />
+                                <p className="text-[10px] text-slate-500 mt-1">Este nome substituirá o do Discord na tabela.</p>
+                            </div>
+
+                            {isAnbu && (
+                                <div>
+                                    <label className="text-sm font-bold text-purple-400 mb-1 block flex items-center gap-2">
+                                        <UserSecret size={14}/> Codinome (ANBU)
+                                    </label>
+                                    <input 
+                                        type="text" 
+                                        className="w-full bg-slate-800 border border-purple-500/50 rounded p-2 text-white outline-none focus:border-purple-500"
+                                        placeholder="Ex: Corvo"
+                                        value={form.codinome} 
+                                        onChange={(e) => setForm({...form, codinome: e.target.value})} 
+                                    />
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Stats */}
                         <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700 flex items-center justify-between flex-wrap gap-4">
                             <div className="flex items-center gap-4">
                                 <label className="text-sm font-bold text-cyan-400">Nível:</label>
@@ -156,7 +200,7 @@ const MemberModal = ({ member, orgId, isCreating, discordRoster, discordRoles, o
                         </div>
                     </div>
 
-                    {/* Coluna Direita: Cargos */}
+                    {/* Coluna Direita: Cargos e Maestrias */}
                     <div className="space-y-4">
                         <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700">
                             <h3 className="text-white font-bold mb-3">Cargos & Função</h3>
@@ -186,7 +230,6 @@ const MemberModal = ({ member, orgId, isCreating, discordRoster, discordRoles, o
                             <div className="grid grid-cols-2 gap-3">
                                 {MASTERIES.map(m => {
                                     const isActive = form.masteries.includes(m.id);
-                                    // Resolve o ícone: se for objeto (Vite), usa m.icon. Se for string, busca no Icons.
                                     const IconComp = typeof m.icon === 'object' ? m.icon : Icons[m.icon] || Icons.Activity;
 
                                     return (
