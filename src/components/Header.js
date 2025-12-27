@@ -1,5 +1,5 @@
 import React from 'react';
-import { RefreshCw, Globe, History, Settings, LogOut } from 'lucide-react';
+import { RefreshCw, Globe, Settings, LogOut } from 'lucide-react';
 
 const Header = ({ 
     loading, 
@@ -25,24 +25,14 @@ const Header = ({
                 </div>
                 <div className="flex items-center gap-4">
                     {canViewHistory && (
-                        <>
-                            <button 
-                                onClick={() => setActiveTab('access')} 
-                                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${activeTab === 'access' ? 'bg-green-500/10 text-green-400 border border-green-500/30' : 'text-slate-400 hover:text-green-400 hover:bg-slate-800'}`} 
-                                title="Monitoramento de Acesso"
-                            >
-                                <Globe size={20} />
-                                <span className="hidden md:inline font-bold text-sm">Monitoramento</span>
-                            </button>
-                            <button 
-                                onClick={() => setActiveTab('history')} 
-                                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${activeTab === 'history' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/30' : 'text-slate-400 hover:text-purple-400 hover:bg-slate-800'}`} 
-                                title="Histórico de Modificações"
-                            >
-                                <History size={20} />
-                                <span className="hidden md:inline font-bold text-sm">Histórico</span>
-                            </button>
-                        </>
+                        <button 
+                            onClick={() => setActiveTab('access')} 
+                            className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${activeTab === 'access' ? 'bg-green-500/10 text-green-400 border border-green-500/30' : 'text-slate-400 hover:text-green-400 hover:bg-slate-800'}`} 
+                            title="Monitoramento Integrado"
+                        >
+                            <Globe size={20} />
+                            <span className="hidden md:inline font-bold text-sm">Monitoramento</span>
+                        </button>
                     )}
                     
                     {canManageSettings && (
