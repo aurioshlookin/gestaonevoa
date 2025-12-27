@@ -44,9 +44,10 @@ export const getActivityStats = (member) => {
         d.setDate(today.getDate() - i);
         const dateStr = d.toISOString().split('T')[0];
         
-        totalScore += (activityMap[dateStr] || 0);
-        totalMsgs += (msgMap[dateStr] || 0);
-        totalVoiceMins += (voiceMap[dateStr] || 0);
+        // CORREÇÃO: Força conversão para número para evitar concatenação de string
+        totalScore += Number(activityMap[dateStr] || 0);
+        totalMsgs += Number(msgMap[dateStr] || 0);
+        totalVoiceMins += Number(voiceMap[dateStr] || 0);
     }
 
     if (totalMsgs === 0 && totalVoiceMins === 0 && totalScore > 0) {
@@ -70,7 +71,7 @@ export const getActivityStats = (member) => {
     };
 };
 
-// Nova função adicionada que estava faltando
+// Função restaurada do código original
 export const getMemberOrgsInfo = (allMembers, discordId) => {
     const userOrgs = allMembers.filter(m => m.discordId === discordId);
     if (userOrgs.length <= 1) return null;
