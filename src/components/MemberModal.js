@@ -6,9 +6,9 @@ import { calculateMaxPoints, calculateStats, formatDateTime } from '../utils/hel
 const MemberModal = ({ member, orgId, isCreating, discordRoster, discordRoles, onClose, onSave, canManage }) => {
     // Inicializa o estado com os dados do membro ou valores padrão
     const [form, setForm] = useState({
-        name: member?.name || '', // Nome do Discord (para vínculo)
-        rpName: member?.rpName || '', // Nome do Personagem (Novo)
-        codinome: member?.codinome || '', // Codinome (Apenas ANBU)
+        name: member?.name || '', // Nome do Discord
+        rpName: member?.rpName || '', // Nome do Personagem
+        codinome: member?.codinome || '', // Codinome (ANBU)
         discordId: member?.discordId || '',
         org: orgId,
         ninRole: member?.ninRole || ORG_CONFIG[orgId].internalRoles[0],
@@ -24,7 +24,6 @@ const MemberModal = ({ member, orgId, isCreating, discordRoster, discordRoles, o
     const [searchTerm, setSearchTerm] = useState("");
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-    // Cálculos em tempo real
     const maxPoints = calculateMaxPoints(form.level);
     const usedPoints = STATS.reduce((acc, stat) => acc + (form.stats[stat] - 5), 0);
     const remainingPoints = maxPoints - usedPoints;
@@ -42,7 +41,6 @@ const MemberModal = ({ member, orgId, isCreating, discordRoster, discordRoles, o
             ...form, 
             name: user.displayName || user.username, 
             discordId: user.id,
-            // Se não tiver nome RP definido, sugere o do Discord, mas deixa editável
             rpName: form.rpName || user.displayName || user.username 
         });
         setSearchTerm(user.displayName || user.username);
@@ -85,9 +83,8 @@ const MemberModal = ({ member, orgId, isCreating, discordRoster, discordRoles, o
                 </div>
 
                 <div className="p-4 overflow-y-auto scroll-custom grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    {/* Coluna Esquerda: Dados Básicos e Stats */}
+                    {/* Coluna Esquerda */}
                     <div className="space-y-4">
-                        {/* Seletor de Discord (Só aparece na criação para vincular) */}
                         {isCreating && (
                             <div className="bg-cyan-900/20 p-4 rounded-lg border border-cyan-500/30">
                                 <label className="text-sm font-bold text-cyan-400 mb-2 block">Vincular Discord</label>
@@ -117,7 +114,6 @@ const MemberModal = ({ member, orgId, isCreating, discordRoster, discordRoles, o
                             </div>
                         )}
 
-                        {/* Campos de Identificação */}
                         <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700 space-y-3">
                             <div>
                                 <label className="text-sm font-bold text-white mb-1 block flex items-center gap-2">
@@ -149,7 +145,6 @@ const MemberModal = ({ member, orgId, isCreating, discordRoster, discordRoles, o
                             )}
                         </div>
 
-                        {/* Stats */}
                         <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700 flex items-center justify-between flex-wrap gap-4">
                             <div className="flex items-center gap-4">
                                 <label className="text-sm font-bold text-cyan-400">Nível:</label>
@@ -200,7 +195,7 @@ const MemberModal = ({ member, orgId, isCreating, discordRoster, discordRoles, o
                         </div>
                     </div>
 
-                    {/* Coluna Direita: Cargos e Maestrias */}
+                    {/* Coluna Direita */}
                     <div className="space-y-4">
                         <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700">
                             <h3 className="text-white font-bold mb-3">Cargos & Função</h3>
@@ -230,7 +225,8 @@ const MemberModal = ({ member, orgId, isCreating, discordRoster, discordRoles, o
                             <div className="grid grid-cols-2 gap-3">
                                 {MASTERIES.map(m => {
                                     const isActive = form.masteries.includes(m.id);
-                                    const IconComp = typeof m.icon === 'object' ? m.icon : Icons[m.icon] || Icons.Activity;
+                                    // Fallback seguro para ícones
+                                    const IconComp = (typeof m.icon === 'object' ? m.icon : (typeof Icons !== 'undefined' ? Icons[m.icon] : Icons.Activity)) || Activity;
 
                                     return (
                                         <div key={m.id} onClick={() => toggleMastery(m.id)} className={`cursor-pointer p-3 rounded border flex items-center gap-3 transition-all ${isActive ? 'bg-slate-700 border-cyan-500/50' : 'bg-slate-800 border-slate-700 hover:bg-slate-700/50'}`}>
