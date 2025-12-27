@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BookOpen, ChevronUp, ChevronDown, UserPlus, ArrowUp, ArrowDown, ArrowUpDown, AlertCircle, Crown, Trash2 } from 'lucide-react';
+import { BookOpen, ChevronUp, ChevronDown, UserPlus, ArrowUp, ArrowDown, ArrowUpDown, AlertCircle, Crown, Trash2, ArrowLeft, RotateCcw } from 'lucide-react';
 import { ORG_CONFIG, MASTERIES, Icons } from '../config/constants.js';
 import { getActivityStats, formatDate, getMemberOrgsInfo } from '../utils/helpers.js';
 
@@ -18,11 +18,24 @@ const OrganizationTab = ({
     
     const getRoleRank = (member) => { const roles = orgConfig.internalRoles || []; return roles.indexOf(member.ninRole); };
     
+    // Lógica de Ordenação de 3 Estados: Asc -> Desc -> Reset
     const requestSort = (key) => {
-        setSortConfig({ 
-            key, 
-            direction: sortConfig.key === key && sortConfig.direction === 'ascending' ? 'descending' : 'ascending' 
-        });
+        if (sortConfig.key === key) {
+            if (sortConfig.direction === 'ascending') {
+                // 2º Clique: Vira Descendente
+                setSortConfig({ key, direction: 'descending' });
+            } else {
+                // 3º Clique: Reseta para o padrão ('rank' ascendente)
+                setSortConfig({ key: 'rank', direction: 'ascending' });
+            }
+        } else {
+            // 1º Clique (nova coluna): Vira Ascendente
+            setSortConfig({ key, direction: 'ascending' });
+        }
+    };
+
+    const resetSort = () => {
+        setSortConfig({ key: 'rank', direction: 'ascending' });
     };
 
     const sortedMembers = [...orgMembers].sort((a, b) => {
@@ -74,20 +87,19 @@ const OrganizationTab = ({
 
     // Fallback seguro usando Icons ou ícone padrão
     const IconComp = (Icons && orgConfig?.icon && Icons[orgConfig.icon]) ? Icons[orgConfig.icon] : Icons.Shield;
-    const ArrowLeftIcon = (Icons && Icons.ArrowLeft) ? Icons.ArrowLeft : ArrowUpDown; // Fallback se ArrowLeft não carregar
+    const ArrowLeftIcon = (Icons && Icons.ArrowLeft) ? Icons.ArrowLeft : ArrowUpDown;
 
     return (
         <div className="animate-fade-in">
-            {/* Header com Botão de Voltar */}
+            {/* Header com Botão de Voltar Destacado */}
             <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-4">
                     <button 
                         onClick={onBack} 
-                        className="p-2 hover:bg-slate-700 rounded transition-colors text-white flex items-center gap-2"
-                        title="Voltar ao Painel"
+                        className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors shadow-sm group"
                     >
-                        <ArrowLeftIcon size={20} />
-                        <span className="hidden md:inline">Voltar</span>
+                        <ArrowLeftIcon size={18} className="group-hover:-translate-x-1 transition-transform"/>
+                        <span>Voltar</span>
                     </button>
                     
                     <div className={`p-3 rounded-lg ${orgConfig.bgColor} ${orgConfig.color}`}>
@@ -100,30 +112,36 @@ const OrganizationTab = ({
                 </span>
             </div>
 
-            {orgConfig.roleDetails && (
-                <div className="mb-6">
-                    <button onClick={() => setShowRoleDetails(!showRoleDetails)} className="w-full bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-lg p-3 flex justify-between items-center transition-all text-slate-300 hover:text-white">
-                        <span className="font-bold flex items-center gap-2"><BookOpen size={18}/> Hierarquia & Cargos</span>
-                        {showRoleDetails ? <ChevronUp size={20}/> : <ChevronDown size={20}/>}
-                    </button>
-                    {showRoleDetails && (
-                        <div className="mt-2 bg-slate-900/50 border border-slate-700 rounded-lg p-4 animate-fade-in grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {orgConfig.roleDetails.map((role, idx) => (
-                                <div key={idx} className="flex flex-col border-l-2 border-slate-600 pl-3">
-                                    <span className="text-sm font-bold text-cyan-400">{role.name}</span>
-                                    <span className="text-xs text-slate-400">{role.desc}</span>
-                                </div>
-                            ))}
-                        </div>
+            {/* Configuração de Tabela e Filtros */}
+            <div className="flex justify-between items-end mb-4">
+                <div className="flex gap-2">
+                    {orgConfig.roleDetails && (
+                        <button onClick={() => setShowRoleDetails(!showRoleDetails)} className="bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 flex items-center gap-2 text-sm text-slate-300 hover:text-white transition-colors">
+                            <BookOpen size={16}/> Cargos {showRoleDetails ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}
+                        </button>
                     )}
+                    
+                    {/* Botão de Resetar Ordem */}
+                    <button onClick={resetSort} className="bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 flex items-center gap-2 text-sm text-slate-300 hover:text-white transition-colors">
+                        <RotateCcw size={16}/> Resetar Ordem
+                    </button>
                 </div>
-            )}
 
-            {canManage && (
-                <div className="mb-6 flex justify-end">
+                {canManage && (
                     <button onClick={onOpenCreate} className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 px-6 rounded-lg flex items-center gap-2 shadow-lg shadow-cyan-500/20 transition-all hover:scale-105">
                         <UserPlus size={20} /> Adicionar Novo Membro
                     </button>
+                )}
+            </div>
+
+            {showRoleDetails && (
+                <div className="mb-6 bg-slate-900/50 border border-slate-700 rounded-lg p-4 animate-fade-in grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {orgConfig.roleDetails.map((role, idx) => (
+                        <div key={idx} className="flex flex-col border-l-2 border-slate-600 pl-3">
+                            <span className="text-sm font-bold text-cyan-400">{role.name}</span>
+                            <span className="text-xs text-slate-400">{role.desc}</span>
+                        </div>
+                    ))}
                 </div>
             )}
 
@@ -146,9 +164,7 @@ const OrganizationTab = ({
                             const leaderRoleName = member.isLeader && leaderRoleId ? discordRoles.find(r => r.id === leaderRoleId)?.name : null;
                             const memberMasteries = member.masteries || [];
                             const activity = getActivityStats(member);
-                            
-                            // Uso correto da função restaurada
-                            const orgInfo = (typeof getMemberOrgsInfo !== 'undefined') ? getMemberOrgsInfo(safeMembers, member.discordId) : null;
+                            const orgInfo = getMemberOrgsInfo(members, member.discordId);
 
                             return (
                                 <tr 
@@ -176,7 +192,6 @@ const OrganizationTab = ({
                                                 {memberMasteries.map(m => {
                                                     const mData = MASTERIES.find(mastery => mastery.id === m);
                                                     if (!mData) return null;
-                                                    // Fallback seguro usando Icons ou o próprio objeto se disponível
                                                     const IconM = (typeof mData.icon === 'object') 
                                                         ? mData.icon 
                                                         : ((Icons && Icons[mData.icon]) ? Icons[mData.icon] : Icons.Activity);
