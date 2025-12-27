@@ -17,8 +17,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
 
-    <!-- Babel para JSX -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Babel para JSX (Mudamos para o CDNJS que é mais estável que o Unpkg) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.10/babel.min.js"></script>
 
     <!-- Import Map: Ensina o navegador onde buscar o React e Firebase na web -->
     <script type="importmap">
@@ -126,6 +126,10 @@
                 const finalCode = importsHeader + combinedBodyCode;
 
                 // 4. Transpilação (JSX -> JS) usando Babel
+                if (typeof Babel === 'undefined') {
+                    throw new Error("A biblioteca Babel não foi carregada. Verifique sua conexão ou bloqueadores de anúncio.");
+                }
+
                 const output = Babel.transform(finalCode, {
                     presets: ['react']
                 }).code;
@@ -141,10 +145,11 @@
             } catch (error) {
                 console.error("❌ Erro fatal no carregamento:", error);
                 document.body.innerHTML = `
-                    <div style="height:100vh; display:flex; align-items:center; justify-content:center; flex-direction:column; color:#ef4444; background:#0f172a;">
+                    <div style="height:100vh; display:flex; align-items:center; justify-content:center; flex-direction:column; color:#ef4444; background:#0f172a; text-align:center;">
                         <h1 style="font-size:2rem; margin-bottom:1rem;">Erro de Carregamento</h1>
-                        <p style="font-family:monospace; background:#1e293b; padding:1rem; rounded:0.5rem;">${error.message}</p>
+                        <p style="font-family:monospace; background:#1e293b; padding:1rem; rounded:0.5rem; max-width:80%;">${error.message}</p>
                         <p style="margin-top:1rem; color:#94a3b8; font-size:0.9rem;">Verifique o console (F12) para detalhes técnicos.</p>
+                        <button onclick="window.location.reload()" style="margin-top:20px; padding:10px 20px; background:#3b82f6; border:none; color:white; border-radius:5px; cursor:pointer;">Tentar Novamente</button>
                     </div>
                 `;
             }
