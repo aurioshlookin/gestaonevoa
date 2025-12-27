@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { X, Crown, Calendar, Activity, Clock, Heart, Zap } from 'lucide-react';
+import { X, Crown, Calendar, Activity, Clock, Heart, Zap, User } from 'lucide-react';
 import { ORG_CONFIG, STATS, MASTERIES, Icons } from '../config/constants.js';
 import { calculateMaxPoints, calculateStats, formatDateTime } from '../utils/helpers.js';
 
 const MemberModal = ({ member, orgId, isCreating, discordRoster, discordRoles, onClose, onSave, canManage }) => {
     // Inicializa o estado com os dados do membro ou valores padrão
     const [form, setForm] = useState({
-        name: member?.name || '',
+        name: member?.name || '', // Nome do Discord
+        rpName: member?.rpName || '', // Nome do Personagem (NOVO)
         discordId: member?.discordId || '',
         org: orgId,
         ninRole: member?.ninRole || ORG_CONFIG[orgId].internalRoles[0],
@@ -34,7 +35,13 @@ const MemberModal = ({ member, orgId, isCreating, discordRoster, discordRoles, o
     );
 
     const handleSelectUser = (user) => {
-        setForm({ ...form, name: user.displayName || user.username, discordId: user.id });
+        setForm({ 
+            ...form, 
+            name: user.displayName || user.username, 
+            discordId: user.id,
+            // Preenche o nome RP com o do Discord se estiver vazio
+            rpName: form.rpName || user.displayName || user.username 
+        });
         setSearchTerm(user.displayName || user.username);
         setIsDropdownOpen(false);
     };
@@ -64,7 +71,7 @@ const MemberModal = ({ member, orgId, isCreating, discordRoster, discordRoles, o
                 <div className="p-4 border-b border-slate-700 flex justify-between items-start bg-slate-900/50 rounded-t-xl">
                     <div>
                         <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                            {isCreating ? "Novo Membro" : form.name}
+                            {isCreating ? "Novo Membro" : (form.rpName || form.name)}
                             {form.isLeader && <Crown size={20} className="text-yellow-400" />}
                         </h2>
                         <p className="text-slate-400 text-sm font-mono">
@@ -79,7 +86,7 @@ const MemberModal = ({ member, orgId, isCreating, discordRoster, discordRoles, o
                     <div className="space-y-4">
                         {isCreating && (
                             <div className="bg-cyan-900/20 p-4 rounded-lg border border-cyan-500/30">
-                                <label className="text-sm font-bold text-cyan-400 mb-2 block">Selecionar Usuário do Discord</label>
+                                <label className="text-sm font-bold text-cyan-400 mb-2 block">Vincular Discord</label>
                                 <div className="relative">
                                     <input 
                                         type="text" 
@@ -102,9 +109,24 @@ const MemberModal = ({ member, orgId, isCreating, discordRoster, discordRoles, o
                                         </>
                                     )}
                                 </div>
-                                {form.name && <p className="text-xs text-emerald-400 mt-2">Selecionado: {form.name}</p>}
+                                {form.name && <p className="text-xs text-emerald-400 mt-2">Vinculado: {form.name}</p>}
                             </div>
                         )}
+
+                        {/* NOVO CAMPO: NOME DO PERSONAGEM */}
+                        <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700">
+                            <label className="text-sm font-bold text-white mb-1 block flex items-center gap-2">
+                                <User size={14} className="text-cyan-400"/> Nome do Personagem (RP)
+                            </label>
+                            <input 
+                                type="text" 
+                                className="w-full bg-slate-800 border border-slate-600 rounded p-2 text-white outline-none focus:border-cyan-500"
+                                placeholder={form.name || "Nome no jogo"}
+                                value={form.rpName} 
+                                onChange={(e) => setForm({...form, rpName: e.target.value})} 
+                            />
+                            <p className="text-[10px] text-slate-500 mt-1">Este nome substituirá o do Discord na tabela.</p>
+                        </div>
 
                         <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700 flex items-center justify-between flex-wrap gap-4">
                             <div className="flex items-center gap-4">
@@ -186,8 +208,8 @@ const MemberModal = ({ member, orgId, isCreating, discordRoster, discordRoles, o
                             <div className="grid grid-cols-2 gap-3">
                                 {MASTERIES.map(m => {
                                     const isActive = form.masteries.includes(m.id);
-                                    // Resolve o ícone: se for objeto (Vite), usa m.icon. Se for string, busca no Icons.
-                                    const IconComp = typeof m.icon === 'object' ? m.icon : Icons[m.icon] || Icons.Activity;
+                                    // Fallback seguro para ícones
+                                    const IconComp = (typeof m.icon === 'function' || typeof m.icon === 'object') ? m.icon : (Icons[m.icon] || Icons.Activity);
 
                                     return (
                                         <div key={m.id} onClick={() => toggleMastery(m.id)} className={`cursor-pointer p-3 rounded border flex items-center gap-3 transition-all ${isActive ? 'bg-slate-700 border-cyan-500/50' : 'bg-slate-800 border-slate-700 hover:bg-slate-700/50'}`}>
