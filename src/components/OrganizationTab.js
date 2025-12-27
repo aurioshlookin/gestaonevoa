@@ -1,5 +1,9 @@
 import React, { useState } from 'react';
-import { BookOpen, ChevronUp, ChevronDown, UserPlus, ArrowUp, ArrowDown, ArrowUpDown, AlertCircle, Crown, Trash2 } from 'lucide-react';
+import { 
+    BookOpen, ChevronUp, ChevronDown, UserPlus, 
+    ArrowUp, ArrowDown, ArrowUpDown, AlertCircle, 
+    Crown, Trash2, ArrowLeft, RotateCcw, UserSecret 
+} from 'lucide-react';
 import { ORG_CONFIG, MASTERIES, Icons } from '../config/constants.js';
 import { getActivityStats, formatDate, getMemberOrgsInfo } from '../utils/helpers.js';
 
@@ -12,6 +16,7 @@ const OrganizationTab = ({
     const [sortConfig, setSortConfig] = useState({ key: 'rank', direction: 'ascending' });
 
     const orgConfig = ORG_CONFIG[orgId];
+    // Garante array seguro
     const safeMembers = Array.isArray(members) ? members : [];
     const orgMembers = safeMembers.filter(m => m.org === orgId);
     
@@ -111,7 +116,7 @@ const OrganizationTab = ({
             <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-4">
                     <button onClick={onBack} className="p-2 hover:bg-slate-700 rounded transition-colors text-white flex items-center gap-2" title="Voltar ao Painel">
-                        <Icons.ArrowLeft size={20} />
+                        <ArrowLeft size={20} />
                         <span className="hidden md:inline">Voltar</span>
                     </button>
                     <div className={`p-3 rounded-lg ${orgConfig.bgColor} ${orgConfig.color}`}>
@@ -132,7 +137,7 @@ const OrganizationTab = ({
                         </button>
                     )}
                     <button onClick={resetSort} className="bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors" title="Resetar Ordenação">
-                        <Icons.RotateCcw size={16}/> Resetar Ordem
+                        <RotateCcw size={16}/> Resetar Ordem
                     </button>
                 </div>
 
@@ -213,11 +218,7 @@ const OrganizationTab = ({
                                                 {memberMasteries.map(m => {
                                                     const mData = MASTERIES.find(mastery => mastery.id === m);
                                                     if (!mData) return null;
-                                                    // Fallback para Activity se o ícone não existir
-                                                    const IconM = (typeof mData.icon === 'function' || typeof mData.icon === 'object') 
-                                                        ? mData.icon 
-                                                        : (Icons[mData.icon] || Icons.Activity);
-                                                        
+                                                    const IconM = (typeof mData.icon === 'function' || typeof mData.icon === 'object') ? mData.icon : (Icons[mData.icon] || Icons.Activity);
                                                     return (
                                                         <div key={m} className={`flex items-center gap-1 ${mData.color} bg-slate-800/50 px-1.5 py-0.5 rounded text-[10px] font-bold border border-${mData.color.split('-')[1]}-500/20`}>
                                                             {React.createElement(IconM, {size: 12})}
@@ -233,7 +234,7 @@ const OrganizationTab = ({
                                         <td className="p-4">
                                             {member.codinome ? (
                                                 <span className="text-purple-400 font-mono flex items-center gap-1">
-                                                    <Icons.UserSecret size={12}/> {member.codinome}
+                                                    <UserSecret size={12}/> {member.codinome}
                                                 </span>
                                             ) : <span className="text-slate-600">-</span>}
                                         </td>
