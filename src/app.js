@@ -96,7 +96,6 @@ const App = () => {
         if (simulation) {
             return {
                 ...user,
-                // Mascaramos ID e Cargos durante a simulação
                 id: 'simulated-user-id', 
                 username: `[Simulação] ${simulation.name}`,
                 roles: simulation.roles || []
@@ -188,7 +187,7 @@ const App = () => {
         }
     };
 
-    // --- LÓGICA DE TUTORIAL (ATUALIZADA) ---
+    // --- LÓGICA DE TUTORIAL ---
     const startTutorial = () => {
         if (!effectiveUser) return;
         
@@ -204,7 +203,6 @@ const App = () => {
         } 
         else {
             // 3. Líder ou Membro Específico
-            // Procura se o usuário tem algum cargo de líder ou membro configurado
             let foundOrg = null;
             let isLeader = false;
 
@@ -230,7 +228,6 @@ const App = () => {
             }
         }
 
-        // Tenta carregar o tutorial específico, se não existir, usa o visitante
         setTutorialSteps(TUTORIALS[tutorialKey] || TUTORIALS['visitor']);
     };
 
@@ -295,9 +292,6 @@ const App = () => {
         if (effectiveUser.id === accessConfig.creatorId) return true;
         if (accessConfig.vipIds && accessConfig.vipIds.includes(effectiveUser.id)) return true;
 
-        // Regra de Gerenciamento de Settings (Só Criador REAL/VIP)
-        if (action === 'MANAGE_SETTINGS' || action === 'VIEW_HISTORY') return false;
-
         const userRoles = effectiveUser.roles || [];
 
         // Admins Globais
@@ -317,9 +311,14 @@ const App = () => {
 
     const canManageOrg = (orgId) => checkPermission('EDIT_MEMBER', orgId);
     
-    // Regras Estritas
+    // REGRAS DE ACESSO:
     const isRealCreator = effectiveUser?.id === accessConfig.creatorId; 
-    const canViewHistory = isRealCreator; 
+    const isMizukami = effectiveUser?.roles.includes(accessConfig.kamiRoleId);
+    
+    // Monitoramento: Criador + Mizukami
+    const canViewHistory = isRealCreator || isMizukami; 
+    
+    // Configurações: Apenas Criador
     const canManageSettings = isRealCreator;
     
     const canAccessPanel = useMemo(() => {
@@ -382,10 +381,7 @@ const App = () => {
 
     const handleSaveMember = async (formData) => {
         if (simulation) {
-            // Em simulação, apenas finge que salvou e fecha
-            showNotification('Simulação: Ação simulada (não salvo).', 'success');
-            setSelectedMember(null); 
-            setIsCreating(false);
+            showNotification('Simulação: Ação bloqueada.', 'error');
             return;
         }
 
@@ -547,7 +543,6 @@ const App = () => {
         </ErrorBoundary>
     );
 
-    // CORREÇÃO: Permite UI de gestão se tiver permissão (mesmo em simulação)
     const hasManagePermission = checkPermission('EDIT_MEMBER', editingOrgId || activeTab);
 
     return (
@@ -574,8 +569,8 @@ const App = () => {
                         discordRoles={discordRoles}
                         onClose={() => { setSelectedMember(null); setIsCreating(false); }}
                         onSave={handleSaveMember}
-                        canManage={hasManagePermission} // UI habilitada na simulação
-                        isReadOnly={!hasManagePermission} // Leitura se não tiver permissão
+                        canManage={hasManagePermission} // Permite UI de edição, o bloqueio de salvamento é no handler
+                        isReadOnly={!hasManagePermission} 
                     />
                 )}
 
@@ -639,7 +634,7 @@ const App = () => {
                             members={members}
                             discordRoles={discordRoles}
                             leaderRoleConfig={leaderRoleConfig}
-                            canManage={canManageOrg(activeTab)} // UI habilitada na simulação
+                            canManage={canManageOrg(activeTab)} 
                             onOpenCreate={openCreateModal}
                             onEditMember={openEditModal} 
                             onDeleteMember={setDeleteConfirmation}
