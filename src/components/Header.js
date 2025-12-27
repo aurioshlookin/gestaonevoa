@@ -11,8 +11,8 @@ const Header = ({
     onLogout, 
     user, 
     userRoleLabel,
-    onToggleTutorial, // Nova prop para ação
-    isTutorialEnabled // Nova prop para estado
+    onToggleTutorial, 
+    isTutorialEnabled 
 }) => {
     return (
         <header className="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-50" id="main-header">
@@ -40,7 +40,6 @@ const Header = ({
                     
                     {canManageSettings && (
                         <>
-                            {/* Botão de Controle do Tutorial Global */}
                             <button 
                                 id="btn-toggle-tutorial"
                                 onClick={onToggleTutorial} 
