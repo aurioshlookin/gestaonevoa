@@ -14,7 +14,6 @@ import MemberModal from './components/MemberModal.js';
 import SettingsModal from './components/SettingsModal.js';
 import DashboardTab from './components/DashboardTab.js';
 import OrganizationTab from './components/OrganizationTab.js';
-import HistoryTab from './components/HistoryTab.js';
 import MonitoringTab from './components/MonitoringTab.js';
 
 // --- SISTEMA DE DEBUG DE ERROS ---
@@ -161,28 +160,25 @@ const App = () => {
     const handleLogout = () => { localStorage.removeItem('discord_access_token'); setUser(null); };
 
     // --- MONITORAMENTO DETALHADO DE NAVEGAÇÃO ---
-    // Registra cada troca de aba como uma ação no banco
     useEffect(() => {
         if (!user || loading) return;
-
-        // Resolve o nome legível da página
+        
         let pageName = activeTab;
         if (activeTab === 'dashboard') pageName = 'Painel Inicial';
-        else if (activeTab === 'history') pageName = 'Histórico';
         else if (activeTab === 'access') pageName = 'Monitoramento';
         else if (ORG_CONFIG[activeTab]) pageName = ORG_CONFIG[activeTab].name;
 
-        // Salva log de navegação
-        addDoc(collection(db, "access_logs"), {
-            userId: user.id,
-            username: user.username || user.displayName,
-            action: `Navegou: ${pageName}`,
-            timestamp: new Date().toISOString()
-        }).catch(err => console.error("Erro ao logar navegação:", err));
-
+        // Só loga se não for 'history' (que foi removido) e se user estiver carregado
+        if (pageName && activeTab !== 'history') {
+            addDoc(collection(db, "access_logs"), {
+                userId: user.id,
+                username: user.username || user.displayName,
+                action: `Navegou: ${pageName}`,
+                timestamp: new Date().toISOString()
+            }).catch(err => console.error("Erro ao logar navegação:", err));
+        }
     }, [activeTab, user, loading]);
 
-    // Heartbeat (Online Status)
     useEffect(() => {
         if (!user) return;
         const heartbeat = () => setDoc(doc(db, "online_status", user.id), {
@@ -236,14 +232,12 @@ const App = () => {
         if (user.id === accessConfig.creatorId || (accessConfig.vipIds && accessConfig.vipIds.includes(user.id))) return true;
         const userRoles = user.roles || [];
         const allowedRoles = new Set();
-        
         if (accessConfig.kamiRoleId) allowedRoles.add(accessConfig.kamiRoleId);
         if (accessConfig.councilRoleId) allowedRoles.add(accessConfig.councilRoleId);
         if (accessConfig.moderatorRoleId) allowedRoles.add(accessConfig.moderatorRoleId);
         Object.values(roleConfig).forEach(id => { if(id) allowedRoles.add(id); });
         Object.values(leaderRoleConfig).forEach(id => { if(id) allowedRoles.add(id); });
         Object.values(secLeaderRoleConfig).forEach(id => { if(id) allowedRoles.add(id); });
-        
         return userRoles.some(roleId => allowedRoles.has(roleId));
     }, [user, accessConfig, roleConfig, leaderRoleConfig, secLeaderRoleConfig]);
 
@@ -255,40 +249,16 @@ const App = () => {
         if (user.roles.includes(accessConfig.kamiRoleId)) roles.push("Kage");
         if (user.roles.includes(accessConfig.councilRoleId)) roles.push("Conselho");
         if (user.roles.includes(accessConfig.moderatorRoleId)) roles.push("Moderador");
-        
-        Object.entries(leaderRoleConfig).forEach(([orgId, roleId]) => { 
-            if (user.roles.includes(roleId)) roles.push(`Líder ${ORG_CONFIG[orgId]?.name || ''}`); 
-        });
-        
-        Object.entries(roleConfig).forEach(([orgId, roleId]) => {
-            const isLeader = leaderRoleConfig[orgId] && user.roles.includes(leaderRoleConfig[orgId]);
-            if (user.roles.includes(roleId) && !isLeader) {
-                roles.push(`Membro ${ORG_CONFIG[orgId]?.name || ''}`);
-            }
-        });
-
+        Object.entries(leaderRoleConfig).forEach(([orgId, roleId]) => { if (user.roles.includes(roleId)) roles.push(`Líder ${ORG_CONFIG[orgId]?.name || ''}`); });
         if (roles.length === 0) return "Visitante";
         return roles.join(" & ");
-    }, [user, accessConfig, leaderRoleConfig, roleConfig]);
-
-    // --- HELPERS E CÁLCULOS ---
-    const showNotification = (msg, type) => { setNotification({ msg, type }); setTimeout(() => setNotification(null), 3000); };
-    
-    const multiOrgUsers = useMemo(() => {
-        const memberMap = {};
-        members.forEach(m => {
-            if (!memberMap[m.discordId]) memberMap[m.discordId] = { name: m.name, orgs: [] };
-            const orgName = ORG_CONFIG[m.org]?.name || m.org;
-            if (!memberMap[m.discordId].orgs.includes(orgName)) memberMap[m.discordId].orgs.push(orgName);
-        });
-        return Object.values(memberMap).filter(u => u.orgs.length > 1);
-    }, [members]);
+    }, [user, accessConfig, leaderRoleConfig]);
 
     // --- ACTIONS: MEMBROS ---
     const openCreateModal = () => { setIsCreating(true); setSelectedMember(null); setEditingOrgId(activeTab); };
     const openEditModal = (member) => { setIsCreating(false); setSelectedMember(member); setEditingOrgId(member.org); };
 
-    // --- FUNÇÃO DE SALVAMENTO COM LOG DETALHADO (DIFF) ---
+    // --- FUNÇÃO DE SALVAMENTO COM LOG DETALHADO (DIFF PRECISO) ---
     const handleSaveMember = async (formData) => {
         try {
             const orgId = isCreating ? editingOrgId : selectedMember.org;
@@ -310,30 +280,30 @@ const App = () => {
                 detailsLog = `Criado: ${formData.rpName || formData.name} (${formData.ninRole})`;
             } else {
                 const changes = [];
-                // Compara campos principais
-                if (selectedMember.name !== formData.name) changes.push(`Discord: ${selectedMember.name} -> ${formData.name}`);
-                if (selectedMember.rpName !== formData.rpName) changes.push(`Nome RP: ${selectedMember.rpName || '(vazio)'} -> ${formData.rpName}`);
-                if (selectedMember.codinome !== formData.codinome) changes.push(`Codinome: ${selectedMember.codinome || '(vazio)'} -> ${formData.codinome}`);
-                if (selectedMember.level != formData.level) changes.push(`Nível: ${selectedMember.level} -> ${formData.level}`);
-                if (selectedMember.ninRole !== formData.ninRole) changes.push(`Cargo: ${selectedMember.ninRole} -> ${formData.ninRole}`);
-                if (selectedMember.isLeader !== formData.isLeader) changes.push(`Líder: ${selectedMember.isLeader ? 'Sim' : 'Não'} -> ${formData.isLeader ? 'Sim' : 'Não'}`);
+                // Helper para normalizar valores (undefined/null vira string vazia)
+                const safeVal = (v) => v || '';
                 
-                // Compara Atributos
+                // Comparações
+                if (safeVal(selectedMember.name) !== safeVal(formData.name)) changes.push(`Discord: ${selectedMember.name}->${formData.name}`);
+                if (safeVal(selectedMember.rpName) !== safeVal(formData.rpName)) changes.push(`Nome RP: ${selectedMember.rpName || '(vazio)'}->${formData.rpName}`);
+                if (safeVal(selectedMember.codinome) !== safeVal(formData.codinome)) changes.push(`Codinome: ${selectedMember.codinome || '(vazio)'}->${formData.codinome}`);
+                if (selectedMember.level != formData.level) changes.push(`Nível: ${selectedMember.level}->${formData.level}`);
+                if (selectedMember.ninRole !== formData.ninRole) changes.push(`Cargo: ${selectedMember.ninRole}->${formData.ninRole}`);
+                if (selectedMember.isLeader !== formData.isLeader) changes.push(`Líder: ${selectedMember.isLeader ? 'S' : 'N'}->${formData.isLeader ? 'S' : 'N'}`);
+                
                 const statsChanged = STATS.filter(s => selectedMember.stats[s] != formData.stats[s]);
                 if (statsChanged.length > 0) {
                     const statsDiff = statsChanged.map(s => `${s}: ${selectedMember.stats[s]}->${formData.stats[s]}`).join(', ');
-                    changes.push(`Atributos [${statsDiff}]`);
+                    changes.push(`Stats [${statsDiff}]`);
                 }
 
-                // Compara Maestrias
                 const oldMasteries = (selectedMember.masteries || []).sort().join(',');
                 const newMasteries = (formData.masteries || []).sort().join(',');
                 if (oldMasteries !== newMasteries) changes.push(`Maestrias alteradas`);
 
-                detailsLog = changes.length > 0 ? changes.join(' | ') : "Edição sem alterações visíveis";
+                detailsLog = changes.length > 0 ? changes.join(' | ') : "Edição (sem alterações detectadas)";
             }
 
-            // Resolve conflito de liderança
             if (formData.isLeader) {
                 const currentLeader = members.find(m => m.org === orgId && m.isLeader === true && m.discordId !== formData.discordId);
                 if (currentLeader) {
@@ -373,11 +343,9 @@ const App = () => {
         try {
             const memberToRemove = members.find(m => m.id === id);
             await deleteDoc(doc(db, "membros", String(id)));
-            
             setDeleteConfirmation(null);
             showNotification('Removido.', 'success');
-            
-            logAction("Remover Membro", memberToRemove ? memberToRemove.name : "Desconhecido", "Removido da organização", activeTab);
+            logAction("Remover Membro", memberToRemove ? memberToRemove.name : "Desconhecido", "Removido", activeTab);
         } catch (e) { showNotification(`Erro: ${e.message}`, 'error'); setDeleteConfirmation(null); }
     };
 
@@ -395,9 +363,8 @@ const App = () => {
                 let newRoleL = member.ninRole; if (orgId === 'unidade-medica') newRoleL = 'Diretor Médico';
                 await updateDoc(doc(db, "membros", member.id), { isLeader: true, ninRole: newRoleL });
             } else { await updateDoc(doc(db, "membros", member.id), { isLeader: false }); }
-            
             showNotification('Liderança alterada.', 'success');
-            logAction("Alterar Liderança", member.name, newStatus ? "Promovido a Líder" : "Removido da Liderança", orgId);
+            logAction("Alterar Liderança", member.name, newStatus ? "Promovido" : "Removido", orgId);
         } catch (e) { showNotification('Erro.', 'error'); }
     };
 
@@ -406,17 +373,13 @@ const App = () => {
         try {
             await setDoc(doc(db, "server", "config"), newConfig, { merge: true });
             setShowSettings(false);
-            showNotification('Configurações Salvas!', 'success');
+            showNotification('Salvo!', 'success');
             logAction("Configurações", "Sistema", "Atualizado");
         } catch (e) { showNotification('Erro ao salvar.', 'error'); }
     };
 
     // --- RENDER ---
-    if (!user) return (
-        <ErrorBoundary>
-            <LoginScreen onLogin={handleLogin} />
-        </ErrorBoundary>
-    );
+    if (!user) return <ErrorBoundary><LoginScreen onLogin={handleLogin} /></ErrorBoundary>;
 
     if (!canAccessPanel) return (
         <ErrorBoundary>
@@ -425,15 +388,7 @@ const App = () => {
                     <ShieldCheck size={48} className="mx-auto text-red-500 mb-6" />
                     <h1 className="text-2xl font-bold text-white mb-2">Acesso Negado</h1>
                     <p className="text-slate-400 mb-6">Você não possui permissão. Contate um administrador.</p>
-                    <button 
-                        onClick={() => {
-                            alert("Seus Cargos ID: " + user.roles.join("\n"));
-                            console.log("Cargos:", user.roles);
-                        }}
-                        className="text-xs text-slate-500 hover:text-slate-300 underline mb-4 block mx-auto"
-                    >
-                        Ver meus IDs de Cargo
-                    </button>
+                    <button onClick={() => {alert("Seus Cargos ID: " + user.roles.join("\n")); console.log("Cargos:", user.roles);}} className="text-xs text-slate-500 hover:text-slate-300 underline mb-4 block mx-auto">Ver meus IDs de Cargo</button>
                     <button onClick={handleLogout} className="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-6 rounded transition-colors">Voltar / Logout</button>
                 </div>
             </div>
@@ -443,11 +398,7 @@ const App = () => {
     return (
         <ErrorBoundary>
             <div className="min-h-screen bg-slate-900 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] text-slate-200 font-mono">
-                {notification && (
-                    <div className={`fixed bottom-4 right-4 p-4 rounded shadow-lg text-white z-50 animate-bounce-in ${notification.type === 'error' ? 'bg-red-600' : 'bg-emerald-600'}`}>
-                        {notification.msg}
-                    </div>
-                )}
+                {notification && <div className={`fixed bottom-4 right-4 p-4 rounded shadow-lg text-white z-50 animate-bounce-in ${notification.type === 'error' ? 'bg-red-600' : 'bg-emerald-600'}`}>{notification.msg}</div>}
 
                 {(selectedMember || isCreating) && (
                     <MemberModal 
@@ -504,14 +455,7 @@ const App = () => {
 
                 <main className="container mx-auto px-6 py-8">
                     {activeTab === 'dashboard' ? (
-                        <DashboardTab 
-                            members={members}
-                            roleConfig={roleConfig}
-                            multiOrgUsers={multiOrgUsers}
-                            onTabChange={setActiveTab}
-                        />
-                    ) : activeTab === 'history' ? (
-                        <HistoryTab onBack={() => setActiveTab('dashboard')} />
+                        <DashboardTab members={members} roleConfig={roleConfig} multiOrgUsers={multiOrgUsers} onTabChange={setActiveTab} />
                     ) : activeTab === 'access' ? (
                         <MonitoringTab onBack={() => setActiveTab('dashboard')} />
                     ) : (
@@ -535,8 +479,4 @@ const App = () => {
 };
 
 const root = createRoot(document.getElementById('root'));
-root.render(
-    <ErrorBoundary>
-        <App />
-    </ErrorBoundary>
-);
+root.render(<ErrorBoundary><App /></ErrorBoundary>);
