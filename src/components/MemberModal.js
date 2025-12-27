@@ -1,8 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { 
-    X, Crown, Calendar, Activity, Clock, 
-    Heart, Zap, User, UserSecret 
-} from 'lucide-react';
+import { X, Crown, Calendar, Activity, Clock, Heart, Zap, User, UserSecret } from 'lucide-react';
 import { ORG_CONFIG, STATS, MASTERIES, Icons } from '../config/constants.js';
 import { calculateMaxPoints, calculateStats, formatDateTime } from '../utils/helpers.js';
 
