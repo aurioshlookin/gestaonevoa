@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
-import { BookOpen, ChevronUp, ChevronDown, UserPlus, ArrowUp, ArrowDown, ArrowUpDown, AlertCircle, Crown, Trash2, ArrowLeft, RotateCcw, VenetianMask } from 'lucide-react';
+import { 
+    BookOpen, ChevronUp, ChevronDown, UserPlus, ArrowUp, ArrowDown, ArrowUpDown, 
+    AlertCircle, Crown, Trash2, ArrowLeft, RotateCcw, VenetianMask 
+} from 'lucide-react';
 import { ORG_CONFIG, MASTERIES, Icons } from '../config/constants.js';
 import { getActivityStats, formatDate, getMemberOrgsInfo } from '../utils/helpers.js';
 
@@ -12,6 +15,7 @@ const OrganizationTab = ({
     const [sortConfig, setSortConfig] = useState({ key: 'rank', direction: 'ascending' });
 
     const orgConfig = ORG_CONFIG[orgId];
+    // Garante array seguro
     const safeMembers = Array.isArray(members) ? members : [];
     const orgMembers = safeMembers.filter(m => m.org === orgId);
     
@@ -103,14 +107,13 @@ const OrganizationTab = ({
             : <ArrowDown size={14} className="text-cyan-400 inline"/>;
     };
 
-    // Fallback seguro se Icons não estiver carregado
-    const IconComp = (typeof Icons !== 'undefined' && Icons[orgConfig?.icon]) ? Icons[orgConfig.icon] : Icons.Shield;
+    const IconComp = (Icons && orgConfig?.icon && Icons[orgConfig.icon]) ? Icons[orgConfig.icon] : Icons.Shield;
     const ArrowLeftIcon = (Icons && Icons.ArrowLeft) ? Icons.ArrowLeft : ArrowUpDown;
 
     return (
         <div className="animate-fade-in">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-8">
+            {/* Header com ID para o tutorial */}
+            <div className="flex items-center justify-between mb-8" id="org-header">
                 <div className="flex items-center gap-4">
                     <button onClick={onBack} className="p-2 hover:bg-slate-700 rounded transition-colors text-white flex items-center gap-2" title="Voltar ao Painel">
                         <ArrowLeftIcon size={18} className="group-hover:-translate-x-1 transition-transform"/>
@@ -139,7 +142,11 @@ const OrganizationTab = ({
                 </div>
 
                 {canManage && (
-                    <button onClick={onOpenCreate} className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 shadow-lg shadow-cyan-500/20 transition-all hover:scale-105 text-sm">
+                    <button 
+                        id="btn-add-member" 
+                        onClick={onOpenCreate} 
+                        className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 shadow-lg shadow-cyan-500/20 transition-all hover:scale-105 text-sm"
+                    >
                         <UserPlus size={18} /> Adicionar Membro
                     </button>
                 )}
@@ -156,19 +163,17 @@ const OrganizationTab = ({
                 </div>
             )}
 
-            <div className="glass-panel rounded-xl overflow-hidden border border-slate-700">
+            <div className="glass-panel rounded-xl overflow-hidden border border-slate-700" id="members-table">
                 <table className="w-full text-left">
                     <thead className="bg-slate-800/50 text-slate-400 text-xs uppercase">
                         <tr>
                             <th className="p-4 cursor-pointer hover:text-white" onClick={() => requestSort('role')}>Cargo <SortIcon k="role"/></th>
                             <th className="p-4 cursor-pointer hover:text-white" onClick={() => requestSort('name')}>Nome <SortIcon k="name"/></th>
-                            
                             {isAnbu && (
                                 <th className="p-4 cursor-pointer hover:text-white" onClick={() => requestSort('codinome')}>
                                     Codinome <SortIcon k="codinome"/>
                                 </th>
                             )}
-
                             <th className="p-4 cursor-pointer hover:text-white" onClick={() => requestSort('ninRole')}>Nin <SortIcon k="ninRole"/></th>
                             <th className="p-4 cursor-pointer hover:text-white" onClick={() => requestSort('joinDate')}>Entrada <SortIcon k="joinDate"/></th>
                             <th className="p-4 cursor-pointer hover:text-white" onClick={() => requestSort('activity')}>Atividade <SortIcon k="activity"/></th>
@@ -182,14 +187,13 @@ const OrganizationTab = ({
                             const leaderRoleName = member.isLeader && leaderRoleId ? discordRoles.find(r => r.id === leaderRoleId)?.name : null;
                             const memberMasteries = member.masteries || [];
                             const activity = getActivityStats(member);
-                            
                             const orgInfo = (typeof getMemberOrgsInfo !== 'undefined') ? getMemberOrgsInfo(safeMembers, member.discordId) : null;
 
                             return (
                                 <tr 
                                     key={member.id} 
                                     className={`hover:bg-slate-800/30 transition-colors cursor-pointer ${member.isLeader ? 'bg-yellow-900/10' : ''}`} 
-                                    onClick={() => onEditMember(member)} // Clica sempre abre o modal (mesmo sem canManage)
+                                    onClick={() => { if(canManage) onEditMember(member); }}
                                 >
                                     <td className="p-4">
                                         <div className="flex flex-col gap-1 items-start">
@@ -210,15 +214,11 @@ const OrganizationTab = ({
                                             {member.rpName && member.rpName !== member.name && (
                                                 <span className="text-[10px] text-slate-500">Discord: {member.name}</span>
                                             )}
-
                                             <div className="flex flex-wrap gap-2 mt-1">
                                                 {memberMasteries.map(m => {
                                                     const mData = MASTERIES.find(mastery => mastery.id === m);
                                                     if (!mData) return null;
-                                                    const IconM = (typeof mData.icon === 'object') 
-                                                        ? mData.icon 
-                                                        : ((Icons && Icons[mData.icon]) ? Icons[mData.icon] : Icons.Activity);
-                                                        
+                                                    const IconM = (typeof mData.icon === 'object') ? mData.icon : ((Icons && Icons[mData.icon]) ? Icons[mData.icon] : Icons.Activity);
                                                     return (
                                                         <div key={m} className={`flex items-center gap-1 ${mData.color} bg-slate-800/50 px-1.5 py-0.5 rounded text-[10px] font-bold border border-${mData.color.split('-')[1]}-500/20`}>
                                                             {React.createElement(IconM, {size: 12})}
@@ -229,7 +229,6 @@ const OrganizationTab = ({
                                             </div>
                                         </div>
                                     </td>
-
                                     {isAnbu && (
                                         <td className="p-4">
                                             {member.codinome ? (
@@ -239,7 +238,6 @@ const OrganizationTab = ({
                                             ) : <span className="text-slate-600">-</span>}
                                         </td>
                                     )}
-
                                     <td className="p-4"><span className="text-slate-300 text-sm">{member.ninRole}</span></td>
                                     <td className="p-4"><span className="text-slate-300 text-sm font-mono">{formatDate(member.joinDate)}</span></td>
                                     <td className="p-4">
