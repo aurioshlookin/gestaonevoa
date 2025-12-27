@@ -39,22 +39,31 @@ export const getActivityStats = (member) => {
     let totalVoiceMins = 0;
 
     const today = new Date();
+    
     for (let i = 0; i < 14; i++) {
         const d = new Date();
         d.setDate(today.getDate() - i);
         const dateStr = d.toISOString().split('T')[0];
         
-        // CORREÇÃO: Força conversão para número para evitar concatenação de string
-        totalScore += Number(activityMap[dateStr] || 0);
-        totalMsgs += Number(msgMap[dateStr] || 0);
-        totalVoiceMins += Number(voiceMap[dateStr] || 0);
+        // CORREÇÃO CRÍTICA: Forçar conversão para Number()
+        // Isso garante que strings ("10") sejam somadas matematicamente (20) e não concatenadas ("1010")
+        const scoreVal = Number(activityMap[dateStr]);
+        const msgVal = Number(msgMap[dateStr]);
+        const voiceVal = Number(voiceMap[dateStr]);
+
+        if (!isNaN(scoreVal)) totalScore += scoreVal;
+        if (!isNaN(msgVal)) totalMsgs += msgVal;
+        if (!isNaN(voiceVal)) totalVoiceMins += voiceVal;
     }
 
+    // Fallback para dados antigos
     if (totalMsgs === 0 && totalVoiceMins === 0 && totalScore > 0) {
         totalMsgs = totalScore; 
     }
 
     let tier = 'Fantasma', color = 'bg-red-500', icon = '👻', width = '5%';
+    
+    // Tiers baseados no Score Total (Mensagens + Pontos de Voz)
     if (totalScore > 250) { tier = 'Lendário'; color = 'bg-purple-500'; icon = '👑'; width = '100%'; }
     else if (totalScore > 50) { tier = 'Ativo'; color = 'bg-emerald-500'; icon = '🔥'; width = '75%'; }
     else if (totalScore > 10) { tier = 'Regular'; color = 'bg-blue-500'; icon = '😐'; width = '50%'; }
@@ -71,7 +80,6 @@ export const getActivityStats = (member) => {
     };
 };
 
-// Função restaurada do código original
 export const getMemberOrgsInfo = (allMembers, discordId) => {
     const userOrgs = allMembers.filter(m => m.discordId === discordId);
     if (userOrgs.length <= 1) return null;
