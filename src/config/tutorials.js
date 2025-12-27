@@ -1,101 +1,87 @@
 export const TUTORIALS = {
-    // 1. Visitante / Membro Comum
-    member: [
-        {
-            title: "Bem-vindo à Névoa!",
-            message: "Este é o painel de gestão da Vila. Aqui você pode acompanhar o status das organizações e seus membros.",
-            target: "header",
-            navigate: "dashboard" // Garante que comece no painel
-        },
-        {
-            title: "Organizações",
-            message: "Cada cubo representa uma organização. Clique para ver detalhes.",
-            target: ".dashboard-grid",
-            navigate: "dashboard"
-        },
-        {
-            title: "Detalhes da Organização",
-            message: "Aqui dentro você vê a lista de membros, hierarquia e quem está ativo.",
-            target: "table", // Alvo genérico da tabela
-            navigate: "sete-laminas" // Leva o usuário para uma org de exemplo
-        },
-        {
-            title: "Seu Perfil",
-            message: "Seus dados ficam aqui no topo. Fale com seu líder para atualizações.",
-            target: "header .user-profile", // Classe que adicionaremos no Header
-            navigate: "dashboard"
-        }
-    ],
-
-    // 2. Líder de Organização
-    leader: [
-        {
-            title: "Painel de Liderança",
-            message: "Como líder, você gerencia sua organização diretamente por aqui.",
-            target: "header",
-            navigate: "dashboard"
-        },
-        {
-            title: "Sua Organização",
-            message: "Acesse sua organização para ver as opções de gestão.",
-            target: ".dashboard-grid",
-            navigate: "sete-laminas" // Exemplo
-        },
-        {
-            title: "Adicionar Membros",
-            message: "Use este botão para registrar novos membros na sua equipe.",
-            target: "button:has(svg.lucide-user-plus)", // Seletor do botão Add
-            navigate: "sete-laminas"
-        },
-        {
-            title: "Editar Membros",
-            message: "Clique em qualquer membro na lista para editar atributos e maestrias.",
-            target: "table tbody tr:first-child", // Primeiro membro da lista
-            navigate: "sete-laminas"
-        }
-    ],
-
-    // 3. Conselho (Admin Global Moderado)
-    council: [
-        {
-            title: "Acesso do Conselho",
-            message: "Você tem permissão para editar membros de TODAS as organizações.",
-            target: "header",
-            navigate: "dashboard"
-        },
-        {
-            title: "Visão Global",
-            message: "Você pode entrar em qualquer organização e realizar alterações, promoções ou remoções.",
-            target: ".dashboard-grid",
-            navigate: "dashboard"
-        },
-        {
-            title: "Gestão",
-            message: "Basta acessar a organização desejada. Você verá as ferramentas de edição disponíveis.",
-            target: "table",
-            navigate: "divisao-especial"
-        }
-    ],
-
-    // 4. Mizukami (Admin Supremo / Criador)
+    // --- ADMINISTRAÇÃO GLOBAL ---
     mizukami: [
         {
             title: "Saudações, Mizukami",
-            message: "Você tem controle total sobre o sistema.",
+            message: "Como líder supremo da Vila Oculta da Névoa, você possui autoridade absoluta sobre a gestão das organizações.",
             target: "header",
             navigate: "dashboard"
         },
         {
-            title: "Configurações Globais",
-            message: "Aqui você define os cargos do Discord que representam cada função no site.",
-            target: "button[title='Configurações']",
+            title: "Gestão Global",
+            message: "Você pode acessar qualquer organização clicando nos cards para gerenciar membros, promover líderes ou remover ninjas.",
+            target: ".dashboard-grid",
             navigate: "dashboard"
         },
         {
-            title: "Monitoramento",
-            message: "Acompanhe acessos e alterações em tempo real nesta aba exclusiva.",
-            target: "button[title='Monitoramento Integrado']",
-            navigate: "access" // Leva para a aba de monitoramento
+            title: "Edição Irrestrita",
+            message: "Ao entrar em uma organização, você verá todas as ferramentas de edição disponíveis para manter a ordem na vila.",
+            target: "header", // Foco genérico
+            navigate: "sete-laminas" // Exemplo
         }
+    ],
+
+    council: [
+        {
+            title: "Saudações, Conselheiro",
+            message: "Como membro do Conselho, você auxilia o Mizukami na administração e fiscalização da vila.",
+            target: "header",
+            navigate: "dashboard"
+        },
+        {
+            title: "Supervisão",
+            message: "Você tem permissão de edição em todas as organizações. Navegue entre elas para auditar e ajustar o que for necessário.",
+            target: ".dashboard-grid",
+            navigate: "dashboard"
+        }
+    ],
+
+    // --- SETE LÂMINAS ---
+    'leader_sete-laminas': [
+        { title: "Líder dos Espadachins", message: "Você comanda a elite dos Sete Espadachins da Névoa.", target: "header", navigate: "sete-laminas" },
+        { title: "Gestão das Espadas", message: "Aqui você define quem porta cada uma das espadas lendárias e gerencia a hierarquia.", target: "table", navigate: "sete-laminas" },
+        { title: "Recrutamento", message: "Use o botão 'Adicionar Novo Membro' para registrar novos portadores ou aspirantes.", target: "button:has(svg.lucide-user-plus)", navigate: "sete-laminas" }
+    ],
+    'member_sete-laminas': [
+        { title: "Espadachim da Névoa", message: "Bem-vindo à organização mais letal da vila.", target: "header", navigate: "sete-laminas" },
+        { title: "Sua Espada", message: "Verifique seu status, maestrias e qual espada você empunha na lista de membros.", target: "table", navigate: "sete-laminas" }
+    ],
+
+    // --- DIVISÃO ESPECIAL (ANBU) ---
+    'leader_divisao-especial': [
+        { title: "Comandante ANBU", message: "Você lidera as operações secretas da vila.", target: "header", navigate: "divisao-especial" },
+        { title: "Codinomes", message: "Gerencie os codinomes e identidades dos seus agentes na tabela.", target: "table", navigate: "divisao-especial" },
+        { title: "Recrutamento", message: "Adicione novos recrutas ou agentes através deste botão.", target: "button:has(svg.lucide-user-plus)", navigate: "divisao-especial" }
+    ],
+    'member_divisao-especial': [
+        { title: "Agente ANBU", message: "Bem-vindo às sombras. Aqui você acompanha sua divisão.", target: "header", navigate: "divisao-especial" },
+        { title: "Identidade", message: "Seu codinome e rank estão listados aqui. Mantenha seus dados atualizados com o comandante.", target: "table", navigate: "divisao-especial" }
+    ],
+
+    // --- FORÇA POLICIAL ---
+    'leader_forca-policial': [
+        { title: "Chefe de Polícia", message: "Você é responsável pela ordem e cumprimento das leis na vila.", target: "header", navigate: "forca-policial" },
+        { title: "Hierarquia Militar", message: "Gerencie as patentes de seus oficiais, de Cadetes a Coronéis.", target: "table", navigate: "forca-policial" },
+        { title: "Novo Oficial", message: "Registre novos oficiais na corporação aqui.", target: "button:has(svg.lucide-user-plus)", navigate: "forca-policial" }
+    ],
+    'member_forca-policial': [
+        { title: "Oficial da Lei", message: "Bem-vindo à Força Policial. Servir e proteger.", target: "header", navigate: "forca-policial" },
+        { title: "Patente", message: "Sua patente atual e status de atividade podem ser vistos nesta lista.", target: "table", navigate: "forca-policial" }
+    ],
+
+    // --- UNIDADE MÉDICA ---
+    'leader_unidade-medica': [
+        { title: "Diretor Médico", message: "Você gerencia a saúde e o suporte médico da vila.", target: "header", navigate: "unidade-medica" },
+        { title: "Corpo Clínico", message: "Organize seus médicos, residentes e especialistas na tabela.", target: "table", navigate: "unidade-medica" },
+        { title: "Contratação", message: "Adicione novos médicos ou estagiários à equipe.", target: "button:has(svg.lucide-user-plus)", navigate: "unidade-medica" }
+    ],
+    'member_unidade-medica': [
+        { title: "Médico Ninja", message: "Bem-vindo à Unidade Médica. Sua cura é a força da vila.", target: "header", navigate: "unidade-medica" },
+        { title: "Especialização", message: "Confira seu nível de especialização e status na lista da equipe.", target: "table", navigate: "unidade-medica" }
+    ],
+    
+    // Fallback genérico
+    'visitor': [
+        { title: "Bem-vindo à Névoa", message: "Você está visualizando o painel como visitante. Aguarde um líder adicioná-lo a uma organização.", target: "header", navigate: "dashboard" }
     ]
 };
