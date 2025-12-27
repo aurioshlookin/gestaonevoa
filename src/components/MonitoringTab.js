@@ -11,7 +11,7 @@ const MonitoringTab = ({ onBack }) => {
 
     // Busca dados
     useEffect(() => {
-        // Aumentei o limite para 500 para pegar um histórico melhor de usuários únicos
+        // Aumentei o limite para 500 para pegar um histórico melhor
         const qLogs = query(collection(db, "access_logs"), orderBy("timestamp", "desc"), limit(500));
         const unsubLogs = onSnapshot(qLogs, (snap) => {
             setAccessLogs(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
@@ -65,7 +65,7 @@ const MonitoringTab = ({ onBack }) => {
         return `Há ${days} dias`;
     };
 
-    // Renderiza a lista de logs de um usuário específico
+    // Renderiza a lista de logs de um usuário específico (Drill-down)
     if (selectedUser) {
         return (
             <div className="animate-fade-in">
@@ -87,7 +87,7 @@ const MonitoringTab = ({ onBack }) => {
                         <thead className="bg-slate-800/50 text-slate-400 text-xs uppercase">
                             <tr>
                                 <th className="p-4">Data e Hora</th>
-                                <th className="p-4">Ação</th>
+                                <th className="p-4">Ação / Página</th>
                                 <th className="p-4 text-right">Tempo Relativo</th>
                             </tr>
                         </thead>
@@ -98,8 +98,10 @@ const MonitoringTab = ({ onBack }) => {
                                         <Calendar size={14} className="text-slate-500"/>
                                         {formatDateTime(log.timestamp)}
                                     </td>
-                                    <td className="p-4 font-bold text-green-400">
-                                        {log.action}
+                                    <td className="p-4">
+                                        <span className={log.action.includes('Navegou') ? 'text-cyan-400' : 'text-green-400 font-bold'}>
+                                            {log.action}
+                                        </span>
                                     </td>
                                     <td className="p-4 text-right text-slate-500 font-mono text-xs">
                                         {getTimeSince(log.timestamp)}
@@ -113,7 +115,7 @@ const MonitoringTab = ({ onBack }) => {
         );
     }
 
-    // Renderiza a visão geral (Lista de Usuários)
+    // Renderiza a visão geral (Lista de Usuários Agrupada)
     return (
         <div className="animate-fade-in space-y-8">
             <div className="flex items-center justify-between">
@@ -132,7 +134,7 @@ const MonitoringTab = ({ onBack }) => {
             <div className="glass-panel rounded-xl overflow-hidden border border-slate-700">
                 <div className="p-4 bg-slate-800/50 border-b border-slate-700 flex justify-between items-center">
                     <h3 className="text-lg font-bold text-slate-300">Últimos Acessos por Usuário</h3>
-                    <span className="text-xs text-slate-500">Clique para ver detalhes</span>
+                    <span className="text-xs text-slate-500">Clique para ver histórico completo</span>
                 </div>
                 <div className="max-h-[600px] overflow-y-auto scroll-custom">
                     <table className="w-full text-left">
@@ -140,6 +142,7 @@ const MonitoringTab = ({ onBack }) => {
                             <tr>
                                 <th className="p-4">Usuário</th>
                                 <th className="p-4">Último Acesso</th>
+                                <th className="p-4 text-center">Entradas</th>
                                 <th className="p-4 text-center">Status</th>
                                 <th className="p-4 text-right">Ação</th>
                             </tr>
@@ -165,6 +168,11 @@ const MonitoringTab = ({ onBack }) => {
                                                 {getTimeSince(group.lastAccess)}
                                             </div>
                                             <span className="text-[10px] text-slate-500">{formatDateTime(group.lastAccess)}</span>
+                                        </td>
+                                        <td className="p-4 text-center">
+                                            <span className="bg-slate-700 text-slate-300 px-2 py-1 rounded text-xs font-bold">
+                                                {group.totalEntries}
+                                            </span>
                                         </td>
                                         <td className="p-4 text-center">
                                             {isOnline ? (
