@@ -1,4 +1,4 @@
-import { STATS } from '../config/constants.js';
+import { STATS, ORG_CONFIG } from '../config/constants.js';
 
 export const calculateMaxPoints = (level) => {
     if (level <= 1) return 0; 
@@ -68,6 +68,14 @@ export const getActivityStats = (member) => {
         tier, color, icon, width,
         details: { msgs: totalMsgs, voice: voiceString }
     };
+};
+
+// Nova função adicionada que estava faltando
+export const getMemberOrgsInfo = (allMembers, discordId) => {
+    const userOrgs = allMembers.filter(m => m.discordId === discordId);
+    if (userOrgs.length <= 1) return null;
+    const orgNames = userOrgs.map(m => ORG_CONFIG[m.org]?.name || m.org).join(", ");
+    return { count: userOrgs.length, names: orgNames };
 };
 
 export const formatDateTime = (isoString) => { 
