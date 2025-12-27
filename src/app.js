@@ -71,29 +71,23 @@ const App = () => {
         return () => { unsubMembers(); unsubRoster(); unsubRoles(); unsubConfig(); };
     }, []);
 
-    // --- SCROLL LOCK REFORÇADO ---
-    // Impede que a página de fundo role quando um modal está aberto
+    // --- SCROLL LOCK (Bloqueio de Rolagem) ---
+    // Atualizado para usar setProperty com 'important' para garantir que funcione
     useEffect(() => {
         const isModalOpen = selectedMember || isCreating || showSettings || deleteConfirmation;
-        const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
-
+        
         if (isModalOpen) {
-            // Trava o body e adiciona padding para evitar que a página "pule" ao esconder a barra de rolagem
-            document.body.style.overflow = 'hidden';
-            document.body.style.paddingRight = `${scrollbarWidth}px`;
-            // Reforço para garantir em alguns browsers móveis
-            document.documentElement.style.overflow = 'hidden';
+            document.body.style.setProperty('overflow', 'hidden', 'important');
+            document.documentElement.style.setProperty('overflow', 'hidden', 'important');
         } else {
-            // Restaura o estado natural
-            document.body.style.overflow = '';
-            document.body.style.paddingRight = '';
-            document.documentElement.style.overflow = '';
+            document.body.style.removeProperty('overflow');
+            document.documentElement.style.removeProperty('overflow');
         }
         
+        // Limpeza ao desmontar
         return () => { 
-            document.body.style.overflow = '';
-            document.body.style.paddingRight = '';
-            document.documentElement.style.overflow = '';
+            document.body.style.removeProperty('overflow');
+            document.documentElement.style.removeProperty('overflow');
         }
     }, [selectedMember, isCreating, showSettings, deleteConfirmation]);
 
