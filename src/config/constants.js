@@ -68,12 +68,12 @@ export const ORG_CONFIG = {
         bgColor: 'bg-purple-900/20', 
         border: 'border-purple-500/30', 
         limit: 14, 
-        internalRoles: ['Recruta', 'Agente', 'Capitão', 'Comandante'],
+        // Ordem do MENOR para o MAIOR rank
+        internalRoles: ['Membro', 'Vice-Líder', 'Líder'],
         roleDetails: [
-            { name: 'Comandante', desc: 'Líder das operações especiais.' },
-            { name: 'Capitão', desc: 'Líder de esquadrão tático.' },
-            { name: 'Agente', desc: 'Operativo de campo plenamente treinado.' },
-            { name: 'Recruta', desc: 'Novo membro em fase de avaliação.' }
+            { name: 'Líder', desc: 'Comandante supremo das operações especiais.' },
+            { name: 'Vice-Líder', desc: 'Segundo em comando, auxilia na coordenação.' },
+            { name: 'Membro', desc: 'Agente operacional da ANBU.' }
         ]
     },
     'forca-policial': { 
