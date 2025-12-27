@@ -77,15 +77,16 @@ const OrganizationTab = ({
 
     return (
         <div className="animate-fade-in">
-            {/* Header com Botão de Voltar Destacado */}
+            {/* Header com Botão de Voltar */}
             <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-4">
                     <button 
                         onClick={onBack} 
-                        className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors shadow-sm group"
+                        className="p-2 hover:bg-slate-700 rounded transition-colors text-white flex items-center gap-2"
+                        title="Voltar ao Painel"
                     >
-                        <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform"/>
-                        <span>Voltar</span>
+                        <ArrowLeft size={20} />
+                        <span className="hidden md:inline">Voltar</span>
                     </button>
                     
                     <div className={`p-3 rounded-lg ${orgConfig.bgColor} ${orgConfig.color}`}>
