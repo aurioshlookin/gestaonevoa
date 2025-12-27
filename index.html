@@ -39,6 +39,10 @@
 
     <!-- LOADER INTELIGENTE V2 -->
     <script type="module">
+        // --- CONTROLE DE VERSÃO ---
+        // Altere este valor sempre que atualizar arquivos para forçar o navegador a baixar tudo novo
+        const APP_VERSION = "1.1.0";
+
         // Lista atualizada SEM HistoryTab.js
         const files = [
             'src/config/constants.js',
@@ -74,7 +78,8 @@
             try {
                 let combinedBodyCode = "";
                 for (const file of files) {
-                    const response = await fetch(file);
+                    // Adicionamos ?v=APP_VERSION para evitar cache antigo
+                    const response = await fetch(`${file}?v=${APP_VERSION}`);
                     if (!response.ok) throw new Error(`Não foi possível carregar: ${file}`);
                     let code = await response.text();
                     code = parseAndExtractImports(code);
@@ -101,7 +106,7 @@
                 script.type = 'module';
                 script.textContent = output;
                 document.body.appendChild(script);
-                console.log("✅ Sistema Névoa carregado com sucesso (v2).");
+                console.log(`✅ Sistema Névoa carregado com sucesso (v${APP_VERSION}).`);
 
             } catch (error) {
                 console.error("❌ Erro fatal no carregamento:", error);
