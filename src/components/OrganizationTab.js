@@ -70,6 +70,12 @@ const OrganizationTab = ({
         let av = a[sortConfig.key];
         let bv = b[sortConfig.key];
         
+        // Prioridade para o Nome RP na ordenação
+        if (sortConfig.key === 'name') {
+            av = a.rpName || a.name;
+            bv = b.rpName || b.name;
+        }
+
         if (sortConfig.key === 'joinDate') {
             const dateA = new Date(av || '1970-01-01');
             const dateB = new Date(bv || '1970-01-01');
@@ -181,13 +187,18 @@ const OrganizationTab = ({
                                     <td className="p-4">
                                         <div className="flex flex-col">
                                             <span className="font-bold text-white flex items-center gap-2">
-                                                {member.name}
+                                                {member.rpName || member.name}
                                                 {orgInfo && (
                                                     <div className="text-yellow-400 cursor-help relative group" title={`Membro de: ${orgInfo.names}`} onClick={(e) => e.stopPropagation()}>
                                                         <AlertCircle size={14} />
                                                     </div>
                                                 )}
                                             </span>
+                                            {/* Exibe o nome do Discord menor abaixo se tiver nome RP */}
+                                            {member.rpName && member.rpName !== member.name && (
+                                                <span className="text-[10px] text-slate-500">Discord: {member.name}</span>
+                                            )}
+
                                             <div className="flex flex-wrap gap-2 mt-1">
                                                 {memberMasteries.map(m => {
                                                     const mData = MASTERIES.find(mastery => mastery.id === m);
