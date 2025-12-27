@@ -1,9 +1,5 @@
 import React, { useState } from 'react';
-import { 
-    BookOpen, ChevronUp, ChevronDown, UserPlus, 
-    ArrowUp, ArrowDown, ArrowUpDown, AlertCircle, 
-    Crown, Trash2, ArrowLeft, RotateCcw, UserSecret 
-} from 'lucide-react';
+import { BookOpen, ChevronUp, ChevronDown, UserPlus, ArrowUp, ArrowDown, ArrowUpDown, AlertCircle, Crown, Trash2, ArrowLeft, RotateCcw, UserSecret } from 'lucide-react';
 import { ORG_CONFIG, MASTERIES, Icons } from '../config/constants.js';
 import { getActivityStats, formatDate, getMemberOrgsInfo } from '../utils/helpers.js';
 
@@ -27,8 +23,9 @@ const OrganizationTab = ({
     const requestSort = (key) => {
         let direction = 'ascending';
         if (sortConfig.key === key) {
-            if (sortConfig.direction === 'ascending') direction = 'descending';
-            else if (sortConfig.direction === 'descending') {
+            if (sortConfig.direction === 'ascending') {
+                direction = 'descending';
+            } else if (sortConfig.direction === 'descending') {
                 setSortConfig({ key: 'rank', direction: 'ascending' }); 
                 return;
             }
@@ -52,7 +49,7 @@ const OrganizationTab = ({
                 if (a.isLeader !== b.isLeader) return a.isLeader ? -1 : 1;
                 const rankA = getRoleRank(a);
                 const rankB = getRoleRank(b);
-                if (rankA !== rankB) return rankB - rankA;
+                if (rankA !== rankB) return rankB - rankA; 
                 const dateA = new Date(a.joinDate || '9999-12-31').getTime();
                 const dateB = new Date(b.joinDate || '9999-12-31').getTime();
                 return dateA - dateB;
@@ -107,12 +104,10 @@ const OrganizationTab = ({
             : <ArrowDown size={14} className="text-cyan-400 inline"/>;
     };
 
-    // Fallback seguro se Icons não estiver carregado
     const IconComp = (typeof Icons !== 'undefined' && Icons[orgConfig?.icon]) ? Icons[orgConfig.icon] : (Icons?.Shield || AlertCircle);
 
     return (
         <div className="animate-fade-in">
-            {/* Header */}
             <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-4">
                     <button onClick={onBack} className="p-2 hover:bg-slate-700 rounded transition-colors text-white flex items-center gap-2" title="Voltar ao Painel">
