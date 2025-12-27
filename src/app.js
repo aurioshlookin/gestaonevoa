@@ -71,22 +71,28 @@ const App = () => {
         return () => { unsubMembers(); unsubRoster(); unsubRoles(); unsubConfig(); };
     }, []);
 
-    // --- SCROLL LOCK CORRIGIDO ---
+    // --- SCROLL LOCK REFORÇADO ---
+    // Impede que a página de fundo role quando um modal está aberto
     useEffect(() => {
-        // Verifica se qualquer modal está aberto para travar o scroll
         const isModalOpen = selectedMember || isCreating || showSettings || deleteConfirmation;
-        
+        const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+
         if (isModalOpen) {
+            // Trava o body e adiciona padding para evitar que a página "pule" ao esconder a barra de rolagem
             document.body.style.overflow = 'hidden';
+            document.body.style.paddingRight = `${scrollbarWidth}px`;
+            // Reforço para garantir em alguns browsers móveis
             document.documentElement.style.overflow = 'hidden';
         } else {
+            // Restaura o estado natural
             document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
             document.documentElement.style.overflow = '';
         }
         
-        // Cleanup para garantir que o scroll volte ao normal se o componente desmontar
         return () => { 
             document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
             document.documentElement.style.overflow = '';
         }
     }, [selectedMember, isCreating, showSettings, deleteConfirmation]);
