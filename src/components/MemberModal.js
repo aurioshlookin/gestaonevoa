@@ -1,21 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { X, Crown, Calendar, Activity, Clock, Heart, Zap, User, UserSecret } from 'lucide-react';
+import { X, Crown, Calendar, Activity, Clock, Heart, Zap } from 'lucide-react';
 import { ORG_CONFIG, STATS, MASTERIES, Icons } from '../config/constants.js';
 import { calculateMaxPoints, calculateStats, formatDateTime } from '../utils/helpers.js';
 
 const MemberModal = ({ member, orgId, isCreating, discordRoster, discordRoles, onClose, onSave, canManage }) => {
-    // Garante que orgId seja válido para evitar crash na inicialização
-    const safeOrgId = orgId && ORG_CONFIG[orgId] ? orgId : Object.keys(ORG_CONFIG)[0];
-    const orgConfig = ORG_CONFIG[safeOrgId] || {};
-    const internalRoles = orgConfig.internalRoles || ['Membro'];
-
+    // Inicializa o estado com os dados do membro ou valores padrão
     const [form, setForm] = useState({
         name: member?.name || '',
-        rpName: member?.rpName || '',
-        codinome: member?.codinome || '',
         discordId: member?.discordId || '',
-        org: safeOrgId,
-        ninRole: member?.ninRole || internalRoles[0],
+        org: orgId,
+        ninRole: member?.ninRole || ORG_CONFIG[orgId].internalRoles[0],
         specificRoleId: member?.specificRoleId || '',
         isLeader: member?.isLeader || false,
         level: member?.level || 1,
@@ -28,27 +22,19 @@ const MemberModal = ({ member, orgId, isCreating, discordRoster, discordRoles, o
     const [searchTerm, setSearchTerm] = useState("");
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
+    // Cálculos em tempo real
     const maxPoints = calculateMaxPoints(form.level);
-    // Safety check no reduce para evitar NaN
-    const usedPoints = (STATS || []).reduce((acc, stat) => acc + ((form.stats[stat] || 5) - 5), 0);
+    const usedPoints = STATS.reduce((acc, stat) => acc + (form.stats[stat] - 5), 0);
     const remainingPoints = maxPoints - usedPoints;
     const finalVitals = calculateStats(form.stats, form.guildBonus);
     
-    const isAnbu = form.org === 'divisao-especial';
-
-    // Garante que discordRoster seja um array antes de filtrar
-    const safeRoster = Array.isArray(discordRoster) ? discordRoster : [];
-    const filteredRoster = safeRoster.filter(u => 
-        (u.displayName || u.username || "").toLowerCase().includes(searchTerm.toLowerCase())
+    // Filtro do dropdown de usuários
+    const filteredRoster = discordRoster.filter(u => 
+        (u.displayName || u.username).toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     const handleSelectUser = (user) => {
-        setForm({ 
-            ...form, 
-            name: user.displayName || user.username, 
-            discordId: user.id,
-            rpName: form.rpName || user.displayName || user.username 
-        });
+        setForm({ ...form, name: user.displayName || user.username, discordId: user.id });
         setSearchTerm(user.displayName || user.username);
         setIsDropdownOpen(false);
     };
@@ -74,26 +60,35 @@ const MemberModal = ({ member, orgId, isCreating, discordRoster, discordRoles, o
     return (
         <div className="fixed inset-0 z-[80] bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
             <div className="bg-slate-800 border border-slate-600 rounded-xl w-full max-w-4xl shadow-2xl animate-fade-in flex flex-col max-h-[95vh]">
+                {/* Header */}
                 <div className="p-4 border-b border-slate-700 flex justify-between items-start bg-slate-900/50 rounded-t-xl">
                     <div>
                         <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                            {isCreating ? "Novo Membro" : (form.rpName || form.name)}
+                            {isCreating ? "Novo Membro" : form.name}
                             {form.isLeader && <Crown size={20} className="text-yellow-400" />}
                         </h2>
                         <p className="text-slate-400 text-sm font-mono">
-                            {isCreating ? `Adicionando à ${orgConfig.name || 'Organização'}` : `Ninja da ${orgConfig.name || 'Organização'}`}
+                            {isCreating ? `Adicionando à ${ORG_CONFIG[orgId].name}` : `Ninja da ${ORG_CONFIG[orgId].name}`}
                         </p>
                     </div>
                     <button onClick={onClose} className="text-slate-400 hover:text-white"><X size={24} /></button>
                 </div>
 
                 <div className="p-4 overflow-y-auto scroll-custom grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {/* Coluna Esquerda: Stats */}
                     <div className="space-y-4">
                         {isCreating && (
                             <div className="bg-cyan-900/20 p-4 rounded-lg border border-cyan-500/30">
-                                <label className="text-sm font-bold text-cyan-400 mb-2 block">Vincular Discord</label>
+                                <label className="text-sm font-bold text-cyan-400 mb-2 block">Selecionar Usuário do Discord</label>
                                 <div className="relative">
-                                    <input type="text" placeholder="Buscar usuário..." className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:border-cyan-500 outline-none" value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setIsDropdownOpen(true); }} onFocus={() => setIsDropdownOpen(true)} />
+                                    <input 
+                                        type="text" 
+                                        placeholder="Buscar..." 
+                                        className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:border-cyan-500 outline-none" 
+                                        value={searchTerm} 
+                                        onChange={(e) => { setSearchTerm(e.target.value); setIsDropdownOpen(true); }} 
+                                        onFocus={() => setIsDropdownOpen(true)} 
+                                    />
                                     {isDropdownOpen && (
                                         <>
                                             <div className="fixed inset-0 z-10" onClick={() => setIsDropdownOpen(false)}></div>
@@ -107,25 +102,9 @@ const MemberModal = ({ member, orgId, isCreating, discordRoster, discordRoles, o
                                         </>
                                     )}
                                 </div>
-                                {form.name && <p className="text-xs text-emerald-400 mt-2">Vinculado: {form.name}</p>}
+                                {form.name && <p className="text-xs text-emerald-400 mt-2">Selecionado: {form.name}</p>}
                             </div>
                         )}
-
-                        <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700 space-y-3">
-                            <div>
-                                <label className="text-sm font-bold text-white mb-1 block flex items-center gap-2">
-                                    <User size={14} className="text-cyan-400"/> Nome do Personagem (RP)
-                                </label>
-                                <input type="text" className="w-full bg-slate-800 border border-slate-600 rounded p-2 text-white outline-none focus:border-cyan-500" placeholder={form.name || "Nome no jogo"} value={form.rpName} onChange={(e) => setForm({...form, rpName: e.target.value})} />
-                                <p className="text-[10px] text-slate-500 mt-1">Este nome substituirá o do Discord na tabela.</p>
-                            </div>
-                            {isAnbu && (
-                                <div>
-                                    <label className="text-sm font-bold text-purple-400 mb-1 block flex items-center gap-2"><UserSecret size={14}/> Codinome (ANBU)</label>
-                                    <input type="text" className="w-full bg-slate-800 border border-purple-500/50 rounded p-2 text-white outline-none focus:border-purple-500" placeholder="Ex: Corvo" value={form.codinome} onChange={(e) => setForm({...form, codinome: e.target.value})} />
-                                </div>
-                            )}
-                        </div>
 
                         <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700 flex items-center justify-between flex-wrap gap-4">
                             <div className="flex items-center gap-4">
@@ -148,63 +127,67 @@ const MemberModal = ({ member, orgId, isCreating, discordRoster, discordRoles, o
                             <div className="flex justify-between items-start mb-4">
                                 <div>
                                     <h3 className="text-white font-bold flex items-center gap-2"><Activity size={16}/> Atributos</h3>
-                                    {!isCreating && member?.statsUpdatedAt && (<p className="text-[10px] text-slate-500 mt-1 flex items-center gap-1"><Clock size={10} /> Atualizado: {formatDateTime(member.statsUpdatedAt)}</p>)}
+                                    {!isCreating && member?.statsUpdatedAt && (
+                                        <p className="text-[10px] text-slate-500 mt-1 flex items-center gap-1"><Clock size={10} /> Atualizado: {formatDateTime(member.statsUpdatedAt)}</p>
+                                    )}
                                 </div>
                                 <span className={`text-xs font-bold px-2 py-1 rounded ${remainingPoints < 0 ? 'bg-red-900/50 text-red-400' : 'bg-slate-800 text-slate-400'}`}>Pontos: {remainingPoints} / {maxPoints}</span>
                             </div>
                             <div className="space-y-3">
-                                {(STATS || []).map(stat => (
+                                {STATS.map(stat => (
                                     <div key={stat} className="flex items-center justify-between">
                                         <label className="text-sm text-slate-300 w-24">{stat}</label>
                                         <div className="flex items-center gap-2">
-                                            <input type="number" min="5" className="bg-slate-800 border border-slate-600 rounded w-20 p-1 text-center text-cyan-400 font-bold font-mono outline-none focus:border-cyan-500" value={form.stats[stat] || 5} onChange={(e) => updateStat(stat, e.target.value)} />
+                                            <input type="number" min="5" className="bg-slate-800 border border-slate-600 rounded w-20 p-1 text-center text-cyan-400 font-bold font-mono outline-none focus:border-cyan-500" value={form.stats[stat]} onChange={(e) => updateStat(stat, e.target.value)} />
                                         </div>
-                                        {form.guildBonus && <span className="text-xs text-emerald-400 font-mono w-8 text-right">({Math.floor((form.stats[stat] || 5) * 1.1)})</span>}
+                                        {form.guildBonus && <span className="text-xs text-emerald-400 font-mono w-8 text-right">({Math.floor(form.stats[stat] * 1.1)})</span>}
                                     </div>
                                 ))}
                             </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-red-900/20 border border-red-500/30 p-4 rounded-lg text-center"><Heart className="mx-auto text-red-500 mb-2" /><span className="text-2xl font-bold text-white">{finalVitals.hp}</span></div>
-                            <div className="bg-blue-900/20 border border-blue-500/30 p-4 rounded-lg text-center"><Zap className="mx-auto text-blue-500 mb-2" /><span className="text-2xl font-bold text-white">{finalVitals.cp}</span></div>
+                            <div className="bg-red-900/20 border border-red-500/30 p-4 rounded-lg text-center">
+                                <Heart className="mx-auto text-red-500 mb-2" /><span className="text-2xl font-bold text-white">{finalVitals.hp}</span>
+                            </div>
+                            <div className="bg-blue-900/20 border border-blue-500/30 p-4 rounded-lg text-center">
+                                <Zap className="mx-auto text-blue-500 mb-2" /><span className="text-2xl font-bold text-white">{finalVitals.cp}</span>
+                            </div>
                         </div>
                     </div>
 
+                    {/* Coluna Direita: Cargos */}
                     <div className="space-y-4">
                         <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700">
                             <h3 className="text-white font-bold mb-3">Cargos & Função</h3>
                             <div className="mb-4">
                                 <label className="text-xs text-slate-400 mb-1 block">Cargo Nin Online</label>
                                 <select className="w-full bg-slate-800 border border-slate-600 rounded p-2 text-white outline-none" value={form.ninRole} onChange={(e) => setForm({...form, ninRole: e.target.value})}>
-                                    {internalRoles.map(r => <option key={r} value={r}>{r}</option>)}
+                                    {ORG_CONFIG[orgId].internalRoles.map(r => <option key={r} value={r}>{r}</option>)}
                                 </select>
                             </div>
                             <div className="mb-4">
                                 <label className="text-xs text-slate-400 mb-1 block">Cargo Específico Discord (Opcional)</label>
                                 <select className="w-full bg-slate-800 border border-slate-600 rounded p-2 text-white outline-none text-sm" value={form.specificRoleId} onChange={(e) => setForm({...form, specificRoleId: e.target.value})}>
                                     <option value="">Padrão da Organização</option>
-                                    {(discordRoles || []).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                                    {discordRoles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                                 </select>
                             </div>
                             <div className="flex items-center gap-3 bg-slate-800 p-3 rounded border border-slate-600">
                                 <input type="checkbox" id="leaderCheck" checked={form.isLeader} onChange={(e) => setForm({...form, isLeader: e.target.checked})} className="w-4 h-4 text-cyan-600 rounded bg-gray-700 border-gray-600"/>
-                                <label htmlFor="leaderCheck" className="text-sm text-white font-bold cursor-pointer select-none flex items-center gap-2"><Crown size={14} className={form.isLeader ? "text-yellow-400" : "text-slate-500"}/> Líder da Organização?</label>
+                                <label htmlFor="leaderCheck" className="text-sm text-white font-bold cursor-pointer select-none flex items-center gap-2">
+                                    <Crown size={14} className={form.isLeader ? "text-yellow-400" : "text-slate-500"}/> Líder da Organização?
+                                </label>
                             </div>
                         </div>
 
                         <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700">
                             <h3 className="text-white font-bold mb-4">Maestrias</h3>
                             <div className="grid grid-cols-2 gap-3">
-                                {(MASTERIES || []).map(m => {
+                                {MASTERIES.map(m => {
                                     const isActive = form.masteries.includes(m.id);
-                                    // SAFETY CHECK: Garante que o ícone existe antes de renderizar
-                                    let IconComp = Activity;
-                                    if (typeof m.icon === 'function' || typeof m.icon === 'object') {
-                                        IconComp = m.icon;
-                                    } else if (typeof Icons !== 'undefined' && Icons && Icons[m.icon]) {
-                                        IconComp = Icons[m.icon];
-                                    }
+                                    // Resolve o ícone: se for objeto (Vite), usa m.icon. Se for string, busca no Icons.
+                                    const IconComp = typeof m.icon === 'object' ? m.icon : Icons[m.icon] || Icons.Activity;
 
                                     return (
                                         <div key={m.id} onClick={() => toggleMastery(m.id)} className={`cursor-pointer p-3 rounded border flex items-center gap-3 transition-all ${isActive ? 'bg-slate-700 border-cyan-500/50' : 'bg-slate-800 border-slate-700 hover:bg-slate-700/50'}`}>
@@ -220,6 +203,7 @@ const MemberModal = ({ member, orgId, isCreating, discordRoster, discordRoles, o
                     </div>
                 </div>
 
+                {/* Footer */}
                 <div className="p-4 border-t border-slate-700 bg-slate-900/50 rounded-b-xl flex justify-between items-center">
                     <span className="text-xs text-slate-500">{remainingPoints < 0 ? "⚠️ Pontos excedidos!" : "Distribuição válida."}</span>
                     <div className="flex gap-3">
