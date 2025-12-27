@@ -23,11 +23,11 @@ const DashboardTab = ({ members, roleConfig, multiOrgUsers, onTabChange }) => {
                 </div>
             )}
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" id="dashboard-grid">
                 {Object.values(ORG_CONFIG).map((org) => {
                     const count = members.filter(m => m.org === org.id).length;
                     const percentage = (count / org.limit) * 100;
-                    const IconComp = Icons[org.icon] || Icons.Shield;
+                    const IconComp = (Icons && org.icon && Icons[org.icon]) ? Icons[org.icon] : Icons.Shield;
                     
                     return (
                         <div 
