@@ -1,15 +1,20 @@
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
 import { getFirestore, addDoc, collection } from "firebase/firestore";
-import { firebaseConfig, STATS } from './config.js';
+
+// Inicializa o namespace global de serviços
+window.AppServices = {};
+
+// Acessa a config que foi carregada no arquivo anterior
+const { firebaseConfig, STATS } = window.AppConfig;
 
 // Inicialização do Firebase
 const app = initializeApp(firebaseConfig);
-export const analytics = getAnalytics(app);
-export const db = getFirestore(app);
+window.AppServices.analytics = getAnalytics(app);
+window.AppServices.db = getFirestore(app);
 
 // --- LÓGICA DE RPG ---
-export const calculateMaxPoints = (level) => {
+window.AppServices.calculateMaxPoints = (level) => {
     if (level <= 1) return 0; 
     let points = 0;
     const levelsTo50 = Math.min(level, 50) - 1;
@@ -20,7 +25,7 @@ export const calculateMaxPoints = (level) => {
     return points;
 };
 
-export const calculateStats = (baseStats, hasBonus) => {
+window.AppServices.calculateStats = (baseStats, hasBonus) => {
     const stats = { ...baseStats };
     const bonusMultiplier = hasBonus ? 1.10 : 1;
     
@@ -38,7 +43,7 @@ export const calculateStats = (baseStats, hasBonus) => {
     return { ...calculated, hp, cp };
 };
 
-export const getActivityStats = (member) => {
+window.AppServices.getActivityStats = (member) => {
     const activityMap = member.activityStats || {};
     const msgMap = member.dailyMessages || {};
     const voiceMap = member.dailyVoice || {};
@@ -80,10 +85,10 @@ export const getActivityStats = (member) => {
 };
 
 // --- LOGS ---
-export const logAction = async (user, action, target, details, org = null) => {
+window.AppServices.logAction = async (user, action, target, details, org = null) => {
     if (!user) return;
     try {
-        await addDoc(collection(db, "audit_logs"), {
+        await addDoc(collection(window.AppServices.db, "audit_logs"), {
             action,
             target,
             details,
@@ -96,13 +101,13 @@ export const logAction = async (user, action, target, details, org = null) => {
 };
 
 // --- UTILITÁRIOS ---
-export const formatDateTime = (isoString) => { 
+window.AppServices.formatDateTime = (isoString) => { 
     if (!isoString) return "Nunca"; 
     const date = new Date(isoString); 
     return `${date.toLocaleDateString('pt-BR')} às ${date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`; 
 };
 
-export const formatDate = (dateString) => { 
+window.AppServices.formatDate = (dateString) => { 
     if (!dateString) return "-"; 
     const [year, month, day] = dateString.split('-'); 
     return `${day}/${month}/${year}`; 
