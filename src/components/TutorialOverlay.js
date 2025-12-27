@@ -3,12 +3,12 @@ import { X, ChevronRight, ChevronLeft } from 'lucide-react';
 
 const TutorialOverlay = ({ steps, onClose, onStepChange }) => {
     const [currentStep, setCurrentStep] = useState(0);
-    // Estado inicial seguro
     const [position, setPosition] = useState({ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' });
     const tooltipRef = useRef(null);
 
     const step = steps[currentStep];
 
+    // Efeito para notificar o App.js sobre a navegação (abrir páginas)
     useEffect(() => {
         if (onStepChange && step) {
             onStepChange(step);
@@ -18,40 +18,45 @@ const TutorialOverlay = ({ steps, onClose, onStepChange }) => {
     useEffect(() => {
         if (!step || !step.target) return;
 
+        // Trava rolagem inicial
+        document.body.style.overflow = 'hidden';
+
         const updatePosition = () => {
             const element = document.querySelector(step.target);
             if (element) {
+                // Destrava para rolar até o elemento
+                document.body.style.overflow = '';
                 element.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 
+                // Trava novamente após 500ms (tempo estimado do scroll)
+                setTimeout(() => {
+                    document.body.style.overflow = 'hidden';
+                }, 500);
+                
                 const rect = element.getBoundingClientRect();
-                const tooltipWidth = 320; // Largura aproximada do balão
-                const tooltipHeight = 200; // Altura aproximada
+                const tooltipWidth = 320; 
+                const tooltipHeight = 200; 
                 const margin = 20;
 
                 let top = rect.bottom + margin;
                 let left = rect.left + (rect.width / 2);
                 let transform = 'translateX(-50%)';
 
-                // Lógica de colisão com as bordas da tela
-                
-                // Se estiver muito embaixo, joga para cima do elemento
+                // Lógica de colisão com as bordas
                 if (top + tooltipHeight > window.innerHeight) {
                     top = rect.top - margin - tooltipHeight;
-                    // Se mesmo assim vazar em cima (elemento muito grande), centraliza na tela
-                    if (top < 0) {
+                    if (top < 0) { // Se vazar em cima, centraliza
                         top = window.innerHeight / 2;
                         left = window.innerWidth / 2;
                         transform = 'translate(-50%, -50%)';
                     }
                 }
 
-                // Se estiver muito à direita, ajusta para a esquerda
                 if (left + (tooltipWidth / 2) > window.innerWidth) {
                     left = window.innerWidth - margin - tooltipWidth;
                     transform = 'none';
                 }
 
-                // Se estiver muito à esquerda
                 if (left - (tooltipWidth / 2) < 0) {
                     left = margin;
                     transform = 'none';
@@ -64,7 +69,7 @@ const TutorialOverlay = ({ steps, onClose, onStepChange }) => {
                     targetRect: rect
                 });
             } else {
-                // Fallback: Centro da tela se não achar o elemento
+                // Fallback: Centro da tela se não achar
                 setPosition({ top: '50%', left: '50%', transform: 'translate(-50%, -50%)', targetRect: null });
             }
         };
@@ -76,6 +81,8 @@ const TutorialOverlay = ({ steps, onClose, onStepChange }) => {
         return () => {
             clearTimeout(timer);
             window.removeEventListener('resize', updatePosition);
+            // Destrava ao sair do componente ou mudar de passo
+            document.body.style.overflow = '';
         };
     }, [currentStep, step]);
 
@@ -95,7 +102,7 @@ const TutorialOverlay = ({ steps, onClose, onStepChange }) => {
             {/* Máscara Escura */}
             <div className="absolute inset-0 bg-black/70 pointer-events-auto transition-opacity duration-500" onClick={onClose} />
 
-            {/* Destaque (Hole) no elemento alvo */}
+            {/* Destaque (Hole) */}
             {position.targetRect && (
                 <div 
                     className="absolute border-2 border-cyan-400 shadow-[0_0_0_9999px_rgba(0,0,0,0.7)] rounded transition-all duration-300 ease-in-out pointer-events-none box-content"
@@ -108,7 +115,7 @@ const TutorialOverlay = ({ steps, onClose, onStepChange }) => {
                 />
             )}
 
-            {/* Balão de Texto */}
+            {/* Balão */}
             <div 
                 ref={tooltipRef}
                 className="absolute bg-slate-800 text-white p-6 rounded-xl border border-cyan-500/50 shadow-2xl w-80 pointer-events-auto transition-all duration-300 animate-bounce-in flex flex-col gap-4 z-[101]"
@@ -116,7 +123,7 @@ const TutorialOverlay = ({ steps, onClose, onStepChange }) => {
             >
                 <div className="flex justify-between items-start border-b border-slate-700 pb-2">
                     <h3 className="text-lg font-bold text-cyan-400 leading-tight">{step.title}</h3>
-                    <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors" aria-label="Fechar tutorial"><X size={18}/></button>
+                    <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors"><X size={18}/></button>
                 </div>
                 
                 <p className="text-sm text-slate-300 leading-relaxed">{step.message}</p>
@@ -128,7 +135,6 @@ const TutorialOverlay = ({ steps, onClose, onStepChange }) => {
                             onClick={handlePrev} 
                             disabled={currentStep === 0}
                             className="p-2 rounded hover:bg-slate-700 disabled:opacity-30 disabled:hover:bg-transparent transition-colors text-slate-300"
-                            aria-label="Anterior"
                         >
                             <ChevronLeft size={20}/>
                         </button>
