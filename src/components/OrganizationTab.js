@@ -15,7 +15,9 @@ const OrganizationTab = ({
     const [sortConfig, setSortConfig] = useState({ key: 'rank', direction: 'ascending' });
 
     const orgConfig = ORG_CONFIG[orgId];
-    const orgMembers = members.filter(m => m.org === orgId);
+    // Garante array seguro
+    const safeMembers = Array.isArray(members) ? members : [];
+    const orgMembers = safeMembers.filter(m => m.org === orgId);
     
     const getRoleRank = (member) => { const roles = orgConfig.internalRoles || []; return roles.indexOf(member.ninRole); };
     
@@ -145,7 +147,9 @@ const OrganizationTab = ({
                             const leaderRoleName = member.isLeader && leaderRoleId ? discordRoles.find(r => r.id === leaderRoleId)?.name : null;
                             const memberMasteries = member.masteries || [];
                             const activity = getActivityStats(member);
-                            const orgInfo = getMemberOrgsInfo(members, member.discordId);
+                            
+                            // Uso correto da função restaurada
+                            const orgInfo = getMemberOrgsInfo(safeMembers, member.discordId);
 
                             return (
                                 <tr 
