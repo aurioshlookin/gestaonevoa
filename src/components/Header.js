@@ -1,5 +1,5 @@
 import React from 'react';
-import { RefreshCw, Globe, Settings, LogOut } from 'lucide-react';
+import { RefreshCw, Globe, Settings, LogOut, BookOpen } from 'lucide-react';
 
 const Header = ({ 
     loading, 
@@ -10,7 +10,9 @@ const Header = ({
     onOpenSettings, 
     onLogout, 
     user, 
-    userRoleLabel 
+    userRoleLabel,
+    onToggleTutorial, // Nova prop para ação
+    isTutorialEnabled // Nova prop para estado
 }) => {
     return (
         <header className="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-50" id="main-header">
@@ -37,14 +39,26 @@ const Header = ({
                     )}
                     
                     {canManageSettings && (
-                        <button 
-                            id="btn-settings"
-                            onClick={onOpenSettings} 
-                            className="p-2 text-slate-400 hover:text-cyan-400 transition-colors"
-                            title="Configurações"
-                        >
-                            <Settings size={20} />
-                        </button>
+                        <>
+                            {/* Botão de Controle do Tutorial Global */}
+                            <button 
+                                id="btn-toggle-tutorial"
+                                onClick={onToggleTutorial} 
+                                className={`p-2 transition-colors ${isTutorialEnabled ? 'text-emerald-400 hover:text-emerald-300' : 'text-red-400 hover:text-red-300 opacity-50 hover:opacity-100'}`}
+                                title={isTutorialEnabled ? "Tutorial Ativado (Clique para desativar globalmente)" : "Tutorial Desativado (Clique para ativar)"}
+                            >
+                                <BookOpen size={20} />
+                            </button>
+
+                            <button 
+                                id="btn-settings"
+                                onClick={onOpenSettings} 
+                                className="p-2 text-slate-400 hover:text-cyan-400 transition-colors"
+                                title="Configurações"
+                            >
+                                <Settings size={20} />
+                            </button>
+                        </>
                     )}
                     
                     <div className="flex items-center gap-2 px-3 py-1 bg-slate-800 rounded-full border border-slate-700" id="user-profile-pill">
