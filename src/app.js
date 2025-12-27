@@ -17,8 +17,7 @@ import OrganizationTab from './components/OrganizationTab.js';
 import HistoryTab from './components/HistoryTab.js';
 import MonitoringTab from './components/MonitoringTab.js';
 
-// --- SISTEMA DE DEBUG DE ERROS (Adicionado) ---
-// Captura erros globais de script e mostra na tela
+// --- SISTEMA DE DEBUG DE ERROS ---
 window.addEventListener('error', (event) => {
     const errorBox = document.getElementById('debug-error-box') || document.createElement('div');
     errorBox.id = 'debug-error-box';
@@ -34,44 +33,20 @@ window.addEventListener('error', (event) => {
     console.error("Global Error:", event);
 });
 
-// Componente para capturar erros de Renderização do React
 class ErrorBoundary extends React.Component {
-    constructor(props) {
-        super(props);
-        this.state = { hasError: false, error: null, errorInfo: null };
+    constructor(props) { super(props); this.state = { hasError: false, error: null }; }
+    static getDerivedStateFromError(error) { return { hasError: true }; }
+    componentDidCatch(error, errorInfo) { 
+        this.setState({ error }); 
+        console.error("React Error:", error, errorInfo); 
     }
-
-    static getDerivedStateFromError(error) {
-        return { hasError: true };
-    }
-
-    componentDidCatch(error, errorInfo) {
-        this.setState({ error, errorInfo });
-        console.error("React Error:", error, errorInfo);
-    }
-
     render() {
         if (this.state.hasError) {
             return (
-                <div className="min-h-screen bg-slate-900 text-red-400 p-8 font-mono">
-                    <div className="max-w-3xl mx-auto bg-slate-800 border border-red-500 rounded p-6 shadow-2xl">
-                        <h1 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
-                            <AlertTriangle className="text-red-500"/> Algo deu errado!
-                        </h1>
-                        <div className="bg-black/50 p-4 rounded mb-4 overflow-auto max-h-60">
-                            <p className="font-bold text-red-300">{this.state.error && this.state.error.toString()}</p>
-                        </div>
-                        <details className="text-xs text-slate-500 cursor-pointer">
-                            <summary className="mb-2 hover:text-white">Ver Stack Trace</summary>
-                            <pre className="whitespace-pre-wrap">{this.state.errorInfo && this.state.errorInfo.componentStack}</pre>
-                        </details>
-                        <button 
-                            onClick={() => window.location.reload()} 
-                            className="mt-6 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded transition-colors"
-                        >
-                            Tentar Recarregar
-                        </button>
-                    </div>
+                <div className="min-h-screen bg-slate-900 text-red-400 p-8 flex flex-col items-center justify-center font-mono">
+                    <h1 className="text-2xl font-bold mb-4">Algo deu errado na interface</h1>
+                    <p className="bg-black p-4 rounded text-sm mb-4">{this.state.error?.toString()}</p>
+                    <button onClick={() => window.location.reload()} className="bg-red-600 text-white px-6 py-2 rounded">Recarregar Página</button>
                 </div>
             );
         }
@@ -80,8 +55,6 @@ class ErrorBoundary extends React.Component {
 }
 
 const App = () => {
-    console.log("App iniciado..."); // Log para confirmar inicialização
-
     // Configurações
     const DISCORD_CLIENT_ID = "1453817939265589452"; 
     const GUILD_ID = "1410456333391761462"; 
@@ -140,7 +113,7 @@ const App = () => {
         }
     }, []);
 
-    // --- SCROLL LOCK REFORÇADO ---
+    // --- SCROLL LOCK ---
     useEffect(() => {
         const isModalOpen = selectedMember || isCreating || showSettings || deleteConfirmation;
         if (isModalOpen) {
@@ -170,7 +143,14 @@ const App = () => {
             .then(userData => {
                 fetch(`https://discord.com/api/users/@me/guilds/${GUILD_ID}/member`, {headers:{Authorization:`Bearer ${accessToken}`}})
                 .then(r => r.ok ? r.json() : { roles: [] }) 
-                .then(memberData => { setUser({ ...userData, roles: memberData.roles || [] }); setLoading(false); });
+                .then(memberData => { 
+                    const userRoles = memberData.roles || [];
+                    console.log("--- DEBUG CARGOS DISCORD ---");
+                    console.log("Seus Cargos (IDs):", userRoles);
+                    console.log("----------------------------");
+                    setUser({ ...userData, roles: userRoles }); 
+                    setLoading(false); 
+                });
             })
             .catch(() => { localStorage.removeItem('discord_access_token'); setUser(null); setLoading(false); });
         } else { setLoading(false); }
@@ -190,7 +170,7 @@ const App = () => {
             await addDoc(collection(db, "audit_logs"), {
                 action, target, details, executor: user.username || user.displayName, executorId: user.id, org: org || 'Sistema', timestamp: new Date().toISOString()
             });
-        } catch (e) { console.error("Erro ao gerar log:", e); }
+        } catch (e) { console.warn("Falha ao salvar log (ação principal ok):", e); }
     };
 
     useEffect(() => {
@@ -242,12 +222,18 @@ const App = () => {
         if (user.id === accessConfig.creatorId || (accessConfig.vipIds && accessConfig.vipIds.includes(user.id))) return true;
         const userRoles = user.roles || [];
         const allowedRoles = new Set();
+        
+        // Adiciona todos os cargos que permitem acesso
         if (accessConfig.kamiRoleId) allowedRoles.add(accessConfig.kamiRoleId);
         if (accessConfig.councilRoleId) allowedRoles.add(accessConfig.councilRoleId);
         if (accessConfig.moderatorRoleId) allowedRoles.add(accessConfig.moderatorRoleId);
         Object.values(roleConfig).forEach(id => { if(id) allowedRoles.add(id); });
         Object.values(leaderRoleConfig).forEach(id => { if(id) allowedRoles.add(id); });
         Object.values(secLeaderRoleConfig).forEach(id => { if(id) allowedRoles.add(id); });
+        
+        // Debug
+        // console.log("Cargos Permitidos:", Array.from(allowedRoles));
+        
         return userRoles.some(roleId => allowedRoles.has(roleId));
     }, [user, accessConfig, roleConfig, leaderRoleConfig, secLeaderRoleConfig]);
 
@@ -259,10 +245,23 @@ const App = () => {
         if (user.roles.includes(accessConfig.kamiRoleId)) roles.push("Kage");
         if (user.roles.includes(accessConfig.councilRoleId)) roles.push("Conselho");
         if (user.roles.includes(accessConfig.moderatorRoleId)) roles.push("Moderador");
-        Object.entries(leaderRoleConfig).forEach(([orgId, roleId]) => { if (user.roles.includes(roleId)) roles.push(`Líder ${ORG_CONFIG[orgId]?.name || ''}`); });
+        
+        // Verifica Liderança
+        Object.entries(leaderRoleConfig).forEach(([orgId, roleId]) => { 
+            if (user.roles.includes(roleId)) roles.push(`Líder ${ORG_CONFIG[orgId]?.name || ''}`); 
+        });
+        
+        // Verifica Membro Comum (Se não for líder)
+        Object.entries(roleConfig).forEach(([orgId, roleId]) => {
+            const isLeader = leaderRoleConfig[orgId] && user.roles.includes(leaderRoleConfig[orgId]);
+            if (user.roles.includes(roleId) && !isLeader) {
+                roles.push(`Membro ${ORG_CONFIG[orgId]?.name || ''}`);
+            }
+        });
+
         if (roles.length === 0) return "Visitante";
         return roles.join(" & ");
-    }, [user, accessConfig, leaderRoleConfig]);
+    }, [user, accessConfig, leaderRoleConfig, roleConfig]);
 
     // --- HELPERS E CÁLCULOS ---
     const showNotification = (msg, type) => { setNotification({ msg, type }); setTimeout(() => setNotification(null), 3000); };
@@ -303,6 +302,7 @@ const App = () => {
                 const currentLeader = members.find(m => m.org === orgId && m.isLeader === true && m.discordId !== formData.discordId);
                 if (currentLeader) {
                     let newRole = currentLeader.ninRole;
+                    // Fallback para Unidade Médica
                     if (orgId === 'unidade-medica' && currentLeader.ninRole === 'Diretor Médico') newRole = 'Residente Chefe';
                     await updateDoc(doc(db, "membros", currentLeader.id), { isLeader: false, ninRole: newRole });
                 }
@@ -317,15 +317,23 @@ const App = () => {
             };
 
             const docId = isCreating ? `${formData.discordId}_${orgId}` : selectedMember.id;
+            
+            // OPERAÇÃO PRINCIPAL DO BANCO
             if (isCreating) await setDoc(doc(db, "membros", docId), payload);
             else await updateDoc(doc(db, "membros", docId), payload);
             
+            // FECHA O MODAL IMEDIATAMENTE APÓS SUCESSO
+            // Isso previne que um log lento trave a tela
+            setSelectedMember(null); 
+            setIsCreating(false);
+            showNotification('Salvo com sucesso!', 'success');
+
+            // Log roda em background (sem await para não bloquear UI)
             logAction(isCreating ? "Adicionar Membro" : "Editar Membro", formData.name, `Level: ${formData.level}`, orgId);
-            showNotification('Salvo!', 'success');
-            setSelectedMember(null); setIsCreating(false);
+            
         } catch (e) { 
             console.error(e);
-            showNotification('Erro: ' + e.message, 'error'); 
+            showNotification('Erro ao salvar: ' + e.message, 'error'); 
         }
     };
 
@@ -334,8 +342,12 @@ const App = () => {
         try {
             const memberToRemove = members.find(m => m.id === id);
             await deleteDoc(doc(db, "membros", String(id)));
+            
+            // Fecha modal primeiro
+            setDeleteConfirmation(null);
+            showNotification('Removido.', 'success');
+            
             logAction("Remover Membro", memberToRemove ? memberToRemove.name : "Desconhecido", "Removido", activeTab);
-            showNotification('Removido.', 'success'); setDeleteConfirmation(null);
         } catch (e) { showNotification(`Erro: ${e.message}`, 'error'); setDeleteConfirmation(null); }
     };
 
@@ -353,8 +365,9 @@ const App = () => {
                 let newRoleL = member.ninRole; if (orgId === 'unidade-medica') newRoleL = 'Diretor Médico';
                 await updateDoc(doc(db, "membros", member.id), { isLeader: true, ninRole: newRoleL });
             } else { await updateDoc(doc(db, "membros", member.id), { isLeader: false }); }
+            
+            showNotification('Liderança alterada.', 'success');
             logAction("Alterar Liderança", member.name, newStatus ? "Promovido" : "Removido", orgId);
-            showNotification('Alterado.', 'success');
         } catch (e) { showNotification('Erro.', 'error'); }
     };
 
@@ -362,8 +375,9 @@ const App = () => {
         if (!canManageSettings) return showNotification('Apenas Admins.', 'error');
         try {
             await setDoc(doc(db, "server", "config"), newConfig, { merge: true });
+            setShowSettings(false);
+            showNotification('Configurações Salvas!', 'success');
             logAction("Configurações", "Sistema", "Atualizado");
-            showNotification('Salvo!', 'success'); setShowSettings(false);
         } catch (e) { showNotification('Erro ao salvar.', 'error'); }
     };
 
@@ -381,6 +395,16 @@ const App = () => {
                     <ShieldCheck size={48} className="mx-auto text-red-500 mb-6" />
                     <h1 className="text-2xl font-bold text-white mb-2">Acesso Negado</h1>
                     <p className="text-slate-400 mb-6">Você não possui permissão. Contate um administrador.</p>
+                    {/* Botão de Debug para ver quais cargos faltam */}
+                    <button 
+                        onClick={() => {
+                            alert("Seus Cargos ID: " + user.roles.join("\n"));
+                            console.log("Cargos:", user.roles);
+                        }}
+                        className="text-xs text-slate-500 hover:text-slate-300 underline mb-4 block mx-auto"
+                    >
+                        Ver meus IDs de Cargo
+                    </button>
                     <button onClick={handleLogout} className="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-6 rounded transition-colors">Voltar / Logout</button>
                 </div>
             </div>
