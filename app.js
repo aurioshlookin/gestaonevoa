@@ -8,10 +8,6 @@ import {
     UserPlus, History, Globe, Trash2, BookOpen, ChevronDown, ChevronUp, ShieldCheck
 } from 'lucide-react';
 
-import { db, logAction, getActivityStats, formatDate } from './services.js';
-import { ORG_CONFIG, Icons, DISCORD_CLIENT_ID, GUILD_ID, MASTERIES } from './config.js';
-import { EditMemberModal, DeleteModal, SettingsModal, SortIcon } from './components.js';
-
 const App = () => {
     // --- ESTADOS ---
     const [user, setUser] = useState(null);
@@ -59,6 +55,11 @@ const App = () => {
     
     const hasLoggedAccess = useRef(false);
 
+    // Carrega globais
+    const { db, logAction, getActivityStats, formatDate } = window.AppServices;
+    const { ORG_CONFIG, Icons, DISCORD_CLIENT_ID, GUILD_ID, MASTERIES } = window.AppConfig;
+    const { EditMemberModal, DeleteModal, SettingsModal, SortIcon } = window.AppComponents;
+
     // --- SINCRONIZAÇÃO ---
     useEffect(() => {
         const unsubMembers = onSnapshot(collection(db, "membros"), (snap) => setMembers(snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))), () => setLoading(false));
@@ -98,9 +99,9 @@ const App = () => {
         if (!hasLoggedAccess.current) {
             const logAccess = async () => {
                 try {
-                    await addDoc(collection(db, "access_logs"), {
-                        userId: user.id, username: user.username || user.displayName, action: 'Acessou o Painel', timestamp: new Date().toISOString()
-                    });
+                    await setDoc(doc(db, "online_status", user.id), {
+                        username: user.username || user.displayName, userId: user.id, avatar: user.avatar, lastSeen: new Date().toISOString()
+                    }, { merge: true });
                     hasLoggedAccess.current = true;
                 } catch (e) { console.error("Erro ao registrar acesso:", e); }
             };
