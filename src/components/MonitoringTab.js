@@ -1,23 +1,36 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Globe, ArrowLeft, Clock, Calendar, User, ChevronRight } from 'lucide-react';
+import { Globe, ArrowLeft, Clock, Calendar, User, ChevronRight, History, Activity } from 'lucide-react';
 import { collection, query, orderBy, limit, onSnapshot } from "firebase/firestore";
 import { db } from '../config/firebase.js';
 import { formatDateTime } from '../utils/helpers.js';
 
 const MonitoringTab = ({ onBack }) => {
     const [accessLogs, setAccessLogs] = useState([]);
+    const [auditLogs, setAuditLogs] = useState([]);
     const [onlineUsers, setOnlineUsers] = useState([]);
-    const [selectedUser, setSelectedUser] = useState(null); // Para o Drill-down
+    const [selectedUser, setSelectedUser] = useState(null);
 
-    // Busca dados
+    // Busca dados combinados
     useEffect(() => {
-        // Aumentei o limite para 500 para pegar um histórico melhor
-        const qLogs = query(collection(db, "access_logs"), orderBy("timestamp", "desc"), limit(500));
-        const unsubLogs = onSnapshot(qLogs, (snap) => {
-            setAccessLogs(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        // 1. Logs de Navegação
+        const qAccess = query(collection(db, "access_logs"), orderBy("timestamp", "desc"), limit(500));
+        const unsubAccess = onSnapshot(qAccess, (snap) => {
+            setAccessLogs(snap.docs.map(doc => ({ id: doc.id, ...doc.data(), type: 'access' })));
         });
 
-        // Usuários Online (5 min timeout)
+        // 2. Logs de Auditoria (Edições/Ações)
+        const qAudit = query(collection(db, "audit_logs"), orderBy("timestamp", "desc"), limit(500));
+        const unsubAudit = onSnapshot(qAudit, (snap) => {
+            setAuditLogs(snap.docs.map(doc => ({ 
+                id: doc.id, 
+                ...doc.data(), 
+                userId: doc.data().executorId, // Normaliza ID
+                username: doc.data().executor, // Normaliza Nome
+                type: 'audit' 
+            })));
+        });
+
+        // 3. Usuários Online
         const qOnline = collection(db, "online_status");
         const unsubOnline = onSnapshot(qOnline, (snap) => {
             const now = new Date();
@@ -28,30 +41,39 @@ const MonitoringTab = ({ onBack }) => {
             setOnlineUsers(activeUsers);
         });
 
-        return () => { unsubLogs(); unsubOnline(); };
+        return () => { unsubAccess(); unsubAudit(); unsubOnline(); };
     }, []);
 
-    // Agrupa logs por usuário para a lista principal
+    // Agrupa e combina logs por usuário
     const userGroups = useMemo(() => {
         const groups = {};
-        accessLogs.forEach(log => {
+        
+        // Combina as duas listas e ordena por data
+        const allLogs = [...accessLogs, ...auditLogs].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+        allLogs.forEach(log => {
+            if (!log.userId) return;
+
             if (!groups[log.userId]) {
                 groups[log.userId] = {
                     userId: log.userId,
                     username: log.username,
-                    lastAccess: log.timestamp,
+                    lastAccess: log.timestamp, // O primeiro da lista ordenada é o mais recente
                     totalEntries: 0,
+                    totalActions: 0,
                     logs: []
                 };
             }
-            groups[log.userId].totalEntries += 1;
+            
+            if (log.type === 'access') groups[log.userId].totalEntries += 1;
+            if (log.type === 'audit') groups[log.userId].totalActions += 1;
+            
             groups[log.userId].logs.push(log);
         });
-        // Retorna array ordenado pelo acesso mais recente
-        return Object.values(groups).sort((a, b) => new Date(b.lastAccess) - new Date(a.lastAccess));
-    }, [accessLogs]);
 
-    // Função para calcular "Há X tempo"
+        return Object.values(groups).sort((a, b) => new Date(b.lastAccess) - new Date(a.lastAccess));
+    }, [accessLogs, auditLogs]);
+
     const getTimeSince = (dateString) => {
         const diff = new Date() - new Date(dateString);
         const minutes = Math.floor(diff / 60000);
@@ -65,7 +87,7 @@ const MonitoringTab = ({ onBack }) => {
         return `Há ${days} dias`;
     };
 
-    // Renderiza a lista de logs de um usuário específico (Drill-down)
+    // Renderiza Detalhes do Usuário (Drill-down)
     if (selectedUser) {
         return (
             <div className="animate-fade-in">
@@ -87,8 +109,9 @@ const MonitoringTab = ({ onBack }) => {
                         <thead className="bg-slate-800/50 text-slate-400 text-xs uppercase">
                             <tr>
                                 <th className="p-4">Data e Hora</th>
-                                <th className="p-4">Ação / Página</th>
-                                <th className="p-4 text-right">Tempo Relativo</th>
+                                <th className="p-4">Tipo</th>
+                                <th className="p-4">Atividade</th>
+                                <th className="p-4 text-right">Tempo</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-700">
@@ -99,9 +122,27 @@ const MonitoringTab = ({ onBack }) => {
                                         {formatDateTime(log.timestamp)}
                                     </td>
                                     <td className="p-4">
-                                        <span className={log.action.includes('Navegou') ? 'text-cyan-400' : 'text-green-400 font-bold'}>
-                                            {log.action}
-                                        </span>
+                                        {log.type === 'access' ? (
+                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 text-[10px] uppercase font-bold border border-blue-500/20">
+                                                <Globe size={10} /> Navegação
+                                            </span>
+                                        ) : (
+                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 text-[10px] uppercase font-bold border border-purple-500/20">
+                                                <History size={10} /> Ação
+                                            </span>
+                                        )}
+                                    </td>
+                                    <td className="p-4">
+                                        {log.type === 'access' ? (
+                                            <span className="text-cyan-400">{log.action}</span>
+                                        ) : (
+                                            <div className="flex flex-col">
+                                                <span className="text-white font-bold">{log.action}</span>
+                                                <span className="text-xs text-slate-400">
+                                                    Alvo: <span className="text-slate-300">{log.target}</span> • {log.details}
+                                                </span>
+                                            </div>
+                                        )}
                                     </td>
                                     <td className="p-4 text-right text-slate-500 font-mono text-xs">
                                         {getTimeSince(log.timestamp)}
@@ -115,7 +156,7 @@ const MonitoringTab = ({ onBack }) => {
         );
     }
 
-    // Renderiza a visão geral (Lista de Usuários Agrupada)
+    // Renderiza Lista Geral
     return (
         <div className="animate-fade-in space-y-8">
             <div className="flex items-center justify-between">
@@ -123,8 +164,8 @@ const MonitoringTab = ({ onBack }) => {
                     <button onClick={onBack} className="p-2 hover:bg-slate-700 rounded transition-colors text-white flex items-center gap-2">
                         <ArrowLeft size={20} /> <span className="hidden md:inline">Voltar</span>
                     </button>
-                    <div className="p-3 rounded-lg bg-green-900/20 text-green-400"><Globe size={20} /></div>
-                    <h2 className="text-3xl font-bold mist-title text-white">Monitoramento de Acesso</h2>
+                    <div className="p-3 rounded-lg bg-green-900/20 text-green-400"><Activity size={20} /></div>
+                    <h2 className="text-3xl font-bold mist-title text-white">Monitoramento Integrado</h2>
                 </div>
                 <div className="px-4 py-2 bg-slate-800 rounded border border-slate-700 text-sm text-slate-300">
                     <span className="text-green-400 font-bold">{onlineUsers.length}</span> Online Agora
@@ -133,18 +174,18 @@ const MonitoringTab = ({ onBack }) => {
 
             <div className="glass-panel rounded-xl overflow-hidden border border-slate-700">
                 <div className="p-4 bg-slate-800/50 border-b border-slate-700 flex justify-between items-center">
-                    <h3 className="text-lg font-bold text-slate-300">Últimos Acessos por Usuário</h3>
-                    <span className="text-xs text-slate-500">Clique para ver histórico completo</span>
+                    <h3 className="text-lg font-bold text-slate-300">Atividade Recente por Usuário</h3>
+                    <span className="text-xs text-slate-500">Clique para ver timeline completa</span>
                 </div>
                 <div className="max-h-[600px] overflow-y-auto scroll-custom">
                     <table className="w-full text-left">
                         <thead className="bg-slate-800/30 text-slate-400 text-xs uppercase sticky top-0 backdrop-blur-md">
                             <tr>
                                 <th className="p-4">Usuário</th>
-                                <th className="p-4">Último Acesso</th>
-                                <th className="p-4 text-center">Entradas</th>
+                                <th className="p-4">Última Atividade</th>
+                                <th className="p-4 text-center">Resumo</th>
                                 <th className="p-4 text-center">Status</th>
-                                <th className="p-4 text-right">Ação</th>
+                                <th className="p-4 text-right">Ver</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-700">
@@ -170,9 +211,16 @@ const MonitoringTab = ({ onBack }) => {
                                             <span className="text-[10px] text-slate-500">{formatDateTime(group.lastAccess)}</span>
                                         </td>
                                         <td className="p-4 text-center">
-                                            <span className="bg-slate-700 text-slate-300 px-2 py-1 rounded text-xs font-bold">
-                                                {group.totalEntries}
-                                            </span>
+                                            <div className="flex justify-center gap-2">
+                                                <span className="bg-blue-900/40 text-blue-300 px-2 py-1 rounded text-xs font-bold border border-blue-500/20" title="Páginas acessadas">
+                                                    {group.totalEntries} <Globe size={10} className="inline ml-1"/>
+                                                </span>
+                                                {group.totalActions > 0 && (
+                                                    <span className="bg-purple-900/40 text-purple-300 px-2 py-1 rounded text-xs font-bold border border-purple-500/20" title="Ações realizadas">
+                                                        {group.totalActions} <History size={10} className="inline ml-1"/>
+                                                    </span>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className="p-4 text-center">
                                             {isOnline ? (
