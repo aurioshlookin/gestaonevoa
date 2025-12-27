@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { 
     BookOpen, ChevronUp, ChevronDown, UserPlus, ArrowUp, ArrowDown, ArrowUpDown, 
-    AlertCircle, Crown, Trash2, Shield 
+    AlertCircle, Crown, Trash2
 } from 'lucide-react';
 import { ORG_CONFIG, MASTERIES, Icons } from '../config/constants.js';
-import { getActivityStats, formatDate } from '../utils/helpers.js';
+import { getActivityStats, formatDate, getMemberOrgsInfo } from '../utils/helpers.js';
 
 const OrganizationTab = ({ 
     orgId, members, discordRoles, leaderRoleConfig, canManage, 
@@ -14,9 +14,10 @@ const OrganizationTab = ({
     const [sortConfig, setSortConfig] = useState({ key: 'rank', direction: 'ascending' });
 
     const orgConfig = ORG_CONFIG[orgId];
+    // Filtra apenas membros desta organização para exibir
     const orgMembers = members.filter(m => m.org === orgId);
     
-    // Funções de Helper de Ordenação (Locais para a tabela)
+    // Helper de Ordenação
     const getRoleRank = (member) => { const roles = orgConfig.internalRoles || []; return roles.indexOf(member.ninRole); };
     
     const requestSort = (key) => {
@@ -27,7 +28,6 @@ const OrganizationTab = ({
     };
 
     const sortedMembers = [...orgMembers].sort((a, b) => {
-        // Lógica de Ordenação
         if (sortConfig.key === 'rank' || sortConfig.key === 'ninRole') {
             if (orgId === 'sete-laminas') {
                 if (a.isLeader !== b.isLeader) return a.isLeader ? -1 : 1;
@@ -136,6 +136,9 @@ const OrganizationTab = ({
                             const leaderRoleName = member.isLeader && leaderRoleId ? discordRoles.find(r => r.id === leaderRoleId)?.name : null;
                             const memberMasteries = member.masteries || [];
                             const activity = getActivityStats(member);
+                            
+                            // Correção: Usando o helper com a lista completa de membros
+                            const orgInfo = getMemberOrgsInfo(members, member.discordId);
 
                             return (
                                 <tr 
@@ -151,7 +154,14 @@ const OrganizationTab = ({
                                     </td>
                                     <td className="p-4">
                                         <div className="flex flex-col">
-                                            <span className="font-bold text-white flex items-center gap-2">{member.name}</span>
+                                            <span className="font-bold text-white flex items-center gap-2">
+                                                {member.name}
+                                                {orgInfo && (
+                                                    <div className="text-yellow-400 cursor-help relative group" title={`Membro de: ${orgInfo.names}`} onClick={(e) => e.stopPropagation()}>
+                                                        <AlertCircle size={14} />
+                                                    </div>
+                                                )}
+                                            </span>
                                             <div className="flex flex-wrap gap-2 mt-1">
                                                 {memberMasteries.map(m => {
                                                     const mData = MASTERIES.find(mastery => mastery.id === m);
