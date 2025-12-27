@@ -1,8 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { 
-    X, Crown, Calendar, Activity, Clock, 
-    Heart, Zap, User, UserSecret 
-} from 'lucide-react';
+import { X, Crown, Calendar, Activity, Clock, Heart, Zap, User, UserSecret } from 'lucide-react';
 import { ORG_CONFIG, STATS, MASTERIES, Icons } from '../config/constants.js';
 import { calculateMaxPoints, calculateStats, formatDateTime } from '../utils/helpers.js';
 
@@ -77,7 +74,6 @@ const MemberModal = ({ member, orgId, isCreating, discordRoster, discordRoles, o
     return (
         <div className="fixed inset-0 z-[80] bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
             <div className="bg-slate-800 border border-slate-600 rounded-xl w-full max-w-4xl shadow-2xl animate-fade-in flex flex-col max-h-[95vh]">
-                {/* Header */}
                 <div className="p-4 border-b border-slate-700 flex justify-between items-start bg-slate-900/50 rounded-t-xl">
                     <div>
                         <h2 className="text-2xl font-bold text-white flex items-center gap-2">
@@ -92,7 +88,6 @@ const MemberModal = ({ member, orgId, isCreating, discordRoster, discordRoles, o
                 </div>
 
                 <div className="p-4 overflow-y-auto scroll-custom grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    {/* Coluna Esquerda */}
                     <div className="space-y-4">
                         {isCreating && (
                             <div className="bg-cyan-900/20 p-4 rounded-lg border border-cyan-500/30">
