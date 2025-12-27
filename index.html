@@ -20,7 +20,7 @@
     <!-- Babel para JSX -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-    <!-- Import Map para gerenciar dependências Externas -->
+    <!-- Import Map: Ensina o navegador onde buscar o React e Firebase na web -->
     <script type="importmap">
     {
         "imports": {
@@ -37,17 +37,13 @@
 <body class="text-slate-200 font-mono">
     <div id="root"></div>
 
-    <!-- LOADER SCRIPT -->
-    <!-- Este script carrega seus arquivos separados, remove os imports/exports e roda como uma aplicação única -->
+    <!-- LOADER INTELIGENTE -->
     <script type="module">
-        // Lista de arquivos na ordem EXATA de dependência
+        // Ordem de carregamento: Dependências primeiro, depois componentes, por fim o App.
         const files = [
-            // 1. Configurações e Utilitários (Base)
             'src/config/constants.js',
             'src/utils/helpers.js',
             'src/config/firebase.js',
-            
-            // 2. Componentes (Dependem da Base)
             'src/components/Header.js',
             'src/components/LoginScreen.js',
             'src/components/MemberModal.js',
@@ -56,48 +52,55 @@
             'src/components/OrganizationTab.js',
             'src/components/HistoryTab.js',
             'src/components/MonitoringTab.js',
-            
-            // 3. Aplicação Principal (Depende de tudo)
             'src/app.js'
         ];
 
         async function loadApp() {
             try {
+                let combinedCode = "";
+
                 for (const file of files) {
                     const response = await fetch(file);
-                    if (!response.ok) throw new Error(`Falha ao carregar ${file}`);
+                    if (!response.ok) throw new Error(`Não foi possível carregar: ${file}`);
                     let code = await response.text();
 
-                    // --- LIMPEZA DE CÓDIGO ---
-                    // Removemos imports e exports para que os arquivos compartilhem o escopo global
-                    // Isso simula um "bundle" sem precisar de Node.js/Webpack
+                    // --- LIMPEZA DE CÓDIGO (Simula um Build) ---
                     
-                    // 1. Remove linhas de importação locais (ex: import Header from ...)
-                    code = code.replace(/import .* from '\.\/.*';/g, '');
-                    code = code.replace(/import .* from '\.\.\/.*';/g, '');
-                    
-                    // 2. Transforma exports em variáveis globais
-                    // "export const X" vira "const X" (que no escopo global do script vira window.X)
-                    code = code.replace(/export const/g, 'const');
-                    code = code.replace(/export default .*/g, ''); // Remove export default
+                    // 1. Remove linhas de importação LOCAL (ex: import Header from './Header.js')
+                    // Mantém imports externos (ex: import ... from 'react')
+                    code = code.replace(/^import\s+.*from\s+['"]\..*['"];?/gm, '');
 
-                    // --- TRANSPILAÇÃO ---
-                    // Usa o Babel para converter JSX para JS que o navegador entende
-                    const output = Babel.transform(code, {
-                        presets: ['react', 'env'],
-                        filename: file
-                    }).code;
+                    // 2. Remove Exportações (Pois tudo rodará no mesmo escopo global do módulo)
+                    // "export const X" vira "const X"
+                    code = code.replace(/export\s+const\s+/g, 'const ');
+                    // "export default X" é removido (o componente X já foi declarado antes)
+                    code = code.replace(/export\s+default\s+\w+;?/g, '');
 
-                    // --- EXECUÇÃO ---
-                    // Injeta o código processado na página
-                    const script = document.createElement('script');
-                    script.text = output;
-                    document.body.appendChild(script);
+                    combinedCode += `\n// --- ARQUIVO: ${file} ---\n` + code + "\n";
                 }
-                console.log("Aplicação carregada com sucesso via Loader.");
+
+                // 3. Transpilação (JSX -> JS)
+                // Usamos apenas o preset 'react'. Não usamos 'env' para manter os 'imports' nativos funcionando.
+                const output = Babel.transform(combinedCode, {
+                    presets: ['react']
+                }).code;
+
+                // 4. Injeção e Execução
+                const script = document.createElement('script');
+                script.type = 'module';
+                script.textContent = output;
+                document.body.appendChild(script);
+
+                console.log("✅ Sistema Névoa carregado com sucesso.");
+
             } catch (error) {
-                console.error("Erro crítico ao carregar aplicação:", error);
-                document.body.innerHTML = `<div style="color:red; padding:20px;"><h1>Erro ao carregar</h1><p>${error.message}</p></div>`;
+                console.error("❌ Erro fatal no carregamento:", error);
+                document.body.innerHTML = `
+                    <div style="height:100vh; display:flex; align-items:center; justify-content:center; flex-direction:column; color:#ef4444; background:#0f172a;">
+                        <h1 style="font-size:2rem; margin-bottom:1rem;">Erro de Carregamento</h1>
+                        <p style="font-family:monospace; background:#1e293b; padding:1rem; rounded:0.5rem;">${error.message}</p>
+                    </div>
+                `;
             }
         }
 
