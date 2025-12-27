@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Crown, Calendar, Activity, Clock, Heart, Zap, User, UserSecret } from 'lucide-react';
+import { X, Crown, Calendar, Activity, Clock, Heart, Zap } from 'lucide-react';
 import { ORG_CONFIG, STATS, MASTERIES, Icons } from '../config/constants.js';
 import { calculateMaxPoints, calculateStats, formatDateTime } from '../utils/helpers.js';
 
@@ -114,14 +114,14 @@ const MemberModal = ({ member, orgId, isCreating, discordRoster, discordRoles, o
                         <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700 space-y-3">
                             <div>
                                 <label className="text-sm font-bold text-white mb-1 block flex items-center gap-2">
-                                    <User size={14} className="text-cyan-400"/> Nome do Personagem (RP)
+                                    <Icons.User size={14} className="text-cyan-400"/> Nome do Personagem (RP)
                                 </label>
                                 <input type="text" className="w-full bg-slate-800 border border-slate-600 rounded p-2 text-white outline-none focus:border-cyan-500" placeholder={form.name || "Nome no jogo"} value={form.rpName} onChange={(e) => setForm({...form, rpName: e.target.value})} />
                                 <p className="text-[10px] text-slate-500 mt-1">Este nome substituirá o do Discord na tabela.</p>
                             </div>
                             {isAnbu && (
                                 <div>
-                                    <label className="text-sm font-bold text-purple-400 mb-1 block flex items-center gap-2"><UserSecret size={14}/> Codinome (ANBU)</label>
+                                    <label className="text-sm font-bold text-purple-400 mb-1 block flex items-center gap-2"><Icons.UserSecret size={14}/> Codinome (ANBU)</label>
                                     <input type="text" className="w-full bg-slate-800 border border-purple-500/50 rounded p-2 text-white outline-none focus:border-purple-500" placeholder="Ex: Corvo" value={form.codinome} onChange={(e) => setForm({...form, codinome: e.target.value})} />
                                 </div>
                             )}
@@ -198,7 +198,6 @@ const MemberModal = ({ member, orgId, isCreating, discordRoster, discordRoles, o
                             <div className="grid grid-cols-2 gap-3">
                                 {(MASTERIES || []).map(m => {
                                     const isActive = form.masteries.includes(m.id);
-                                    // SAFETY CHECK: Garante que o ícone existe antes de renderizar
                                     let IconComp = Activity;
                                     if (typeof m.icon === 'function' || typeof m.icon === 'object') {
                                         IconComp = m.icon;
