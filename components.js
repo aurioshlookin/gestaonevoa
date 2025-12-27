@@ -3,17 +3,22 @@ import {
     X, Crown, Calendar, Activity, Heart, Zap, Clock, AlertTriangle, 
     Settings, ShieldCheck, UserCog, Star, Trash2
 } from 'lucide-react';
-import { ORG_CONFIG, STATS, MASTERIES } from './config.js';
-import { calculateMaxPoints, calculateStats, formatDateTime } from './services.js';
+
+// Inicializa namespace
+window.AppComponents = {};
+
+// Acessa globais
+const { ORG_CONFIG, STATS, MASTERIES } = window.AppConfig;
+const { calculateMaxPoints, calculateStats, formatDateTime } = window.AppServices;
 
 // Componente para ícones de ordenação
-export const SortIcon = ({k, sortConfig, ArrowUp, ArrowDown, ArrowUpDown}) => {
+window.AppComponents.SortIcon = ({k, sortConfig, ArrowUp, ArrowDown, ArrowUpDown}) => {
     if (sortConfig.key !== k) return <ArrowUpDown size={14} className="opacity-30 ml-1"/>;
     return sortConfig.direction === 'ascending' ? <ArrowUp size={14} className="text-cyan-400"/> : <ArrowDown size={14} className="text-cyan-400"/>;
 };
 
 // MODAL DE EDIÇÃO DE MEMBRO
-export const EditMemberModal = ({ isCreating, editForm, setEditForm, selectedMember, setSelectedMember, handleSaveEdit, discordRoles, canManageOrg, filteredRoster, searchTerm, setSearchTerm, isDropdownOpen, setIsDropdownOpen, handleSelectUser }) => {
+window.AppComponents.EditMemberModal = ({ isCreating, editForm, setEditForm, selectedMember, setSelectedMember, handleSaveEdit, discordRoles, canManageOrg, filteredRoster, searchTerm, setSearchTerm, isDropdownOpen, setIsDropdownOpen, handleSelectUser }) => {
     
     const maxPoints = calculateMaxPoints(editForm.level);
     const usedPoints = STATS.reduce((acc, stat) => acc + (editForm.stats[stat] - 5), 0);
@@ -156,7 +161,7 @@ export const EditMemberModal = ({ isCreating, editForm, setEditForm, selectedMem
 };
 
 // MODAL DE CONFIRMAÇÃO DE EXCLUSÃO
-export const DeleteModal = ({ setDeleteConfirmation, handleRemoveMember, id }) => (
+window.AppComponents.DeleteModal = ({ setDeleteConfirmation, handleRemoveMember, id }) => (
     <div className="fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
         <div className="bg-slate-800 border border-slate-600 rounded-xl p-6 max-w-md w-full shadow-2xl animate-fade-in text-center">
             <AlertTriangle className="mx-auto text-yellow-400 mb-4" size={48} />
@@ -171,7 +176,7 @@ export const DeleteModal = ({ setDeleteConfirmation, handleRemoveMember, id }) =
 );
 
 // MODAL DE SETTINGS (PERMISSÕES E CARGOS)
-export const SettingsModal = ({ setShowSettings, settingsTab, setSettingsTab, roleConfig, setRoleConfig, leaderRoleConfig, setLeaderRoleConfig, secLeaderRoleConfig, setSecLeaderRoleConfig, accessConfig, setAccessConfig, discordRoles, discordRoster, vipSelection, setVipSelection, handleAddVip, handleRemoveVip, handleSaveConfig, canManageSettings, Icons }) => (
+window.AppComponents.SettingsModal = ({ setShowSettings, settingsTab, setSettingsTab, roleConfig, setRoleConfig, leaderRoleConfig, setLeaderRoleConfig, secLeaderRoleConfig, setSecLeaderRoleConfig, accessConfig, setAccessConfig, discordRoles, discordRoster, vipSelection, setVipSelection, handleAddVip, handleRemoveVip, handleSaveConfig, canManageSettings, Icons }) => (
     <div className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
         <div className="bg-slate-800 border border-slate-600 rounded-xl w-full max-w-2xl shadow-2xl animate-fade-in flex flex-col max-h-[90vh]">
             <div className="flex border-b border-slate-700">
