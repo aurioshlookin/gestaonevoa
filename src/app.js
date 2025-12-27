@@ -168,7 +168,6 @@ const App = () => {
         else if (activeTab === 'access') pageName = 'Monitoramento';
         else if (ORG_CONFIG[activeTab]) pageName = ORG_CONFIG[activeTab].name;
 
-        // Só loga se não for 'history' (que foi removido) e se user estiver carregado
         if (pageName && activeTab !== 'history') {
             addDoc(collection(db, "access_logs"), {
                 userId: user.id,
@@ -232,12 +231,14 @@ const App = () => {
         if (user.id === accessConfig.creatorId || (accessConfig.vipIds && accessConfig.vipIds.includes(user.id))) return true;
         const userRoles = user.roles || [];
         const allowedRoles = new Set();
+        
         if (accessConfig.kamiRoleId) allowedRoles.add(accessConfig.kamiRoleId);
         if (accessConfig.councilRoleId) allowedRoles.add(accessConfig.councilRoleId);
         if (accessConfig.moderatorRoleId) allowedRoles.add(accessConfig.moderatorRoleId);
         Object.values(roleConfig).forEach(id => { if(id) allowedRoles.add(id); });
         Object.values(leaderRoleConfig).forEach(id => { if(id) allowedRoles.add(id); });
         Object.values(secLeaderRoleConfig).forEach(id => { if(id) allowedRoles.add(id); });
+        
         return userRoles.some(roleId => allowedRoles.has(roleId));
     }, [user, accessConfig, roleConfig, leaderRoleConfig, secLeaderRoleConfig]);
 
@@ -254,11 +255,25 @@ const App = () => {
         return roles.join(" & ");
     }, [user, accessConfig, leaderRoleConfig]);
 
+    // --- HELPERS E CÁLCULOS ---
+    const showNotification = (msg, type) => { setNotification({ msg, type }); setTimeout(() => setNotification(null), 3000); };
+    
+    // CORREÇÃO: useMemo definido ANTES do return para estar disponível no render
+    const multiOrgUsers = useMemo(() => {
+        const memberMap = {};
+        members.forEach(m => {
+            if (!memberMap[m.discordId]) memberMap[m.discordId] = { name: m.name, orgs: [] };
+            const orgName = ORG_CONFIG[m.org]?.name || m.org;
+            if (!memberMap[m.discordId].orgs.includes(orgName)) memberMap[m.discordId].orgs.push(orgName);
+        });
+        return Object.values(memberMap).filter(u => u.orgs.length > 1);
+    }, [members]);
+
     // --- ACTIONS: MEMBROS ---
     const openCreateModal = () => { setIsCreating(true); setSelectedMember(null); setEditingOrgId(activeTab); };
     const openEditModal = (member) => { setIsCreating(false); setSelectedMember(member); setEditingOrgId(member.org); };
 
-    // --- FUNÇÃO DE SALVAMENTO COM LOG DETALHADO (DIFF PRECISO) ---
+    // --- FUNÇÃO DE SALVAMENTO COM LOG DETALHADO (DIFF) ---
     const handleSaveMember = async (formData) => {
         try {
             const orgId = isCreating ? editingOrgId : selectedMember.org;
@@ -274,16 +289,12 @@ const App = () => {
                 if (r) finalRoleName = r.name;
             }
 
-            // GERAÇÃO DO LOG DETALHADO DE MUDANÇAS (DIFF)
             let detailsLog = "";
             if (isCreating) {
                 detailsLog = `Criado: ${formData.rpName || formData.name} (${formData.ninRole})`;
             } else {
                 const changes = [];
-                // Helper para normalizar valores (undefined/null vira string vazia)
                 const safeVal = (v) => v || '';
-                
-                // Comparações
                 if (safeVal(selectedMember.name) !== safeVal(formData.name)) changes.push(`Discord: ${selectedMember.name}->${formData.name}`);
                 if (safeVal(selectedMember.rpName) !== safeVal(formData.rpName)) changes.push(`Nome RP: ${selectedMember.rpName || '(vazio)'}->${formData.rpName}`);
                 if (safeVal(selectedMember.codinome) !== safeVal(formData.codinome)) changes.push(`Codinome: ${selectedMember.codinome || '(vazio)'}->${formData.codinome}`);
@@ -345,7 +356,7 @@ const App = () => {
             await deleteDoc(doc(db, "membros", String(id)));
             setDeleteConfirmation(null);
             showNotification('Removido.', 'success');
-            logAction("Remover Membro", memberToRemove ? memberToRemove.name : "Desconhecido", "Removido", activeTab);
+            logAction("Remover Membro", memberToRemove ? memberToRemove.name : "Desconhecido", "Removido da organização", activeTab);
         } catch (e) { showNotification(`Erro: ${e.message}`, 'error'); setDeleteConfirmation(null); }
     };
 
@@ -364,7 +375,7 @@ const App = () => {
                 await updateDoc(doc(db, "membros", member.id), { isLeader: true, ninRole: newRoleL });
             } else { await updateDoc(doc(db, "membros", member.id), { isLeader: false }); }
             showNotification('Liderança alterada.', 'success');
-            logAction("Alterar Liderança", member.name, newStatus ? "Promovido" : "Removido", orgId);
+            logAction("Alterar Liderança", member.name, newStatus ? "Promovido a Líder" : "Removido da Liderança", orgId);
         } catch (e) { showNotification('Erro.', 'error'); }
     };
 
