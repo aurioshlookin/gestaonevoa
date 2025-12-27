@@ -35,9 +35,6 @@ const SettingsModal = ({
         });
     };
 
-    // Helper para encontrar nome do cargo
-    const getRoleName = (id) => discordRoles.find(r => r.id === id)?.name || id;
-
     return (
         <div className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
             <div className="bg-slate-800 border border-slate-600 rounded-xl w-full max-w-2xl shadow-2xl animate-fade-in flex flex-col max-h-[90vh]">
@@ -127,7 +124,7 @@ const SettingsModal = ({
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700"><label className="text-sm font-bold text-red-400 mb-2 block">Kage</label><select className="w-full bg-slate-800 border border-slate-600 rounded p-2 text-white outline-none" value={localAccessConfig.kamiRoleId || ""} onChange={(e) => setLocalAccessConfig({...localAccessConfig, kamiRoleId: e.target.value})}><option value="">Selecione...</option>{discordRoles.map(r => <option key={r.id} value={r.id} style={{color: r.color}}>{r.name}</option>)}</select></div>
+                                    <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700"><label className="text-sm font-bold text-red-400 mb-2 block">Mizukami</label><select className="w-full bg-slate-800 border border-slate-600 rounded p-2 text-white outline-none" value={localAccessConfig.kamiRoleId || ""} onChange={(e) => setLocalAccessConfig({...localAccessConfig, kamiRoleId: e.target.value})}><option value="">Selecione...</option>{discordRoles.map(r => <option key={r.id} value={r.id} style={{color: r.color}}>{r.name}</option>)}</select></div>
                                     <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700"><label className="text-sm font-bold text-orange-400 mb-2 block">Conselho</label><select className="w-full bg-slate-800 border border-slate-600 rounded p-2 text-white outline-none" value={localAccessConfig.councilRoleId || ""} onChange={(e) => setLocalAccessConfig({...localAccessConfig, councilRoleId: e.target.value})}><option value="">Selecione...</option>{discordRoles.map(r => <option key={r.id} value={r.id} style={{color: r.color}}>{r.name}</option>)}</select></div>
                                 </div>
                                 <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700"><label className="text-sm font-bold text-blue-400 mb-2 block">Moderador</label><select className="w-full bg-slate-800 border border-slate-600 rounded p-2 text-white outline-none" value={localAccessConfig.moderatorRoleId || ""} onChange={(e) => setLocalAccessConfig({...localAccessConfig, moderatorRoleId: e.target.value})}><option value="">Selecione...</option>{discordRoles.map(r => <option key={r.id} value={r.id} style={{color: r.color}}>{r.name}</option>)}</select></div>
@@ -142,7 +139,6 @@ const SettingsModal = ({
                                 <h3 className="text-orange-400 font-bold flex items-center gap-2 mb-2"><Eye size={18}/> Modo Simulação</h3>
                                 <p className="text-xs text-slate-400">
                                     Visualize o painel como se você tivesse outros cargos. 
-                                    Isso ajuda a verificar as permissões. 
                                     <br/><span className="text-red-400 font-bold">Nota:</span> Enquanto simula, você não poderá editar nada.
                                 </p>
                             </div>
@@ -162,7 +158,7 @@ const SettingsModal = ({
                                 <h4 className="text-sm font-bold text-white mb-2">Simular Cargo Específico:</h4>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                     {[
-                                        { id: localAccessConfig.kamiRoleId, label: 'Kage (Admin)' },
+                                        { id: localAccessConfig.kamiRoleId, label: 'Mizukami (Admin)' },
                                         { id: localAccessConfig.councilRoleId, label: 'Conselho (Admin)' },
                                         { id: localAccessConfig.moderatorRoleId, label: 'Moderador' },
                                         ...Object.entries(localRoleConfig).map(([org, id]) => ({ id, label: `Membro ${ORG_CONFIG[org]?.name}` })),
