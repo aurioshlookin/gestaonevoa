@@ -68,7 +68,7 @@ const App = () => {
     const [notification, setNotification] = useState(null);
     const [deleteConfirmation, setDeleteConfirmation] = useState(null);
     const [showSettings, setShowSettings] = useState(false);
-    const [isTutorialEnabled, setIsTutorialEnabled] = useState(true); // Estado do Tutorial Global
+    const [isTutorialEnabled, setIsTutorialEnabled] = useState(true);
     
     // Dados do Banco
     const [members, setMembers] = useState([]);
@@ -126,7 +126,6 @@ const App = () => {
                         vipIds: data.accessConfig?.vipIds || []
                     });
                     
-                    // Carrega configuração do tutorial se existir
                     if (data.tutorialEnabled !== undefined) {
                         setIsTutorialEnabled(data.tutorialEnabled);
                     }
@@ -196,7 +195,7 @@ const App = () => {
 
     // --- LÓGICA DE TUTORIAL ---
     const startTutorial = () => {
-        if (!effectiveUser || !isTutorialEnabled) return; // Bloqueia se desativado
+        if (!effectiveUser || !isTutorialEnabled) return;
         
         let tutorialKey = 'visitor';
 
@@ -218,6 +217,17 @@ const App = () => {
                     foundOrg = orgId;
                     isLeader = true;
                     break;
+                }
+            }
+            
+            // Check secondary leaders too for tutorial
+            if (!foundOrg && !isLeader) {
+                for (const [orgId, roleId] of Object.entries(secLeaderRoleConfig)) {
+                    if (effectiveUser.roles.includes(roleId)) {
+                        foundOrg = orgId;
+                        isLeader = true; // Sec leaders are leaders for tutorial purposes
+                        break;
+                    }
                 }
             }
 
@@ -244,7 +254,6 @@ const App = () => {
         }
     };
 
-    // Auto-início se habilitado
     useEffect(() => {
         if (effectiveUser && isTutorialEnabled && !sessionStorage.getItem('tutorial_seen')) {
             setTimeout(() => {
@@ -260,7 +269,6 @@ const App = () => {
         const newState = !isTutorialEnabled;
         setIsTutorialEnabled(newState);
         
-        // Salva no banco globalmente
         try {
             await setDoc(doc(db, "server", "config"), { tutorialEnabled: newState }, { merge: true });
             showNotification(`Tutorial Global ${newState ? 'Ativado' : 'Desativado'}`, 'success');
@@ -307,30 +315,37 @@ const App = () => {
         } catch (e) { console.warn("Falha ao salvar log (ação principal ok):", e); }
     };
 
-    // --- PERMISSÕES ---
+    // --- PERMISSÕES CORRIGIDAS ---
     const checkPermission = (action, contextOrgId = null) => {
         if (!effectiveUser) return false;
         
-        // Criador e VIPs
+        // 1. Criador e VIPs (Acesso Total)
         if (effectiveUser.id === accessConfig.creatorId) return true;
         if (accessConfig.vipIds && accessConfig.vipIds.includes(effectiveUser.id)) return true;
 
-        // Regra de Gerenciamento de Settings (Só Criador REAL/VIP)
+        // 2. Bloqueio de Configurações/Monitoramento para não-Criadores
         if (action === 'MANAGE_SETTINGS' || action === 'VIEW_HISTORY') return false;
 
         const userRoles = effectiveUser.roles || [];
 
-        // Admins Globais
+        // 3. Admins Globais
         if (userRoles.includes(accessConfig.kamiRoleId) || userRoles.includes(accessConfig.councilRoleId)) return true;
 
-        // Regra de Edição de Membros
-        if (action === 'EDIT_MEMBER' || action === 'ADD_MEMBER' || action === 'DELETE_MEMBER') {
-            if (userRoles.includes(accessConfig.moderatorRoleId)) return false;
-            
+        // 4. Edição
+        if (['EDIT_MEMBER', 'ADD_MEMBER', 'DELETE_MEMBER'].includes(action)) {
+            // CORREÇÃO: Líderes (e Vice) têm prioridade na própria org, mesmo se forem moderadores
             if (contextOrgId) {
                 const leaderRoleId = leaderRoleConfig[contextOrgId];
-                if (leaderRoleId && userRoles.includes(leaderRoleId)) return true;
+                const secLeaderRoleId = secLeaderRoleConfig[contextOrgId]; // Adicionado Vice-Líder
+                
+                if ((leaderRoleId && userRoles.includes(leaderRoleId)) || 
+                    (secLeaderRoleId && userRoles.includes(secLeaderRoleId))) {
+                    return true;
+                }
             }
+            
+            // Se não for líder da org específica, aplica restrição de moderador
+            if (userRoles.includes(accessConfig.moderatorRoleId)) return false;
         }
         return false;
     };
@@ -591,7 +606,7 @@ const App = () => {
                         discordRoles={discordRoles}
                         onClose={() => { setSelectedMember(null); setIsCreating(false); }}
                         onSave={handleSaveMember}
-                        canManage={hasManagePermission} 
+                        canManage={hasManagePermission} // Permite UI de edição, o bloqueio de salvamento é no handler
                         isReadOnly={!hasManagePermission} 
                     />
                 )}
@@ -660,7 +675,7 @@ const App = () => {
                             members={members}
                             discordRoles={discordRoles}
                             leaderRoleConfig={leaderRoleConfig}
-                            canManage={canManageOrg(activeTab)} // Ação permitida para simulação (apenas UI)
+                            canManage={canManageOrg(activeTab)} // Renderização do botão agora depende apenas da permissão, simulação não esconde mais
                             onOpenCreate={openCreateModal}
                             onEditMember={openEditModal} 
                             onDeleteMember={setDeleteConfirmation}
