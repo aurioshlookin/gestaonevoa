@@ -97,7 +97,6 @@ const App = () => {
         if (simulation) {
             return {
                 ...user,
-                // Mascaramos ID e Cargos durante a simulação
                 id: 'simulated-user-id', 
                 username: `[Simulação] ${simulation.name}`,
                 roles: simulation.roles || []
@@ -199,16 +198,13 @@ const App = () => {
         
         let tutorialKey = 'visitor';
 
-        // 1. Mizukami
         if (effectiveUser.id === accessConfig.creatorId || effectiveUser.roles.includes(accessConfig.kamiRoleId)) {
             tutorialKey = 'mizukami';
         } 
-        // 2. Conselho
         else if (effectiveUser.roles.includes(accessConfig.councilRoleId)) {
             tutorialKey = 'council';
         } 
         else {
-            // 3. Líder ou Membro Específico
             let foundOrg = null;
             let isLeader = false;
 
@@ -220,12 +216,11 @@ const App = () => {
                 }
             }
             
-            // Check secondary leaders too for tutorial
             if (!foundOrg && !isLeader) {
                 for (const [orgId, roleId] of Object.entries(secLeaderRoleConfig)) {
                     if (effectiveUser.roles.includes(roleId)) {
                         foundOrg = orgId;
-                        isLeader = true; // Sec leaders are leaders for tutorial purposes
+                        isLeader = true; 
                         break;
                     }
                 }
@@ -315,36 +310,29 @@ const App = () => {
         } catch (e) { console.warn("Falha ao salvar log (ação principal ok):", e); }
     };
 
-    // --- PERMISSÕES CORRIGIDAS ---
+    // --- PERMISSÕES ---
     const checkPermission = (action, contextOrgId = null) => {
         if (!effectiveUser) return false;
         
-        // 1. Criador e VIPs (Acesso Total)
         if (effectiveUser.id === accessConfig.creatorId) return true;
         if (accessConfig.vipIds && accessConfig.vipIds.includes(effectiveUser.id)) return true;
 
-        // 2. Bloqueio de Configurações/Monitoramento para não-Criadores
         if (action === 'MANAGE_SETTINGS' || action === 'VIEW_HISTORY') return false;
 
         const userRoles = effectiveUser.roles || [];
 
-        // 3. Admins Globais
         if (userRoles.includes(accessConfig.kamiRoleId) || userRoles.includes(accessConfig.councilRoleId)) return true;
 
-        // 4. Edição
         if (['EDIT_MEMBER', 'ADD_MEMBER', 'DELETE_MEMBER'].includes(action)) {
-            // CORREÇÃO: Líderes (e Vice) têm prioridade na própria org, mesmo se forem moderadores
             if (contextOrgId) {
                 const leaderRoleId = leaderRoleConfig[contextOrgId];
-                const secLeaderRoleId = secLeaderRoleConfig[contextOrgId]; // Adicionado Vice-Líder
+                const secLeaderRoleId = secLeaderRoleConfig[contextOrgId];
                 
                 if ((leaderRoleId && userRoles.includes(leaderRoleId)) || 
                     (secLeaderRoleId && userRoles.includes(secLeaderRoleId))) {
                     return true;
                 }
             }
-            
-            // Se não for líder da org específica, aplica restrição de moderador
             if (userRoles.includes(accessConfig.moderatorRoleId)) return false;
         }
         return false;
@@ -352,9 +340,10 @@ const App = () => {
 
     const canManageOrg = (orgId) => checkPermission('EDIT_MEMBER', orgId);
     
-    // Regras Estritas
     const isRealCreator = effectiveUser?.id === accessConfig.creatorId; 
-    const canViewHistory = isRealCreator; 
+    const isMizukami = effectiveUser?.roles?.includes(accessConfig.kamiRoleId);
+    
+    const canViewHistory = isRealCreator || isMizukami; 
     const canManageSettings = isRealCreator;
     
     const canAccessPanel = useMemo(() => {
@@ -399,7 +388,6 @@ const App = () => {
         return roles.join(" & ");
     }, [effectiveUser, accessConfig, leaderRoleConfig, roleConfig]);
 
-    // --- HELPERS E ACTIONS ---
     const showNotification = (msg, type) => { setNotification({ msg, type }); setTimeout(() => setNotification(null), 3000); };
     
     const multiOrgUsers = useMemo(() => {
@@ -448,11 +436,16 @@ const App = () => {
                 if (selectedMember.ninRole !== formData.ninRole) changes.push(`Cargo: ${selectedMember.ninRole}->${formData.ninRole}`);
                 if (selectedMember.isLeader !== formData.isLeader) changes.push(`Líder: ${selectedMember.isLeader ? 'S' : 'N'}->${formData.isLeader ? 'S' : 'N'}`);
                 
-                const statsChanged = STATS.filter(s => selectedMember.stats[s] != formData.stats[s]);
+                // --- CORREÇÃO DO ERRO DE LEITURA DE PROPRIEDADES ---
+                const oldStats = selectedMember.stats || { Força: 5, Fortitude: 5, Intelecto: 5, Agilidade: 5, Chakra: 5 };
+                const newStats = formData.stats || { Força: 5, Fortitude: 5, Intelecto: 5, Agilidade: 5, Chakra: 5 };
+
+                const statsChanged = STATS.filter(s => oldStats[s] != newStats[s]);
                 if (statsChanged.length > 0) {
-                    const statsDiff = statsChanged.map(s => `${s}: ${selectedMember.stats[s]}->${formData.stats[s]}`).join(', ');
+                    const statsDiff = statsChanged.map(s => `${s}: ${oldStats[s]}->${newStats[s]}`).join(', ');
                     changes.push(`Stats [${statsDiff}]`);
                 }
+                // ---------------------------------------------------
 
                 const oldMasteries = (selectedMember.masteries || []).sort().join(',');
                 const newMasteries = (formData.masteries || []).sort().join(',');
@@ -545,7 +538,6 @@ const App = () => {
     // --- RENDER ---
     if (!user) return <ErrorBoundary><LoginScreen onLogin={handleLogin} /></ErrorBoundary>;
 
-    // BANNER DE SIMULAÇÃO
     const SimulationBanner = simulation ? (
         <div className="bg-orange-600 text-white text-center py-2 px-4 font-bold sticky top-0 z-[60] flex justify-center items-center gap-4 shadow-md">
             <div className="flex items-center gap-2">
@@ -579,7 +571,6 @@ const App = () => {
         </ErrorBoundary>
     );
 
-    // CORREÇÃO: Define se o usuário pode gerenciar a org atual
     const hasManagePermission = checkPermission('EDIT_MEMBER', editingOrgId || activeTab);
 
     return (
@@ -606,7 +597,7 @@ const App = () => {
                         discordRoles={discordRoles}
                         onClose={() => { setSelectedMember(null); setIsCreating(false); }}
                         onSave={handleSaveMember}
-                        canManage={hasManagePermission} // Permite UI de edição, o bloqueio de salvamento é no handler
+                        canManage={hasManagePermission} 
                         isReadOnly={!hasManagePermission} 
                     />
                 )}
@@ -675,7 +666,7 @@ const App = () => {
                             members={members}
                             discordRoles={discordRoles}
                             leaderRoleConfig={leaderRoleConfig}
-                            canManage={canManageOrg(activeTab)} // Renderização do botão agora depende apenas da permissão, simulação não esconde mais
+                            canManage={canManageOrg(activeTab)} 
                             onOpenCreate={openCreateModal}
                             onEditMember={openEditModal} 
                             onDeleteMember={setDeleteConfirmation}
