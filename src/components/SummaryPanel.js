@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { 
     BarChart3, PieChart, Zap, Activity, Users, Layers, Award, AlertCircle, 
     ChevronRight, TrendingUp, UserPlus, Crown, ChevronDown, ChevronUp, Info, 
-    Flame, Swords, Heart, Dumbbell, Brain, Wind, ShieldCheck, Target, Medal, Droplets
+    Flame, Swords, Heart, Dumbbell, Brain, Wind, ShieldCheck, Target, Medal, Droplets, HelpCircle
 } from 'lucide-react';
 import { MASTERIES, ORG_CONFIG, Icons } from '../config/constants.js';
 import { getActivityStats, calculateStats } from '../utils/helpers.js';
@@ -100,12 +100,19 @@ const SummaryPanel = ({ members }) => {
 
             // 3. Patentes e Nível
             const level = parseInt(m.level || 1);
-            data.totalLevel += level;
             
-            if (level >= 35) {
+            // Verificação de cadastro completo (Atributos > 25 indica que distribuiu pontos)
+            const mStats = m.stats || { Força: 5, Fortitude: 5, Intelecto: 5, Agilidade: 5, Chakra: 5 };
+            const totalStatPoints = Object.values(mStats).reduce((a, b) => a + parseInt(b || 0), 0);
+            const hasDistributedPoints = totalStatPoints > 25; 
+
+            // Para cálculo de nível médio global e combate, considera apenas quem distribuiu pontos e é 35+
+            if (level >= 35 && hasDistributedPoints) {
                 data.level35PlusTotal += level;
                 data.level35PlusCount++;
             }
+            // Total Level para média geral simples (todos)
+            data.totalLevel += level;
 
             let rank = m.ninRank || 'Desconhecido';
             const rankKey = ['Kage', 'Sannin', 'Anbu', 'Jonin', 'Tokubetsu', 'Chunin', 'Genin', 'Estudante'].find(r => rank.toLowerCase().includes(r.toLowerCase())) || rank;
@@ -119,7 +126,6 @@ const SummaryPanel = ({ members }) => {
             data.orgActivity[m.org].count += 1;
 
             // 5. Combate
-            const mStats = m.stats || { Força: 5, Fortitude: 5, Intelecto: 5, Agilidade: 5, Chakra: 5 };
             const derived = calculateStats(mStats, m.guildBonus);
 
             if (derived.hp > data.combat.maxHp.value) data.combat.maxHp = { value: derived.hp, member: m };
@@ -133,7 +139,8 @@ const SummaryPanel = ({ members }) => {
                 }
             });
 
-            if (level >= 35) {
+            // Só inclui na média de combate se for 35+ E tiver distribuído pontos
+            if (level >= 35 && hasDistributedPoints) {
                 data.combat.countLevel35++;
                 data.combat.accumulators.Força += parseInt(mStats.Força || 5);
                 data.combat.accumulators.Fortitude += parseInt(mStats.Fortitude || 5);
@@ -163,7 +170,7 @@ const SummaryPanel = ({ members }) => {
 
     const topOrgName = stats.topOrg.id ? (ORG_CONFIG[stats.topOrg.id]?.name || stats.topOrg.id) : "-";
     
-    // Média de nível (35+)
+    // Média de nível (35+ e pontos distribuídos)
     const avgLevel = stats.level35PlusCount > 0 ? Math.round(stats.level35PlusTotal / stats.level35PlusCount) : 0;
     
     const sortedMasteries = Object.entries(stats.masteries).sort((a, b) => b[1] - a[1]);
@@ -291,7 +298,7 @@ const SummaryPanel = ({ members }) => {
                                         <h3 className="text-sm font-bold text-yellow-400 mb-4 flex items-center gap-2">
                                             <AlertCircle size={16}/> Pendências de Cadastro ({stats.pendingMastery})
                                         </h3>
-                                        <div className="overflow-x-auto">
+                                        <div className="overflow-x-auto mb-4">
                                             <table className="w-full text-sm text-left">
                                                 <thead className="text-xs text-slate-400 uppercase bg-slate-900/50 border-b border-slate-700">
                                                     <tr>
@@ -329,6 +336,18 @@ const SummaryPanel = ({ members }) => {
                                                     })}
                                                 </tbody>
                                             </table>
+                                        </div>
+                                        
+                                        {/* Dica para resolver pendências */}
+                                        <div className="bg-yellow-900/20 p-3 rounded text-xs text-yellow-200/80 border border-yellow-700/30 flex items-start gap-2">
+                                            <HelpCircle size={16} className="shrink-0 mt-0.5" />
+                                            <div>
+                                                <strong>Como resolver pendências:</strong> Para remover um membro desta lista, é necessário atualizar suas <strong>Maestrias</strong> no perfil. 
+                                                <br/>
+                                                <span className="text-yellow-200/60 mt-1 block">
+                                                    Também é altamente recomendado atualizar o <strong>Nível</strong> e distribuir os <strong>Atributos</strong> para que o membro seja contabilizado nas estatísticas de combate e nível médio da vila.
+                                                </span>
+                                            </div>
                                         </div>
                                     </div>
                                 )}
