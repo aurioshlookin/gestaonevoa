@@ -171,23 +171,27 @@ const SummaryPanel = ({ members }) => {
         }
 
         // Calcula Org Destaque (Maior Média) e Menor Atividade (Menor Média)
-        let bestOrg = { id: null, avg: -1, total: 0 };
-        let worstOrg = { id: null, avg: 999999, total: 0 }; // Começa alto para encontrar o menor
+        let bestOrg = { id: null, avg: -1, total: 0, totalMsgs: 0, totalVoice: 0 };
+        let worstOrg = { id: null, avg: 999999, total: 0, totalMsgs: 0, totalVoice: 0 };
 
         Object.entries(data.orgActivity).forEach(([orgId, info]) => {
             if (info.count > 0) {
                 const avg = info.total / info.count;
-                if (avg > bestOrg.avg) bestOrg = { id: orgId, avg: Math.round(avg), total: info.total, name: info.name };
-                if (avg < worstOrg.avg) worstOrg = { id: orgId, avg: Math.round(avg), total: info.total, name: info.name };
+                if (avg > bestOrg.avg) bestOrg = { ...info, id: orgId, avg: Math.round(avg) };
+                if (avg < worstOrg.avg) worstOrg = { ...info, id: orgId, avg: Math.round(avg) };
             }
         });
         
-        // Se só tiver uma org ou nenhuma, ajusta para não mostrar o mesmo no pior
         if (worstOrg.avg === 999999) worstOrg = { id: null, avg: 0, total: 0 };
         if (bestOrg.id === worstOrg.id && Object.keys(data.orgActivity).length <= 1) worstOrg = { id: null };
 
         data.topOrg = bestOrg;
         data.lowOrg = worstOrg;
+
+        // Ordena membros por score dentro de cada tier
+        Object.keys(data.membersByTier).forEach(tier => {
+            data.membersByTier[tier].sort((a, b) => b.score - a.score);
+        });
 
         return data;
     }, [members]);
@@ -195,7 +199,6 @@ const SummaryPanel = ({ members }) => {
     const topOrgName = stats.topOrg.id ? (ORG_CONFIG[stats.topOrg.id]?.name || stats.topOrg.id) : "-";
     const lowOrgName = stats.lowOrg.id ? (ORG_CONFIG[stats.lowOrg.id]?.name || stats.lowOrg.id) : "-";
     
-    // Média de nível (35+ e pontos distribuídos)
     const avgLevel = stats.level35PlusCount > 0 ? Math.round(stats.level35PlusTotal / stats.level35PlusCount) : 0;
     
     const sortedMasteries = Object.entries(stats.masteries).sort((a, b) => b[1] - a[1]);
@@ -204,7 +207,6 @@ const SummaryPanel = ({ members }) => {
     const sortedPendingStats = Object.entries(stats.orgPendingStats)
         .sort((a, b) => b[1].pending - a[1].pending);
 
-    // Ordenação de Orgs por MÉDIA de Atividade para o gráfico
     const sortedOrgActivityByAvg = Object.entries(stats.orgActivity)
         .sort((a, b) => (b[1].total / b[1].count) - (a[1].total / a[1].count));
 
@@ -237,7 +239,6 @@ const SummaryPanel = ({ members }) => {
     return (
         <div className={`glass-panel rounded-xl transition-all duration-300 mb-8 ${isExpanded ? 'border-cyan-500/50 shadow-lg shadow-cyan-500/10' : 'border-slate-700 hover:border-slate-600'}`}>
             
-            {/* CABEÇALHO CLICÁVEL */}
             <div 
                 className="p-6 cursor-pointer flex items-center justify-between"
                 onClick={() => setIsExpanded(!isExpanded)}
@@ -265,11 +266,9 @@ const SummaryPanel = ({ members }) => {
                 </div>
             </div>
 
-            {/* CONTEÚDO EXPANDIDO */}
             {isExpanded && (
                 <div className="px-6 pb-6 animate-fade-in border-t border-slate-700/50 pt-6">
                     
-                    {/* BARRA DE NAVEGAÇÃO (ABAS) */}
                     <div className="flex flex-wrap gap-2 mb-6">
                         <TabButton id="general" label="Geral" icon={Info} />
                         <TabButton id="combat" label="Status & Combate" icon={Swords} />
@@ -279,12 +278,9 @@ const SummaryPanel = ({ members }) => {
 
                     <div className="animate-fade-in">
                         
-                        {/* === ABA GERAL === */}
                         {activeView === 'general' && (
                             <div className="space-y-6">
-                                {/* KPIs Principais */}
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                    {/* Card 1: Visão Geral do Efetivo (Combinado) */}
                                     <div className="bg-slate-800/80 border border-slate-700 p-4 rounded-xl shadow-lg">
                                         <div className="flex justify-between items-start mb-2">
                                             <p className="text-slate-400 text-xs uppercase font-bold tracking-wider">Visão Geral do Efetivo</p>
@@ -299,7 +295,6 @@ const SummaryPanel = ({ members }) => {
                                         </div>
                                     </div>
 
-                                    {/* Card 2: Nível Médio */}
                                     <div className="bg-slate-800/80 border border-slate-700 p-4 rounded-xl shadow-lg">
                                         <div className="flex justify-between items-start mb-2">
                                             <p className="text-slate-400 text-xs uppercase font-bold tracking-wider">Nível Médio (35+)</p>
@@ -309,8 +304,8 @@ const SummaryPanel = ({ members }) => {
                                         <p className="text-xs text-slate-500">Base: {stats.level35PlusCount} ninjas</p>
                                     </div>
 
-                                    {/* Card 3: Org Destaque (Maior Média) */}
-                                    <div className="bg-slate-800/80 border border-slate-700 p-4 rounded-xl shadow-lg relative group">
+                                    {/* Card 3: Org Destaque */}
+                                    <div className="bg-slate-800/80 border border-slate-700 p-4 rounded-xl shadow-lg">
                                         <div className="flex justify-between items-start mb-2">
                                             <p className="text-slate-400 text-xs uppercase font-bold tracking-wider">Org. Destaque</p>
                                             <Crown size={18} className="text-yellow-400"/>
@@ -318,17 +313,18 @@ const SummaryPanel = ({ members }) => {
                                         <div className="flex flex-col">
                                             <p className="text-xl font-bold text-white truncate" title={topOrgName}>{topOrgName}</p>
                                             <div className="flex justify-between items-end mt-1">
-                                                <p className="text-xs text-slate-400">Média de Ativ.: <span className="text-yellow-400 font-bold">{stats.topOrg.avg}</span></p>
-                                                <p className="text-[10px] text-slate-600">Total: {stats.topOrg.total}</p>
+                                                <p className="text-xs text-slate-400">Média: <span className="text-yellow-400 font-bold">{stats.topOrg.avg} pts</span></p>
+                                                <p className="text-[10px] text-slate-500">Total: {stats.topOrg.total}</p>
                                             </div>
-                                        </div>
-                                        {/* Tooltip explicativo */}
-                                        <div className="absolute top-full left-0 mt-2 p-2 bg-slate-900 border border-slate-700 rounded text-xs text-slate-300 w-full z-10 hidden group-hover:block shadow-xl">
-                                            Baseado na média de pontos de atividade (mensagens + voz) por membro.
+                                            {/* Detalhes de Mensagens e Voz - Visíveis sempre */}
+                                            <div className="mt-2 pt-2 border-t border-slate-700/50 flex justify-between text-[10px] text-slate-400">
+                                                <span className="flex items-center gap-1"><MessageSquare size={10}/> {stats.topOrg.totalMsgs}</span>
+                                                <span className="flex items-center gap-1"><Mic size={10}/> {Math.round(stats.topOrg.totalVoice/60)}h</span>
+                                            </div>
                                         </div>
                                     </div>
 
-                                    {/* Card 4: Org em Alerta (Menor Média) */}
+                                    {/* Card 4: Org em Alerta */}
                                     <div className="bg-slate-800/80 border border-slate-700 p-4 rounded-xl shadow-lg">
                                         <div className="flex justify-between items-start mb-2">
                                             <p className="text-slate-400 text-xs uppercase font-bold tracking-wider">Em Alerta</p>
@@ -338,7 +334,12 @@ const SummaryPanel = ({ members }) => {
                                             <div className="flex flex-col">
                                                 <p className="text-xl font-bold text-white truncate" title={lowOrgName}>{lowOrgName}</p>
                                                 <div className="flex justify-between items-end mt-1">
-                                                    <p className="text-xs text-slate-400">Média de Ativ.: <span className="text-red-400 font-bold">{stats.lowOrg.avg}</span></p>
+                                                    <p className="text-xs text-slate-400">Média: <span className="text-red-400 font-bold">{stats.lowOrg.avg} pts</span></p>
+                                                </div>
+                                                {/* Detalhes de Mensagens e Voz - Visíveis sempre */}
+                                                <div className="mt-2 pt-2 border-t border-slate-700/50 flex justify-between text-[10px] text-slate-400">
+                                                    <span className="flex items-center gap-1"><MessageSquare size={10}/> {stats.lowOrg.totalMsgs}</span>
+                                                    <span className="flex items-center gap-1"><Mic size={10}/> {Math.round(stats.lowOrg.totalVoice/60)}h</span>
                                                 </div>
                                             </div>
                                         ) : (
@@ -347,7 +348,6 @@ const SummaryPanel = ({ members }) => {
                                     </div>
                                 </div>
 
-                                {/* Relatório de Pendências por Organização */}
                                 {stats.pendingMastery > 0 && (
                                     <div className="bg-slate-800/50 border border-slate-700 p-6 rounded-xl">
                                         <h3 className="text-base font-bold text-yellow-400 mb-4 flex items-center gap-2">
@@ -393,7 +393,6 @@ const SummaryPanel = ({ members }) => {
                                             </table>
                                         </div>
                                         
-                                        {/* Dica para resolver pendências */}
                                         <div className="bg-yellow-900/20 p-4 rounded text-sm text-yellow-200/80 border border-yellow-700/30 flex items-start gap-2">
                                             <HelpCircle size={18} className="shrink-0 mt-0.5" />
                                             <div>
@@ -409,10 +408,8 @@ const SummaryPanel = ({ members }) => {
                             </div>
                         )}
 
-                        {/* === ABA COMBATE === */}
                         {activeView === 'combat' && (
                             <div className="space-y-6">
-                                {/* Destaques Individuais */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl flex items-center gap-4 relative overflow-hidden shadow-lg">
                                         <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-red-500/10 to-transparent pointer-events-none"></div>
@@ -455,7 +452,6 @@ const SummaryPanel = ({ members }) => {
                                     </div>
                                 </div>
 
-                                {/* Seção de Médias */}
                                 <div className="bg-slate-800/50 border border-slate-700 p-6 rounded-xl">
                                     <div className="flex justify-between items-center mb-6">
                                         <h3 className="text-base font-bold text-slate-300 flex items-center gap-2">
@@ -469,8 +465,6 @@ const SummaryPanel = ({ members }) => {
                                     
                                     {stats.combat.countLevel35 > 0 ? (
                                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                                            
-                                            {/* Coluna 1: Recursos Vitais (HP/CP) */}
                                             <div className="bg-slate-900/30 p-4 rounded-lg border border-slate-700/50">
                                                 <h4 className="text-xs font-bold text-slate-500 uppercase mb-4 flex items-center gap-2">
                                                     <Droplets size={14}/> Recursos Vitais
@@ -507,7 +501,6 @@ const SummaryPanel = ({ members }) => {
                                                 </div>
                                             </div>
 
-                                            {/* Coluna 2: Atributos Base */}
                                             <div className="bg-slate-900/30 p-4 rounded-lg border border-slate-700/50">
                                                 <h4 className="text-xs font-bold text-slate-500 uppercase mb-4 flex items-center gap-2">
                                                     <Dumbbell size={14}/> Atributos de Combate
@@ -554,10 +547,8 @@ const SummaryPanel = ({ members }) => {
                             </div>
                         )}
 
-                        {/* === ABA MAESTRIAS === */}
                         {activeView === 'masteries' && (
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                {/* Distribuição Elementar (Estilo Barra Horizontal) */}
                                 <div className="bg-slate-800/50 border border-slate-700 p-6 rounded-xl">
                                     <h3 className="text-base font-bold text-slate-300 mb-6 flex items-center gap-2 w-full">
                                         <PieChart size={18}/> Distribuição Elementar
@@ -593,7 +584,6 @@ const SummaryPanel = ({ members }) => {
                                     </div>
                                 </div>
 
-                                {/* Lista de Combos */}
                                 <div className="bg-slate-800/50 border border-slate-700 p-6 rounded-xl">
                                     <h3 className="text-base font-bold text-slate-300 mb-4 flex items-center gap-2">
                                         <Layers size={18}/> Combos Populares
@@ -619,10 +609,8 @@ const SummaryPanel = ({ members }) => {
                             </div>
                         )}
 
-                        {/* === ABA ATIVIDADE === */}
                         {activeView === 'activity' && (
                             <div className="space-y-6">
-                                {/* Comparativo de Atividade por Org (MÉDIA POR MEMBRO) */}
                                 <div className="bg-slate-800/50 border border-slate-700 p-6 rounded-xl">
                                     <h3 className="text-base font-bold text-slate-300 mb-6 flex items-center gap-2">
                                         <BarChart4 size={18}/> Atividade Média por Organização
@@ -632,7 +620,6 @@ const SummaryPanel = ({ members }) => {
                                             if (data.count === 0) return null;
                                             
                                             const average = Math.round(data.total / data.count);
-                                            // Encontrar a maior média para escala relativa
                                             const maxAverage = sortedOrgActivityByAvg[0][1].total / sortedOrgActivityByAvg[0][1].count;
                                             const percentage = (average / maxAverage) * 100;
                                             const orgConfig = ORG_CONFIG[orgId] || { name: orgId, color: 'text-slate-400', bgColor: 'bg-slate-800' };
@@ -640,7 +627,7 @@ const SummaryPanel = ({ members }) => {
                                             let barColor = orgConfig.color.replace('text-', 'bg-');
                                             
                                             return (
-                                                <div key={orgId} className="flex items-center gap-4 group">
+                                                <div key={orgId} className="flex items-center gap-4">
                                                     <div className={`w-28 text-xs font-bold uppercase truncate text-right ${orgConfig.color}`}>
                                                         {data.name}
                                                     </div>
@@ -649,18 +636,11 @@ const SummaryPanel = ({ members }) => {
                                                             className={`h-full ${barColor} rounded-full transition-all duration-1000 relative flex items-center justify-end pr-2`} 
                                                             style={{ width: `${percentage}%` }}
                                                         >
-                                                            <div className="absolute inset-0 bg-white/10 group-hover:bg-white/20 transition-colors"></div>
+                                                            <div className="absolute inset-0 bg-white/10"></div>
                                                         </div>
-                                                        
-                                                        {/* Tooltip com Detalhes de Mensagens/Voz */}
-                                                        <div className="absolute top-0 right-0 -mt-16 hidden group-hover:block bg-slate-900 text-xs text-white p-3 rounded border border-slate-600 z-20 shadow-xl min-w-[200px]">
-                                                            <p className="font-bold border-b border-slate-700 pb-1 mb-1 text-center">{data.name}</p>
-                                                            <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                                                                <span className="text-slate-400">Média:</span> <span className="font-bold text-white text-right">{average}</span>
-                                                                <span className="text-slate-400">Total Pts:</span> <span className="font-bold text-white text-right">{data.total}</span>
-                                                                <span className="text-slate-400">Total Msgs:</span> <span className="font-mono text-cyan-400 text-right">{data.totalMsgs}</span>
-                                                                <span className="text-slate-400">Total Voz:</span> <span className="font-mono text-emerald-400 text-right">{Math.round(data.totalVoice/60)}h</span>
-                                                            </div>
+                                                        <div className="absolute inset-0 flex items-center justify-end px-2 gap-3 text-[10px] text-white font-mono pointer-events-none">
+                                                            <span className="flex items-center gap-1 opacity-70"><MessageSquare size={8} /> {Math.round(data.totalMsgs / data.count)}</span>
+                                                            <span className="flex items-center gap-1 opacity-70"><Mic size={8} /> {Math.round((data.totalVoice / 60) / data.count)}h</span>
                                                         </div>
                                                     </div>
                                                     <div className="w-16 text-right font-mono font-bold text-white text-sm">
@@ -708,7 +688,6 @@ const SummaryPanel = ({ members }) => {
                                                         <div className="mt-2 pl-4 border-l-2 border-slate-700 space-y-2 animate-fade-in mb-2">
                                                             {tierMembers.map((m, idx) => {
                                                                 const orgInfo = ORG_CONFIG[m.org] || { name: m.org, color: 'text-slate-500', bgColor: 'bg-slate-700' };
-                                                                // Usa cor da org se disponível, senão fallback
                                                                 const memberCardBorder = orgInfo.color.replace('text-', 'border-');
                                                                 
                                                                 return (
@@ -723,8 +702,8 @@ const SummaryPanel = ({ members }) => {
                                                                         <div className="text-right flex flex-col items-end">
                                                                             <p className="text-cyan-400 font-bold text-base">{Math.round(m.score)} pts</p>
                                                                             <div className="flex items-center gap-3 text-xs text-slate-500 mt-0.5">
-                                                                                <span className="flex items-center gap-1" title="Mensagens"><MessageSquare size={10}/> {m.msgs}</span>
-                                                                                <span className="flex items-center gap-1" title="Minutos em Voz"><Mic size={10}/> {m.voice}m</span>
+                                                                                <span className="flex items-center gap-1" title="Mensagens"><MessageSquare size={12}/> {m.msgs}</span>
+                                                                                <span className="flex items-center gap-1" title="Minutos em Voz"><Mic size={12}/> {m.voice}m</span>
                                                                             </div>
                                                                         </div>
                                                                     </div>
