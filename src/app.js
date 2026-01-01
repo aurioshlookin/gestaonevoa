@@ -193,8 +193,8 @@ const App = () => {
     };
 
     // --- LÓGICA DE TUTORIAL ---
-    const startTutorial = () => {
-        if (!effectiveUser || !isTutorialEnabled) return;
+    const determineTutorialContent = () => {
+        if (!effectiveUser) return null;
         
         let tutorialKey = 'visitor';
         let foundOrg = null;
@@ -242,8 +242,23 @@ const App = () => {
                 }
             }
         }
+        
+        // Retorna o objeto de conteúdo e a org encontrada (se houver)
+        return { content: TUTORIALS[tutorialKey] || TUTORIALS['visitor'], foundOrg, tutorialKey };
+    };
 
-        console.log("Iniciando tutorial:", tutorialKey); // DEBUG
+    const startTutorial = (force = false) => {
+        if (!effectiveUser || (!isTutorialEnabled && !force)) return;
+        
+        // Se não for forçado (clique no botão), verifica se o usuário suprimiu o tutorial
+        if (!force) {
+            const isSuppressed = localStorage.getItem('nevoa_tutorial_suppressed') === 'true';
+            if (isSuppressed) return;
+        }
+
+        const { content, foundOrg, tutorialKey } = determineTutorialContent();
+
+        console.log("Iniciando tutorial:", tutorialKey);
 
         // 1. Navega
         if (foundOrg) {
@@ -253,12 +268,17 @@ const App = () => {
         }
 
         // 2. Abre Modal
-        const content = TUTORIALS[tutorialKey] || TUTORIALS['visitor'];
         setTutorialContent(content);
     };
 
+    // Trigger automático ao carregar
     useEffect(() => {
-        if (effectiveUser && isTutorialEnabled && !sessionStorage.getItem('tutorial_seen')) {
+        // Verifica sessionStorage (para não mostrar toda vez que recarrega a aba na mesma sessão, se não estiver suprimido)
+        // E verifica localStorage (persistente "não mostrar novamente")
+        const sessionSeen = sessionStorage.getItem('tutorial_seen');
+        const permanentSuppressed = localStorage.getItem('nevoa_tutorial_suppressed') === 'true';
+
+        if (effectiveUser && isTutorialEnabled && !sessionSeen && !permanentSuppressed) {
             setTimeout(() => {
                 startTutorial();
                 sessionStorage.setItem('tutorial_seen', 'true');
@@ -651,9 +671,10 @@ const App = () => {
                 />
 
                 <main className="container mx-auto px-6 py-8">
+                    {/* Botão de Ajuda flutuante */}
                     {isTutorialEnabled && (
                         <button 
-                            onClick={startTutorial}
+                            onClick={() => startTutorial(true)}
                             className="fixed bottom-4 left-4 p-3 bg-cyan-600 hover:bg-cyan-500 text-white rounded-full shadow-lg z-50 transition-transform hover:scale-110"
                             title="Ajuda"
                         >
