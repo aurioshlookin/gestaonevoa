@@ -4,6 +4,9 @@ import React from 'react';
 import { Icons } from '../config/constants.js';
 
 const TutorialOverlay = ({ content, onClose }) => {
+    // Debug: Verifique o console para ver o conteúdo recebido
+    console.log("TutorialOverlay content:", content);
+
     // Safety check: Se não tiver conteúdo, não renderiza nada (ou fecha)
     if (!content) return null;
 
@@ -56,19 +59,19 @@ const TutorialOverlay = ({ content, onClose }) => {
 
                     {/* Seções */}
                     <div className="grid gap-6">
-                        {content.sections && content.sections.map((section, idx) => (
-                            <div key={idx} className="bg-slate-700/30 rounded-xl p-5 border border-slate-600/50 hover:border-slate-500 transition-colors">
-                                <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
-                                    {section.title}
-                                </h3>
-                                <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-line">
-                                    {section.content}
-                                </p>
-                            </div>
-                        ))}
-                        
-                        {/* Fallback se não houver seções */}
-                        {(!content.sections || content.sections.length === 0) && (
+                        {content.sections && content.sections.length > 0 ? (
+                            content.sections.map((section, idx) => (
+                                <div key={idx} className="bg-slate-700/30 rounded-xl p-5 border border-slate-600/50 hover:border-slate-500 transition-colors">
+                                    <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
+                                        {section.title}
+                                    </h3>
+                                    <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-line">
+                                        {section.content}
+                                    </p>
+                                </div>
+                            ))
+                        ) : (
+                            /* Fallback se não houver seções */
                             <p className="text-slate-500 italic">Nenhuma informação detalhada disponível para este cargo.</p>
                         )}
                     </div>
