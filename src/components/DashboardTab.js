@@ -41,7 +41,7 @@ const DashboardTab = ({ members, roleConfig, multiOrgUsers, onTabChange }) => {
                 </div>
             )}
 
-            {/* 3. LISTA DE ORGANIZAÇÕES (FLEX WRAP PARA EVITAR QUEBRAS) */}
+            {/* 3. LISTA DE ORGANIZAÇÕES */}
             <div className="w-full">
                 <h3 className="text-white font-bold mb-4 flex items-center gap-2 text-lg border-b border-slate-700 pb-2">
                     <Shield size={20} className="text-cyan-400"/> Organizações
@@ -70,8 +70,8 @@ const DashboardTab = ({ members, roleConfig, multiOrgUsers, onTabChange }) => {
                                 key={org.id} 
                                 className={`glass-panel rounded-xl transition-all duration-300 flex flex-col ${
                                     isExpanded 
-                                    ? 'w-full border-cyan-500/50 shadow-lg shadow-cyan-500/10 order-first md:order-none' 
-                                    : 'w-full md:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] border-slate-700 hover:border-slate-600'
+                                    ? 'w-full border-cyan-500/50 shadow-lg shadow-cyan-500/10 order-first' 
+                                    : 'w-full md:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] border-slate-700 hover:border-slate-600 order-last'
                                 }`}
                             >
                                 {/* Cabeçalho do Card */}
