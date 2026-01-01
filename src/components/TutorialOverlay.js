@@ -1,28 +1,35 @@
-import React from 'react';
+import React, { useState } from 'react';
 // Removemos imports diretos de ícones para evitar conflitos
 // Usaremos o objeto Icons global que já está carregado
 import { Icons } from '../config/constants.js';
 
 const TutorialOverlay = ({ content, onClose }) => {
+    const [dontShowAgain, setDontShowAgain] = useState(false);
+
     // Debug: Verifique o console para ver o conteúdo recebido (Formatado)
-    // Se isso aparecer vazio ou undefined no console, o erro está no App.js/TUTORIALS
     console.log("TutorialOverlay content received:", JSON.stringify(content, null, 2));
 
     // Safety check: Se não tiver conteúdo, não renderiza nada
     if (!content) return null;
 
     // Fallback seguro para ícones
-    // Se Icons for undefined (erro de import), usa string 'span'/'button' para não quebrar
     const safeIcons = Icons || {};
-    const BookIcon = safeIcons.BookOpen || 'span'; // Ícone padrão do cabeçalho
-    const CloseIcon = safeIcons.X || 'button';     // Ícone de fechar
+    const BookIcon = safeIcons.BookOpen || 'span'; 
+    const CloseIcon = safeIcons.X || 'button';     
+
+    const handleClose = () => {
+        if (dontShowAgain) {
+            localStorage.setItem('nevoa_tutorial_suppressed', 'true');
+        }
+        onClose();
+    };
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             {/* Máscara de Fundo */}
             <div 
                 className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity animate-fade-in" 
-                onClick={onClose} 
+                onClick={handleClose} 
             />
 
             {/* Modal Central */}
@@ -43,7 +50,7 @@ const TutorialOverlay = ({ content, onClose }) => {
                         </div>
                     </div>
                     <button 
-                        onClick={onClose} 
+                        onClick={handleClose} 
                         className="text-slate-400 hover:text-white transition-colors p-2 hover:bg-slate-700 rounded-lg"
                         title="Fechar Tutorial"
                     >
@@ -90,10 +97,22 @@ const TutorialOverlay = ({ content, onClose }) => {
                 </div>
 
                 {/* Rodapé */}
-                <div className="p-4 border-t border-slate-700 bg-slate-900/50 rounded-b-2xl flex justify-end">
+                <div className="p-4 border-t border-slate-700 bg-slate-900/50 rounded-b-2xl flex flex-col sm:flex-row justify-between items-center gap-4">
+                    
+                    {/* Checkbox "Não mostrar novamente" */}
+                    <label className="flex items-center gap-2 text-sm text-slate-400 cursor-pointer hover:text-slate-200 transition-colors select-none">
+                        <input 
+                            type="checkbox" 
+                            checked={dontShowAgain} 
+                            onChange={(e) => setDontShowAgain(e.target.checked)}
+                            className="w-4 h-4 rounded border-slate-600 bg-slate-700 text-cyan-600 focus:ring-cyan-500 focus:ring-offset-slate-800"
+                        />
+                        Não mostrar novamente
+                    </label>
+
                     <button 
-                        onClick={onClose} 
-                        className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 px-8 rounded-lg shadow-lg shadow-cyan-500/20 transition-all hover:scale-105 active:scale-95"
+                        onClick={handleClose} 
+                        className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 px-8 rounded-lg shadow-lg shadow-cyan-500/20 transition-all hover:scale-105 active:scale-95 w-full sm:w-auto"
                     >
                         Entendi
                     </button>
