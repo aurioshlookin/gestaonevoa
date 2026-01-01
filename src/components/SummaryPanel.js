@@ -32,7 +32,7 @@ const SummaryPanel = ({ members }) => {
     const [activeView, setActiveView] = useState('general'); 
     const [selectedActivityTier, setSelectedActivityTier] = useState(null);
 
-    // Função auxiliar para evitar NaN na renderização
+    // Função auxiliar para evitar NaN na renderização e converter minutos para horas
     const safeTime = (minutes) => {
         const val = Number(minutes);
         if (isNaN(val) || val <= 0) return 0;
@@ -69,7 +69,7 @@ const SummaryPanel = ({ members }) => {
         oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
         members.forEach(m => {
-            // Inicializa contador de org
+            // Inicializa contador de org se não existir
             if (!data.orgPendingStats[m.org]) {
                 data.orgPendingStats[m.org] = { total: 0, pending: 0, name: ORG_CONFIG[m.org]?.name || m.org };
             }
@@ -94,10 +94,15 @@ const SummaryPanel = ({ members }) => {
             const tier = activityInfo.tier; 
             data.activity[tier] = (data.activity[tier] || 0) + 1;
             
-            // Garante valores numéricos
+            // Garante valores numéricos e tenta buscar de múltiplas fontes se activityInfo falhar
             const score = Number(activityInfo.total || 0);
             const msgs = Number(activityInfo.details?.msgs || 0);
-            const voice = Number(activityInfo.details?.voice || 0);
+            
+            // Tenta pegar do helper, se não tiver, tenta somar do dailyVoice direto do objeto m se existir
+            let voice = Number(activityInfo.details?.voice || 0);
+            if (voice === 0 && m.dailyVoice) {
+                 voice = Object.values(m.dailyVoice).reduce((a, b) => a + Number(b || 0), 0);
+            }
 
             if (!data.membersByTier[tier]) data.membersByTier[tier] = [];
             data.membersByTier[tier].push({
