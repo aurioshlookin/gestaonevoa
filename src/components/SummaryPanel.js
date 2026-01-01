@@ -33,10 +33,13 @@ const SummaryPanel = ({ members }) => {
     const [selectedActivityTier, setSelectedActivityTier] = useState(null);
 
     // Função auxiliar para evitar NaN na renderização e converter minutos para horas
+    // Agora aceita decimais para maior precisão (ex: 6.5h)
     const safeTime = (minutes) => {
         const val = Number(minutes);
         if (isNaN(val) || val <= 0) return 0;
-        return Math.round(val / 60);
+        const hours = val / 60;
+        // Se for menos de 10h, mostra 1 decimal (ex: 6.2h). Se for mais, arredonda.
+        return hours < 10 ? hours.toFixed(1) : Math.round(hours);
     };
 
     const stats = useMemo(() => {
@@ -99,7 +102,7 @@ const SummaryPanel = ({ members }) => {
             const tier = activityInfo.tier; 
             data.activity[tier] = (data.activity[tier] || 0) + 1;
             
-            // Garante valores numéricos e tenta buscar de múltiplas fontes se activityInfo falhar
+            // Garante valores numéricos
             const score = Number(activityInfo.total || 0);
             const msgs = Number(activityInfo.details?.msgs || 0);
             
@@ -727,7 +730,7 @@ const SummaryPanel = ({ members }) => {
                                                                             <p className="text-cyan-400 font-bold text-base">{Math.round(m.score)} pts</p>
                                                                             <div className="flex items-center gap-3 text-xs text-slate-500 mt-0.5">
                                                                                 <span className="flex items-center gap-1" title="Mensagens"><MessageSquare size={12}/> {m.msgs}</span>
-                                                                                <span className="flex items-center gap-1" title="Minutos em Voz"><Mic size={12}/> {safeTime(m.voice * 60)}h</span>
+                                                                                <span className="flex items-center gap-1" title="Minutos em Voz"><Mic size={12}/> {safeTime(m.voice)}h</span>
                                                                             </div>
                                                                         </div>
                                                                     </div>
