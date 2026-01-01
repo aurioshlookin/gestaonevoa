@@ -139,7 +139,6 @@ const SummaryPanel = ({ members }) => {
                 }
             });
 
-            // Só inclui na média de combate se for 35+ E tiver distribuído pontos
             if (level >= 35 && hasDistributedPoints) {
                 data.combat.countLevel35++;
                 data.combat.accumulators.Força += parseInt(mStats.Força || 5);
@@ -220,12 +219,12 @@ const SummaryPanel = ({ members }) => {
                     <div>
                         <h2 className="text-xl font-bold text-white">Relatório de Inteligência</h2>
                         <div className="flex items-center gap-3 mt-1">
-                            <span className="text-xs text-slate-400 font-mono flex items-center gap-1">
-                                <Users size={12}/> {stats.totalMembers} Ninjas
+                            <span className="text-sm text-slate-400 font-mono flex items-center gap-1">
+                                <Users size={14}/> {stats.totalMembers} Ninjas
                             </span>
                             {stats.pendingMastery > 0 && (
-                                <span className="text-xs text-yellow-400 font-bold font-mono flex items-center gap-1">
-                                    <AlertCircle size={12}/> {stats.pendingMastery} Pendentes
+                                <span className="text-sm text-yellow-400 font-bold font-mono flex items-center gap-1">
+                                    <AlertCircle size={14}/> {stats.pendingMastery} Pendentes
                                 </span>
                             )}
                         </div>
@@ -257,37 +256,37 @@ const SummaryPanel = ({ members }) => {
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                     <div className="bg-slate-800/80 border border-slate-700 p-4 rounded-xl shadow-lg">
                                         <div className="flex justify-between items-start mb-2">
-                                            <p className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Efetivo Total</p>
-                                            <Users size={16} className="text-blue-400"/>
+                                            <p className="text-slate-400 text-xs uppercase font-bold tracking-wider">Efetivo Total</p>
+                                            <Users size={18} className="text-blue-400"/>
                                         </div>
-                                        <p className="text-3xl font-bold text-white">{stats.totalMembers}</p>
+                                        <p className="text-4xl font-bold text-white">{stats.totalMembers}</p>
                                     </div>
 
                                     <div className="bg-slate-800/80 border border-slate-700 p-4 rounded-xl shadow-lg">
                                         <div className="flex justify-between items-start mb-2">
-                                            <p className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Nível Médio (35+)</p>
-                                            <TrendingUp size={16} className="text-emerald-400"/>
+                                            <p className="text-slate-400 text-xs uppercase font-bold tracking-wider">Nível Médio (35+)</p>
+                                            <TrendingUp size={18} className="text-emerald-400"/>
                                         </div>
-                                        <p className="text-3xl font-bold text-white">{avgLevel}</p>
-                                        <p className="text-[10px] text-slate-500">Base: {stats.level35PlusCount} ninjas</p>
+                                        <p className="text-4xl font-bold text-white">{avgLevel}</p>
+                                        <p className="text-xs text-slate-500">Base: {stats.level35PlusCount} ninjas</p>
                                     </div>
 
                                     <div className="bg-slate-800/80 border border-slate-700 p-4 rounded-xl shadow-lg">
                                         <div className="flex justify-between items-start mb-2">
-                                            <p className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Recrutas (7d)</p>
-                                            <UserPlus size={16} className="text-cyan-400"/>
+                                            <p className="text-slate-400 text-xs uppercase font-bold tracking-wider">Recrutas (7d)</p>
+                                            <UserPlus size={18} className="text-cyan-400"/>
                                         </div>
-                                        <p className="text-3xl font-bold text-white">{stats.newMembers}</p>
+                                        <p className="text-4xl font-bold text-white">{stats.newMembers}</p>
                                     </div>
 
                                     <div className="bg-slate-800/80 border border-slate-700 p-4 rounded-xl shadow-lg">
                                         <div className="flex justify-between items-start mb-2">
-                                            <p className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Org. Destaque</p>
-                                            <Crown size={16} className="text-yellow-400"/>
+                                            <p className="text-slate-400 text-xs uppercase font-bold tracking-wider">Org. Destaque</p>
+                                            <Crown size={18} className="text-yellow-400"/>
                                         </div>
                                         <div className="flex flex-col">
-                                            <p className="text-lg font-bold text-white truncate" title={topOrgName}>{topOrgName}</p>
-                                            <p className="text-[10px] text-slate-500">Média: <span className="text-yellow-400 font-bold">{stats.topOrg.avg} pts</span></p>
+                                            <p className="text-xl font-bold text-white truncate" title={topOrgName}>{topOrgName}</p>
+                                            <p className="text-xs text-slate-500">Média: <span className="text-yellow-400 font-bold">{stats.topOrg.avg} pts</span></p>
                                         </div>
                                     </div>
                                 </div>
@@ -295,34 +294,34 @@ const SummaryPanel = ({ members }) => {
                                 {/* Relatório de Pendências por Organização */}
                                 {stats.pendingMastery > 0 && (
                                     <div className="bg-slate-800/50 border border-slate-700 p-6 rounded-xl">
-                                        <h3 className="text-sm font-bold text-yellow-400 mb-4 flex items-center gap-2">
-                                            <AlertCircle size={16}/> Pendências de Cadastro ({stats.pendingMastery})
+                                        <h3 className="text-base font-bold text-yellow-400 mb-4 flex items-center gap-2">
+                                            <AlertCircle size={18}/> Pendências de Cadastro ({stats.pendingMastery})
                                         </h3>
                                         <div className="overflow-x-auto mb-4">
                                             <table className="w-full text-sm text-left">
                                                 <thead className="text-xs text-slate-400 uppercase bg-slate-900/50 border-b border-slate-700">
                                                     <tr>
-                                                        <th className="px-4 py-2">Organização</th>
-                                                        <th className="px-4 py-2 text-center">Total</th>
-                                                        <th className="px-4 py-2 text-center">Cadastrados</th>
-                                                        <th className="px-4 py-2 text-center">Pendentes</th>
-                                                        <th className="px-4 py-2">Status</th>
+                                                        <th className="px-4 py-3">Organização</th>
+                                                        <th className="px-4 py-3 text-center">Total</th>
+                                                        <th className="px-4 py-3 text-center">Cadastrados</th>
+                                                        <th className="px-4 py-3 text-center">Pendentes</th>
+                                                        <th className="px-4 py-3">Status</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-slate-700/50">
                                                     {sortedPendingStats.map(([orgId, stat]) => {
-                                                        if (stat.pending === 0) return null; // Mostra apenas quem tem pendências
+                                                        if (stat.pending === 0) return null; 
                                                         const percentComplete = Math.round(((stat.total - stat.pending) / stat.total) * 100);
                                                         
                                                         return (
                                                             <tr key={orgId} className="hover:bg-slate-800/30 transition-colors">
                                                                 <td className="px-4 py-3 font-bold text-white">{stat.name}</td>
                                                                 <td className="px-4 py-3 text-center text-slate-400">{stat.total}</td>
-                                                                <td className="px-4 py-3 text-center text-emerald-400 font-mono">{stat.total - stat.pending}</td>
-                                                                <td className="px-4 py-3 text-center text-yellow-400 font-mono font-bold">{stat.pending}</td>
+                                                                <td className="px-4 py-3 text-center text-emerald-400 font-mono text-base">{stat.total - stat.pending}</td>
+                                                                <td className="px-4 py-3 text-center text-yellow-400 font-mono font-bold text-base">{stat.pending}</td>
                                                                 <td className="px-4 py-3">
                                                                     <div className="flex items-center gap-2">
-                                                                        <div className="flex-1 bg-slate-700 h-1.5 rounded-full overflow-hidden">
+                                                                        <div className="flex-1 bg-slate-700 h-2 rounded-full overflow-hidden">
                                                                             <div 
                                                                                 className="h-full bg-emerald-500 rounded-full" 
                                                                                 style={{ width: `${percentComplete}%` }}
@@ -339,8 +338,8 @@ const SummaryPanel = ({ members }) => {
                                         </div>
                                         
                                         {/* Dica para resolver pendências */}
-                                        <div className="bg-yellow-900/20 p-3 rounded text-xs text-yellow-200/80 border border-yellow-700/30 flex items-start gap-2">
-                                            <HelpCircle size={16} className="shrink-0 mt-0.5" />
+                                        <div className="bg-yellow-900/20 p-4 rounded text-sm text-yellow-200/80 border border-yellow-700/30 flex items-start gap-2">
+                                            <HelpCircle size={18} className="shrink-0 mt-0.5" />
                                             <div>
                                                 <strong>Como resolver pendências:</strong> Para remover um membro desta lista, é necessário atualizar suas <strong>Maestrias</strong> no perfil. 
                                                 <br/>
@@ -403,11 +402,11 @@ const SummaryPanel = ({ members }) => {
                                 {/* Seção de Médias */}
                                 <div className="bg-slate-800/50 border border-slate-700 p-6 rounded-xl">
                                     <div className="flex justify-between items-center mb-6">
-                                        <h3 className="text-sm font-bold text-slate-300 flex items-center gap-2">
-                                            <TrendingUp size={16}/> Estatísticas Médias da Vila
+                                        <h3 className="text-base font-bold text-slate-300 flex items-center gap-2">
+                                            <TrendingUp size={18}/> Estatísticas Médias da Vila
                                         </h3>
-                                        <div className="flex items-center gap-2 text-[10px] text-slate-400 bg-slate-900 px-2 py-1 rounded border border-slate-700">
-                                            <Target size={12} className="text-cyan-400"/>
+                                        <div className="flex items-center gap-2 text-xs text-slate-400 bg-slate-900 px-2 py-1 rounded border border-slate-700">
+                                            <Target size={14} className="text-cyan-400"/>
                                             <span>Base: Nível 35+ ({stats.combat.countLevel35} ninjas)</span>
                                         </div>
                                     </div>
@@ -433,12 +432,12 @@ const SummaryPanel = ({ members }) => {
                                                             <div key={stat.key} className="space-y-1">
                                                                 <div className="flex justify-between text-xs font-bold text-slate-300">
                                                                     <div className="flex items-center gap-2">
-                                                                        <stat.icon size={12} className={stat.color}/>
+                                                                        <stat.icon size={14} className={stat.color}/>
                                                                         {stat.label}
                                                                     </div>
-                                                                    <span className="font-mono text-white">{value}</span>
+                                                                    <span className="font-mono text-white text-sm">{value}</span>
                                                                 </div>
-                                                                <div className="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden">
+                                                                <div className="w-full bg-slate-800 h-3 rounded-full overflow-hidden">
                                                                     <div 
                                                                         className={`h-full ${stat.barColor} rounded-full transition-all duration-1000 relative`} 
                                                                         style={{ width: `${percentage}%` }}
@@ -471,17 +470,17 @@ const SummaryPanel = ({ members }) => {
 
                                                         return (
                                                             <div key={stat.key} className="flex items-center gap-3">
-                                                                <div className="w-20 text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1.5">
-                                                                    <stat.icon size={10} className={stat.color}/>
+                                                                <div className="w-24 text-xs font-bold text-slate-400 uppercase flex items-center gap-1.5">
+                                                                    <stat.icon size={12} className={stat.color}/>
                                                                     {stat.label}
                                                                 </div>
-                                                                <div className="flex-1 bg-slate-800 h-2 rounded-full overflow-hidden">
+                                                                <div className="flex-1 bg-slate-800 h-2.5 rounded-full overflow-hidden">
                                                                     <div 
                                                                         className={`h-full ${stat.barColor} rounded-full transition-all duration-1000`} 
                                                                         style={{ width: `${percentage}%` }}
                                                                     ></div>
                                                                 </div>
-                                                                <div className="w-8 text-right font-mono font-bold text-white text-xs">
+                                                                <div className="w-8 text-right font-mono font-bold text-white text-sm">
                                                                     {value}
                                                                 </div>
                                                             </div>
@@ -492,7 +491,7 @@ const SummaryPanel = ({ members }) => {
                                         </div>
                                     ) : (
                                         <div className="text-center py-8 text-slate-500 italic bg-slate-900/20 rounded border border-dashed border-slate-700">
-                                            Dados insuficientes (Nenhum ninja acima do nível 35 encontrado).
+                                            Dados insuficientes (Nenhum ninja acima do nível 35 com atributos distribuídos).
                                         </div>
                                     )}
                                 </div>
@@ -504,8 +503,8 @@ const SummaryPanel = ({ members }) => {
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                                 {/* Distribuição Elementar (Estilo Barra Horizontal) */}
                                 <div className="bg-slate-800/50 border border-slate-700 p-6 rounded-xl">
-                                    <h3 className="text-sm font-bold text-slate-300 mb-6 flex items-center gap-2 w-full">
-                                        <PieChart size={16}/> Distribuição Elementar
+                                    <h3 className="text-base font-bold text-slate-300 mb-6 flex items-center gap-2 w-full">
+                                        <PieChart size={18}/> Distribuição Elementar
                                     </h3>
                                     
                                     <div className="space-y-4">
@@ -541,8 +540,8 @@ const SummaryPanel = ({ members }) => {
 
                                 {/* Lista de Combos */}
                                 <div className="bg-slate-800/50 border border-slate-700 p-6 rounded-xl">
-                                    <h3 className="text-sm font-bold text-slate-300 mb-4 flex items-center gap-2">
-                                        <Layers size={16}/> Combos Populares
+                                    <h3 className="text-base font-bold text-slate-300 mb-4 flex items-center gap-2">
+                                        <Layers size={18}/> Combos Populares
                                     </h3>
                                     <div className="space-y-2 max-h-[400px] overflow-y-auto scroll-custom pr-2">
                                         {sortedCombos.map(([combo, count], idx) => {
@@ -555,7 +554,7 @@ const SummaryPanel = ({ members }) => {
                                                             <span className="text-xs font-bold text-slate-500 w-5">#{idx + 1}</span>
                                                             <span className={`text-sm font-bold ${combo === 'Cadastro Incompleto' ? 'text-yellow-500' : 'text-white'}`}>{combo}</span>
                                                         </div>
-                                                        <span className="text-xs bg-slate-800 px-2 py-1 rounded text-cyan-400 font-mono font-bold">{count}</span>
+                                                        <span className="text-sm bg-slate-800 px-2 py-1 rounded text-cyan-400 font-mono font-bold">{count}</span>
                                                     </div>
                                                 </div>
                                             );
@@ -568,8 +567,8 @@ const SummaryPanel = ({ members }) => {
                         {/* === ABA ATIVIDADE === */}
                         {activeView === 'activity' && (
                             <div className="bg-slate-800/50 border border-slate-700 p-6 rounded-xl">
-                                <h3 className="text-sm font-bold text-slate-300 mb-4 flex items-center gap-2">
-                                    <Activity size={16}/> Saúde da Comunidade
+                                <h3 className="text-base font-bold text-slate-300 mb-4 flex items-center gap-2">
+                                    <Activity size={18}/> Saúde da Comunidade
                                 </h3>
                                 
                                 <div className="space-y-3">
@@ -586,16 +585,16 @@ const SummaryPanel = ({ members }) => {
                                             <div key={tier} className="flex flex-col">
                                                 <div 
                                                     onClick={(e) => toggleTierDetails(e, tier)}
-                                                    className={`group relative flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer hover:brightness-110 ${isSelected ? 'bg-slate-700 border-slate-500' : 'bg-slate-900/50 border-slate-700/50'}`}
+                                                    className={`group relative flex items-center justify-between p-4 rounded-lg border transition-all cursor-pointer hover:brightness-110 ${isSelected ? 'bg-slate-700 border-slate-500' : 'bg-slate-900/50 border-slate-700/50'}`}
                                                 >
                                                     <div className={`absolute inset-0 opacity-10 rounded-lg ${colorStyle.split(' ')[0]} transition-all duration-1000`} style={{ width: `${percentage}%` }}></div>
                                                     <div className="flex items-center gap-3 relative z-10">
                                                         <span className={`w-3 h-3 rounded-full ${colorStyle.split(' ')[0]} shadow-[0_0_8px_currentColor]`}></span>
-                                                        <span className="text-sm font-bold text-slate-200">{tier}</span>
+                                                        <span className="text-base font-bold text-slate-200">{tier}</span>
                                                     </div>
                                                     <div className="flex items-center gap-3 relative z-10">
-                                                        <span className="font-mono text-cyan-400 font-bold">{count}</span>
-                                                        {isSelected ? <ChevronUp size={16} className="text-slate-400"/> : <ChevronDown size={16} className="text-slate-600 group-hover:text-white"/>}
+                                                        <span className="font-mono text-cyan-400 font-bold text-lg">{count}</span>
+                                                        {isSelected ? <ChevronUp size={20} className="text-slate-400"/> : <ChevronDown size={20} className="text-slate-600 group-hover:text-white"/>}
                                                     </div>
                                                 </div>
 
@@ -604,16 +603,17 @@ const SummaryPanel = ({ members }) => {
                                                         {tierMembers.map((m, idx) => {
                                                             const orgInfo = ORG_CONFIG[m.org] || { name: m.org, color: 'text-slate-500' };
                                                             return (
-                                                                <div key={idx} className="bg-slate-800/50 p-2 rounded flex justify-between items-center text-xs border border-slate-700/50">
-                                                                    <div className="flex items-center gap-2">
-                                                                        <div className={`w-6 h-6 rounded bg-slate-700 flex items-center justify-center font-bold text-white uppercase text-[10px] ${orgInfo.color}`}>{m.name.charAt(0)}</div>
+                                                                <div key={idx} className="bg-slate-800/50 p-3 rounded flex justify-between items-center text-sm border border-slate-700/50 hover:bg-slate-800 transition-colors">
+                                                                    <div className="flex items-center gap-3">
+                                                                        <div className={`w-8 h-8 rounded bg-slate-700 flex items-center justify-center font-bold text-white uppercase text-sm ${orgInfo.color}`}>{m.name.charAt(0)}</div>
                                                                         <div>
-                                                                            <p className="font-bold text-white">{m.name}</p>
-                                                                            <p className="text-[10px] text-slate-400">{orgInfo.name} • {m.role} • Nvl. {m.level}</p>
+                                                                            <p className={`font-bold ${orgInfo.color.replace('text-', 'text-') || 'text-white'}`}>{m.name}</p>
+                                                                            <p className="text-xs text-slate-400">{orgInfo.name} • {m.role} • Nvl. {m.level}</p>
                                                                         </div>
                                                                     </div>
                                                                     <div className="text-right">
                                                                         <p className="text-cyan-400 font-bold">{Math.round(m.score)} pts</p>
+                                                                        <p className="text-xs text-slate-500">{m.msgs} msgs</p>
                                                                     </div>
                                                                 </div>
                                                             );
