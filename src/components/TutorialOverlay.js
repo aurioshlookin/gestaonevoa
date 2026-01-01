@@ -1,8 +1,15 @@
 import React from 'react';
-import { X, BookOpen, Info, Shield, Users, Activity } from 'lucide-react';
+// Removemos imports diretos de ícones para evitar conflitos
+// Usaremos o objeto Icons global que já está carregado
+import { Icons } from '../config/constants.js';
 
 const TutorialOverlay = ({ content, onClose }) => {
+    // Safety check: Se não tiver conteúdo, não renderiza nada (ou fecha)
     if (!content) return null;
+
+    // Fallback para ícones caso não estejam carregados
+    const BookIcon = (Icons && Icons.BookOpen) ? Icons.BookOpen : 'span';
+    const CloseIcon = (Icons && Icons.X) ? Icons.X : 'button';
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -19,12 +26,12 @@ const TutorialOverlay = ({ content, onClose }) => {
                 <div className="p-6 border-b border-slate-700 bg-slate-900/50 rounded-t-2xl flex justify-between items-start">
                     <div className="flex gap-4">
                         <div className="p-3 bg-cyan-900/30 rounded-xl border border-cyan-500/30 text-cyan-400 h-fit">
-                            <BookOpen size={32} />
+                            <BookIcon size={32} />
                         </div>
                         <div>
                             <h2 className="text-2xl font-bold text-white mb-1">Manual de Funções</h2>
                             <span className="inline-block bg-slate-700 text-cyan-300 text-xs font-bold px-2 py-1 rounded uppercase tracking-wider border border-slate-600">
-                                {content.roleName}
+                                {content.roleName || "Informações"}
                             </span>
                         </div>
                     </div>
@@ -33,7 +40,7 @@ const TutorialOverlay = ({ content, onClose }) => {
                         className="text-slate-400 hover:text-white transition-colors p-2 hover:bg-slate-700 rounded-lg"
                         title="Fechar Tutorial"
                     >
-                        <X size={24} />
+                        <CloseIcon size={24} />
                     </button>
                 </div>
 
@@ -41,9 +48,11 @@ const TutorialOverlay = ({ content, onClose }) => {
                 <div className="p-8 overflow-y-auto scroll-custom space-y-8">
                     
                     {/* Descrição Geral */}
-                    <div className="text-lg text-slate-300 leading-relaxed font-light border-l-4 border-cyan-500 pl-4">
-                        {content.description}
-                    </div>
+                    {content.description && (
+                        <div className="text-lg text-slate-300 leading-relaxed font-light border-l-4 border-cyan-500 pl-4">
+                            {content.description}
+                        </div>
+                    )}
 
                     {/* Seções */}
                     <div className="grid gap-6">
@@ -57,6 +66,11 @@ const TutorialOverlay = ({ content, onClose }) => {
                                 </p>
                             </div>
                         ))}
+                        
+                        {/* Fallback se não houver seções */}
+                        {(!content.sections || content.sections.length === 0) && (
+                            <p className="text-slate-500 italic">Nenhuma informação detalhada disponível para este cargo.</p>
+                        )}
                     </div>
 
                 </div>
