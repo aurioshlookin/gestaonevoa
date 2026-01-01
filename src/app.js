@@ -86,8 +86,8 @@ const App = () => {
     const [isCreating, setIsCreating] = useState(false);
     const [editingOrgId, setEditingOrgId] = useState(null);
 
-    // Estado do Tutorial (Corrigido para usar tutorialContent)
-    const [tutorialContent, setTutorialContent] = useState(null);
+    // Estado do Tutorial
+    const [tutorialSteps, setTutorialSteps] = useState(null);
 
     const hasLoggedAccess = useRef(false);
 
@@ -139,7 +139,7 @@ const App = () => {
 
     // --- SCROLL LOCK ---
     useEffect(() => {
-        const isModalOpen = selectedMember || isCreating || showSettings || deleteConfirmation || tutorialContent;
+        const isModalOpen = selectedMember || isCreating || showSettings || deleteConfirmation || tutorialSteps;
         if (isModalOpen) {
             document.body.style.setProperty('overflow', 'hidden', 'important');
             document.documentElement.style.setProperty('overflow', 'hidden', 'important');
@@ -151,7 +151,7 @@ const App = () => {
             document.body.style.removeProperty('overflow');
             document.documentElement.style.removeProperty('overflow');
         }
-    }, [selectedMember, isCreating, showSettings, deleteConfirmation, tutorialContent]);
+    }, [selectedMember, isCreating, showSettings, deleteConfirmation, tutorialSteps]);
 
     // --- LOGIN ---
     useEffect(() => { 
@@ -192,16 +192,16 @@ const App = () => {
         }
     };
 
-    // --- LÓGICA DE TUTORIAL (MODAL) ---
+    // --- LÓGICA DE TUTORIAL ---
     const startTutorial = () => {
         if (!effectiveUser || !isTutorialEnabled) return;
         
         let tutorialKey = 'visitor';
 
-        if (effectiveUser.id === accessConfig.creatorId || effectiveUser.roles.includes(accessConfig.kamiRoleId)) {
+        if (effectiveUser.id === accessConfig.creatorId || (effectiveUser.roles && effectiveUser.roles.includes(accessConfig.kamiRoleId))) {
             tutorialKey = 'mizukami';
         } 
-        else if (effectiveUser.roles.includes(accessConfig.councilRoleId)) {
+        else if (effectiveUser.roles && effectiveUser.roles.includes(accessConfig.councilRoleId)) {
             tutorialKey = 'council';
         } 
         else {
@@ -209,7 +209,7 @@ const App = () => {
             let isLeader = false;
 
             for (const [orgId, roleId] of Object.entries(leaderRoleConfig)) {
-                if (effectiveUser.roles.includes(roleId)) {
+                if (effectiveUser.roles && effectiveUser.roles.includes(roleId)) {
                     foundOrg = orgId;
                     isLeader = true;
                     break;
@@ -218,7 +218,7 @@ const App = () => {
             
             if (!foundOrg && !isLeader) {
                 for (const [orgId, roleId] of Object.entries(secLeaderRoleConfig)) {
-                    if (effectiveUser.roles.includes(roleId)) {
+                    if (effectiveUser.roles && effectiveUser.roles.includes(roleId)) {
                         foundOrg = orgId;
                         isLeader = true; 
                         break;
@@ -228,7 +228,7 @@ const App = () => {
 
             if (!foundOrg) {
                 for (const [orgId, roleId] of Object.entries(roleConfig)) {
-                    if (effectiveUser.roles.includes(roleId)) {
+                    if (effectiveUser.roles && effectiveUser.roles.includes(roleId)) {
                         foundOrg = orgId;
                         break;
                     }
@@ -244,11 +244,15 @@ const App = () => {
             }
         }
 
-        // CORREÇÃO: Usando setTutorialContent corretamente
-        setTutorialContent(TUTORIALS[tutorialKey] || TUTORIALS['visitor']);
+        setTutorialSteps(TUTORIALS[tutorialKey] || TUTORIALS['visitor']);
     };
 
-    // Auto-início
+    const handleTutorialStepChange = (step) => {
+        if (step.navigate) {
+            setActiveTab(step.navigate);
+        }
+    };
+
     useEffect(() => {
         if (effectiveUser && isTutorialEnabled && !sessionStorage.getItem('tutorial_seen')) {
             setTimeout(() => {
@@ -317,7 +321,8 @@ const App = () => {
         if (effectiveUser.id === accessConfig.creatorId) return true;
         if (accessConfig.vipIds && accessConfig.vipIds.includes(effectiveUser.id)) return true;
 
-        if (action === 'MANAGE_SETTINGS' || action === 'VIEW_HISTORY') return false;
+        if (action === 'MANAGE_SETTINGS') return false; 
+        if (action === 'VIEW_HISTORY') return false; // Mizukami tem acesso, mas checkPermission é para ações de edição. Visualização é tratada nas vars abaixo.
 
         const userRoles = effectiveUser.roles || [];
 
@@ -340,17 +345,11 @@ const App = () => {
 
     const canManageOrg = (orgId) => checkPermission('EDIT_MEMBER', orgId);
     
-    // Regras Estritas: Apenas o criador real (ou simulado como criador) vê esses botões
-    // Se o usuário real for o criador, ele sempre vê. 
-    // Se estiver simulando (effectiveUser.id é 'simulated-user-id'), ele NÃO vê, exceto se a simulação fosse do criador (o que não é o caso padrão).
-    // Para garantir que o Mizukami NÃO veja configurações, mantemos assim.
+    // Regras Estritas
     const isRealCreator = effectiveUser?.id === accessConfig.creatorId; 
-    const isMizukami = effectiveUser?.roles?.includes(accessConfig.kamiRoleId);
+    const isMizukami = effectiveUser?.roles && effectiveUser.roles.includes(accessConfig.kamiRoleId);
     
-    // Monitoramento: Criador + Mizukami
     const canViewHistory = isRealCreator || isMizukami; 
-    
-    // Configurações: Apenas Criador
     const canManageSettings = isRealCreator;
     
     const canAccessPanel = useMemo(() => {
@@ -376,17 +375,17 @@ const App = () => {
         let roles = [];
         if (effectiveUser.id === accessConfig.creatorId) roles.push("Criador");
         if (accessConfig.vipIds && accessConfig.vipIds.includes(effectiveUser.id)) roles.push("VIP");
-        if (effectiveUser.roles.includes(accessConfig.kamiRoleId)) roles.push("Mizukami");
-        if (effectiveUser.roles.includes(accessConfig.councilRoleId)) roles.push("Conselho");
-        if (effectiveUser.roles.includes(accessConfig.moderatorRoleId)) roles.push("Moderador");
+        if (effectiveUser.roles && effectiveUser.roles.includes(accessConfig.kamiRoleId)) roles.push("Mizukami");
+        if (effectiveUser.roles && effectiveUser.roles.includes(accessConfig.councilRoleId)) roles.push("Conselho");
+        if (effectiveUser.roles && effectiveUser.roles.includes(accessConfig.moderatorRoleId)) roles.push("Moderador");
         
         Object.entries(leaderRoleConfig).forEach(([orgId, roleId]) => { 
-            if (effectiveUser.roles.includes(roleId)) roles.push(`Líder ${ORG_CONFIG[orgId]?.name || ''}`); 
+            if (effectiveUser.roles && effectiveUser.roles.includes(roleId)) roles.push(`Líder ${ORG_CONFIG[orgId]?.name || ''}`); 
         });
         
         Object.entries(roleConfig).forEach(([orgId, roleId]) => {
-            const isLeader = leaderRoleConfig[orgId] && effectiveUser.roles.includes(leaderRoleConfig[orgId]);
-            if (effectiveUser.roles.includes(roleId) && !isLeader) {
+            const isLeader = leaderRoleConfig[orgId] && effectiveUser.roles && effectiveUser.roles.includes(leaderRoleConfig[orgId]);
+            if (effectiveUser.roles && effectiveUser.roles.includes(roleId) && !isLeader) {
                 roles.push(`Membro ${ORG_CONFIG[orgId]?.name || ''}`);
             }
         });
@@ -583,11 +582,11 @@ const App = () => {
         <ErrorBoundary>
             {SimulationBanner}
             
-            {/* Modal de Tutorial substituído pelo TutorialOverlay (versão Modal) */}
-            {tutorialContent && isTutorialEnabled && (
+            {tutorialSteps && isTutorialEnabled && (
                 <TutorialOverlay 
-                    content={tutorialContent} 
-                    onClose={() => setTutorialContent(null)} // CORREÇÃO AQUI
+                    steps={tutorialSteps} 
+                    onClose={() => setTutorialSteps(null)} 
+                    onStepChange={handleTutorialStepChange} 
                 />
             )}
 
