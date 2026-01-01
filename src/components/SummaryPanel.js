@@ -7,23 +7,23 @@ import {
 import { MASTERIES, ORG_CONFIG, Icons } from '../config/constants.js';
 import { getActivityStats, calculateStats } from '../utils/helpers.js';
 
-// Mapa de cores Hex para garantir visualização correta
+// Mapa de cores Hex atualizado para as Maestrias solicitadas
 const ELEMENT_COLORS = {
+    // Elementos Básicos
     'Fogo': '#ef4444',     // red-500
     'Água': '#3b82f6',     // blue-500
+    'Terra': '#d97706',    // amber-600 (Marrom/Terra)
     'Vento': '#22c55e',    // green-500
-    'Terra': '#a855f7',    // purple-500
     'Raio': '#eab308',     // yellow-500
-    'Relâmpago': '#eab308',
-    'Gelo': '#06b6d4',     // cyan-500
-    'Madeira': '#166534',  // green-800
-    'Cristal': '#ec4899',  // pink-500
-    'Vapor': '#94a3b8',    // slate-400
-    'Lava': '#ea580c',     // orange-600
-    'Areia': '#d97706',    // amber-600
-    'Yin': '#1e293b',      // slate-800
-    'Yang': '#f8fafc',     // slate-50
-    'Pendente': '#64748b'  // slate-500
+
+    // Especializações
+    'Médico': '#10b981',   // emerald-500 (Verde Cura)
+    'Taijutsu': '#f97316', // orange-500 (Laranja Energia Física)
+    'Arma': '#94a3b8',     // slate-400 (Cinza Metálico)
+    'Bolha': '#06b6d4',    // cyan-500 (Azul Claro/Bolha)
+
+    // Status
+    'Pendente': '#64748b'  // slate-500 (Cinza Escuro)
 };
 
 const SummaryPanel = ({ members }) => {
@@ -39,10 +39,14 @@ const SummaryPanel = ({ members }) => {
             membersByTier: {},
             ranks: {},
             pendingMastery: 0,
+            pendingList: [],
             totalMembers: members.length,
             totalLevel: 0,
+            level35PlusCount: 0,
+            level35PlusTotal: 0,
             newMembers: 0,
             orgActivity: {},
+            orgPendingStats: {},
             combat: {
                 maxHp: { value: 0, member: null },
                 maxCp: { value: 0, member: null },
@@ -57,6 +61,12 @@ const SummaryPanel = ({ members }) => {
         oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
         members.forEach(m => {
+            // Inicializa contador de org
+            if (!data.orgPendingStats[m.org]) {
+                data.orgPendingStats[m.org] = { total: 0, pending: 0, name: ORG_CONFIG[m.org]?.name || m.org };
+            }
+            data.orgPendingStats[m.org].total++;
+
             // 1. Maestrias & Combos
             if (m.masteries && m.masteries.length > 0) {
                 m.masteries.forEach(mast => {
@@ -67,6 +77,8 @@ const SummaryPanel = ({ members }) => {
             } else {
                 data.masteries['Pendente'] = (data.masteries['Pendente'] || 0) + 1;
                 data.pendingMastery += 1;
+                data.pendingList.push(m);
+                data.orgPendingStats[m.org].pending++;
             }
 
             // 2. Atividade
@@ -86,8 +98,15 @@ const SummaryPanel = ({ members }) => {
                 level: m.level || 1
             });
 
-            // 3. Patentes
-            data.totalLevel += parseInt(m.level || 1);
+            // 3. Patentes e Nível
+            const level = parseInt(m.level || 1);
+            data.totalLevel += level;
+            
+            if (level >= 35) {
+                data.level35PlusTotal += level;
+                data.level35PlusCount++;
+            }
+
             let rank = m.ninRank || 'Desconhecido';
             const rankKey = ['Kage', 'Sannin', 'Anbu', 'Jonin', 'Tokubetsu', 'Chunin', 'Genin', 'Estudante'].find(r => rank.toLowerCase().includes(r.toLowerCase())) || rank;
             data.ranks[rankKey] = (data.ranks[rankKey] || 0) + 1;
@@ -114,7 +133,7 @@ const SummaryPanel = ({ members }) => {
                 }
             });
 
-            if (parseInt(m.level || 1) >= 35) {
+            if (level >= 35) {
                 data.combat.countLevel35++;
                 data.combat.accumulators.Força += parseInt(mStats.Força || 5);
                 data.combat.accumulators.Fortitude += parseInt(mStats.Fortitude || 5);
@@ -143,18 +162,15 @@ const SummaryPanel = ({ members }) => {
     }, [members]);
 
     const topOrgName = stats.topOrg.id ? (ORG_CONFIG[stats.topOrg.id]?.name || stats.topOrg.id) : "-";
-    const avgLevel = stats.totalMembers > 0 ? Math.round(stats.totalLevel / stats.totalMembers) : 0;
+    
+    // Média de nível (35+)
+    const avgLevel = stats.level35PlusCount > 0 ? Math.round(stats.level35PlusTotal / stats.level35PlusCount) : 0;
+    
     const sortedMasteries = Object.entries(stats.masteries).sort((a, b) => b[1] - a[1]);
     const sortedCombos = Object.entries(stats.combos).sort((a, b) => b[1] - a[1]);
     
-    const rankOrder = ['Kage', 'Sannin', 'Anbu', 'Jonin', 'Tokubetsu', 'Chunin', 'Genin', 'Estudante'];
-    const sortedRanks = Object.entries(stats.ranks).sort((a, b) => {
-        const indexA = rankOrder.findIndex(r => a[0].includes(r));
-        const indexB = rankOrder.findIndex(r => b[0].includes(r));
-        const valA = indexA === -1 ? 99 : indexA;
-        const valB = indexB === -1 ? 99 : indexB;
-        return valA - valB;
-    });
+    const sortedPendingStats = Object.entries(stats.orgPendingStats)
+        .sort((a, b) => b[1].pending - a[1].pending);
 
     const activityColors = {
         'Lendário': 'bg-purple-500 text-purple-100 border-purple-500/30',
@@ -242,10 +258,11 @@ const SummaryPanel = ({ members }) => {
 
                                     <div className="bg-slate-800/80 border border-slate-700 p-4 rounded-xl shadow-lg">
                                         <div className="flex justify-between items-start mb-2">
-                                            <p className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Nível Médio</p>
+                                            <p className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Nível Médio (35+)</p>
                                             <TrendingUp size={16} className="text-emerald-400"/>
                                         </div>
                                         <p className="text-3xl font-bold text-white">{avgLevel}</p>
+                                        <p className="text-[10px] text-slate-500">Base: {stats.level35PlusCount} ninjas</p>
                                     </div>
 
                                     <div className="bg-slate-800/80 border border-slate-700 p-4 rounded-xl shadow-lg">
@@ -268,52 +285,53 @@ const SummaryPanel = ({ members }) => {
                                     </div>
                                 </div>
 
-                                {/* Distribuição de Patentes (Estilo Barra Horizontal) */}
-                                <div className="bg-slate-800/50 border border-slate-700 p-6 rounded-xl">
-                                    <h3 className="text-sm font-bold text-slate-300 mb-6 flex items-center gap-2">
-                                        <Medal size={16}/> Distribuição de Patentes
-                                    </h3>
-                                    {sortedRanks.length > 0 ? (
-                                        <div className="space-y-4">
-                                            {sortedRanks.map(([rank, count]) => {
-                                                const percentage = stats.totalMembers > 0 ? (count / stats.totalMembers) * 100 : 0;
-                                                
-                                                let barColor = 'bg-slate-600';
-                                                let textColor = 'text-slate-400';
-                                                
-                                                if (rank.includes('Kage')) { barColor = 'bg-red-600'; textColor = 'text-red-400'; }
-                                                else if (rank.includes('Sannin')) { barColor = 'bg-orange-600'; textColor = 'text-orange-400'; }
-                                                else if (rank.includes('Anbu')) { barColor = 'bg-purple-600'; textColor = 'text-purple-400'; }
-                                                else if (rank.includes('Jonin')) { barColor = 'bg-emerald-600'; textColor = 'text-emerald-400'; }
-                                                else if (rank.includes('Tokubetsu')) { barColor = 'bg-teal-600'; textColor = 'text-teal-400'; }
-                                                else if (rank.includes('Chunin')) { barColor = 'bg-blue-600'; textColor = 'text-blue-400'; }
-                                                else if (rank.includes('Genin')) { barColor = 'bg-cyan-600'; textColor = 'text-cyan-400'; }
-                                                else if (rank.includes('Estudante')) { barColor = 'bg-slate-500'; textColor = 'text-slate-400'; }
-
-                                                return (
-                                                    <div key={rank} className="flex items-center gap-4">
-                                                        <div className={`w-24 text-xs font-bold uppercase truncate text-right ${textColor}`} title={rank}>
-                                                            {rank.split(' ')[0]}
-                                                        </div>
-                                                        <div className="flex-1 bg-slate-900/50 h-3 rounded-full overflow-hidden relative">
-                                                            <div 
-                                                                className={`h-full ${barColor} rounded-full transition-all duration-1000 relative`} 
-                                                                style={{ width: `${percentage}%` }}
-                                                            >
-                                                                <div className="absolute inset-0 bg-white/10"></div>
-                                                            </div>
-                                                        </div>
-                                                        <div className="w-12 text-right font-mono font-bold text-white text-sm">
-                                                            {count}
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
+                                {/* Relatório de Pendências por Organização */}
+                                {stats.pendingMastery > 0 && (
+                                    <div className="bg-slate-800/50 border border-slate-700 p-6 rounded-xl">
+                                        <h3 className="text-sm font-bold text-yellow-400 mb-4 flex items-center gap-2">
+                                            <AlertCircle size={16}/> Pendências de Cadastro ({stats.pendingMastery})
+                                        </h3>
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-sm text-left">
+                                                <thead className="text-xs text-slate-400 uppercase bg-slate-900/50 border-b border-slate-700">
+                                                    <tr>
+                                                        <th className="px-4 py-2">Organização</th>
+                                                        <th className="px-4 py-2 text-center">Total</th>
+                                                        <th className="px-4 py-2 text-center">Cadastrados</th>
+                                                        <th className="px-4 py-2 text-center">Pendentes</th>
+                                                        <th className="px-4 py-2">Status</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-700/50">
+                                                    {sortedPendingStats.map(([orgId, stat]) => {
+                                                        if (stat.pending === 0) return null; // Mostra apenas quem tem pendências
+                                                        const percentComplete = Math.round(((stat.total - stat.pending) / stat.total) * 100);
+                                                        
+                                                        return (
+                                                            <tr key={orgId} className="hover:bg-slate-800/30 transition-colors">
+                                                                <td className="px-4 py-3 font-bold text-white">{stat.name}</td>
+                                                                <td className="px-4 py-3 text-center text-slate-400">{stat.total}</td>
+                                                                <td className="px-4 py-3 text-center text-emerald-400 font-mono">{stat.total - stat.pending}</td>
+                                                                <td className="px-4 py-3 text-center text-yellow-400 font-mono font-bold">{stat.pending}</td>
+                                                                <td className="px-4 py-3">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div className="flex-1 bg-slate-700 h-1.5 rounded-full overflow-hidden">
+                                                                            <div 
+                                                                                className="h-full bg-emerald-500 rounded-full" 
+                                                                                style={{ width: `${percentComplete}%` }}
+                                                                            ></div>
+                                                                        </div>
+                                                                        <span className="text-xs text-slate-500 w-8 text-right">{percentComplete}%</span>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                            </table>
                                         </div>
-                                    ) : (
-                                        <div className="text-center text-slate-500 py-4 italic">Nenhuma patente registrada.</div>
-                                    )}
-                                </div>
+                                    </div>
+                                )}
                             </div>
                         )}
 
@@ -474,7 +492,8 @@ const SummaryPanel = ({ members }) => {
                                     <div className="space-y-4">
                                         {sortedMasteries.map(([name, count]) => {
                                             const percentage = Math.round((count / stats.totalMembers) * 100);
-                                            const colorHex = ELEMENT_COLORS[name] || ELEMENT_COLORS['Pendente'];
+                                            // Fallback para cinza apenas se não encontrar a cor
+                                            const colorHex = ELEMENT_COLORS[name] || ELEMENT_COLORS[name.charAt(0).toUpperCase() + name.slice(1)] || ELEMENT_COLORS['Pendente'];
                                             
                                             return (
                                                 <div key={name} className="flex items-center gap-4">
