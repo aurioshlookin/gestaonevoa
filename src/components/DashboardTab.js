@@ -1,10 +1,16 @@
 import React from 'react';
 import { AlertTriangle, AlertCircle } from 'lucide-react';
 import { ORG_CONFIG, Icons } from '../config/constants.js';
+import SummaryPanel from './SummaryPanel.js'; // Importando o novo painel
 
 const DashboardTab = ({ members, roleConfig, multiOrgUsers, onTabChange }) => {
     return (
         <div className="animate-fade-in space-y-8">
+            
+            {/* PAINEL DE RESUMO E ESTATÍSTICAS (NOVO) */}
+            <SummaryPanel members={members} />
+
+            {/* ALERTAS DE CONFLITO */}
             {multiOrgUsers.length > 0 && (
                 <div className="bg-yellow-900/20 border border-yellow-600/30 rounded-xl p-6">
                     <h3 className="text-yellow-400 font-bold flex items-center gap-2 mb-4">
@@ -23,6 +29,7 @@ const DashboardTab = ({ members, roleConfig, multiOrgUsers, onTabChange }) => {
                 </div>
             )}
             
+            {/* CARDS DAS ORGANIZAÇÕES */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" id="dashboard-grid">
                 {Object.values(ORG_CONFIG).map((org) => {
                     const count = members.filter(m => m.org === org.id).length;
