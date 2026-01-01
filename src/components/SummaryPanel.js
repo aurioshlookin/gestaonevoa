@@ -7,7 +7,7 @@ import {
 import { MASTERIES, ORG_CONFIG, Icons } from '../config/constants.js';
 import { getActivityStats, calculateStats } from '../utils/helpers.js';
 
-// Mapa de cores Hex para garantir visualização correta nos gráficos
+// Mapa de cores Hex para garantir visualização correta
 const ELEMENT_COLORS = {
     'Fogo': '#ef4444',     // red-500
     'Água': '#3b82f6',     // blue-500
@@ -46,12 +46,9 @@ const SummaryPanel = ({ members }) => {
             combat: {
                 maxHp: { value: 0, member: null },
                 maxCp: { value: 0, member: null },
-                // Acumuladores para média
                 accumulators: { Força: 0, Fortitude: 0, Intelecto: 0, Agilidade: 0, Chakra: 0, HP: 0, CP: 0 },
-                // Médias Finais
                 avgStats: { Força: 0, Fortitude: 0, Intelecto: 0, Agilidade: 0, Chakra: 0, HP: 0, CP: 0 },
                 countLevel35: 0,
-                // Máximos individuais para escala do gráfico
                 maxValues: { Força: 1, Fortitude: 1, Intelecto: 1, Agilidade: 1, Chakra: 1, HP: 1, CP: 1 }
             }
         };
@@ -91,9 +88,7 @@ const SummaryPanel = ({ members }) => {
 
             // 3. Patentes
             data.totalLevel += parseInt(m.level || 1);
-            // Normaliza Rank para Capitalize (ex: "jonin" -> "Jonin")
             let rank = m.ninRank || 'Desconhecido';
-            // Tenta achar uma chave que contenha o texto do rank
             const rankKey = ['Kage', 'Sannin', 'Anbu', 'Jonin', 'Tokubetsu', 'Chunin', 'Genin', 'Estudante'].find(r => rank.toLowerCase().includes(r.toLowerCase())) || rank;
             data.ranks[rankKey] = (data.ranks[rankKey] || 0) + 1;
             
@@ -106,13 +101,11 @@ const SummaryPanel = ({ members }) => {
 
             // 5. Combate
             const mStats = m.stats || { Força: 5, Fortitude: 5, Intelecto: 5, Agilidade: 5, Chakra: 5 };
-            const derived = calculateStats(mStats, m.guildBonus); // Retorna { hp, cp, ... }
+            const derived = calculateStats(mStats, m.guildBonus);
 
-            // Recordistas Absolutos
             if (derived.hp > data.combat.maxHp.value) data.combat.maxHp = { value: derived.hp, member: m };
             if (derived.cp > data.combat.maxCp.value) data.combat.maxCp = { value: derived.cp, member: m };
 
-            // Atualiza máximos globais para escala
             data.combat.maxValues.HP = Math.max(data.combat.maxValues.HP, derived.hp);
             data.combat.maxValues.CP = Math.max(data.combat.maxValues.CP, derived.cp);
             Object.keys(mStats).forEach(key => {
@@ -121,7 +114,6 @@ const SummaryPanel = ({ members }) => {
                 }
             });
 
-            // Média (Nível 35+)
             if (parseInt(m.level || 1) >= 35) {
                 data.combat.countLevel35++;
                 data.combat.accumulators.Força += parseInt(mStats.Força || 5);
@@ -134,14 +126,12 @@ const SummaryPanel = ({ members }) => {
             }
         });
 
-        // Finaliza Médias
         if (data.combat.countLevel35 > 0) {
             Object.keys(data.combat.avgStats).forEach(k => {
                 data.combat.avgStats[k] = Math.round(data.combat.accumulators[k] / data.combat.countLevel35);
             });
         }
 
-        // Top Org
         let bestOrg = { id: null, avg: 0 };
         Object.entries(data.orgActivity).forEach(([orgId, info]) => {
             const avg = info.total / info.count;
@@ -157,7 +147,6 @@ const SummaryPanel = ({ members }) => {
     const sortedMasteries = Object.entries(stats.masteries).sort((a, b) => b[1] - a[1]);
     const sortedCombos = Object.entries(stats.combos).sort((a, b) => b[1] - a[1]);
     
-    // Ordenação de Patentes
     const rankOrder = ['Kage', 'Sannin', 'Anbu', 'Jonin', 'Tokubetsu', 'Chunin', 'Genin', 'Estudante'];
     const sortedRanks = Object.entries(stats.ranks).sort((a, b) => {
         const indexA = rankOrder.findIndex(r => a[0].includes(r));
@@ -192,31 +181,6 @@ const SummaryPanel = ({ members }) => {
             <Icon size={16} /> {label}
         </button>
     );
-
-    // Gráfico de Pizza com Cores Hex (Renderização via CSS Conic Gradient)
-    const PieChartVisual = ({ data, total }) => {
-        if (total === 0) return <div className="w-32 h-32 rounded-full bg-slate-700"></div>;
-
-        let currentAngle = 0;
-        const gradients = data.map(([key, value]) => {
-            const angle = (value / total) * 360;
-            const color = ELEMENT_COLORS[key] || ELEMENT_COLORS['Pendente']; 
-            const segment = `${color} ${currentAngle}deg ${currentAngle + angle}deg`;
-            currentAngle += angle;
-            return segment;
-        });
-
-        return (
-            <div 
-                className="w-32 h-32 rounded-full relative shadow-xl border-4 border-slate-800/50"
-                style={{ background: `conic-gradient(${gradients.join(', ')})` }}
-            >
-                <div className="absolute inset-4 bg-slate-800 rounded-full flex items-center justify-center">
-                    <span className="text-xs font-bold text-slate-400 text-center">Total<br/><span className="text-white text-lg">{total}</span></span>
-                </div>
-            </div>
-        );
-    };
 
     return (
         <div className={`glass-panel rounded-xl transition-all duration-300 mb-8 ${isExpanded ? 'border-cyan-500/50 shadow-lg shadow-cyan-500/10' : 'border-slate-700 hover:border-slate-600'}`}>
@@ -268,74 +232,79 @@ const SummaryPanel = ({ members }) => {
                             <div className="space-y-6">
                                 {/* KPIs Principais */}
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                    <div className="bg-slate-800/80 border border-slate-700 p-4 rounded-xl shadow-lg relative overflow-hidden group">
-                                        <div className="flex justify-between items-start mb-2 relative z-10">
+                                    <div className="bg-slate-800/80 border border-slate-700 p-4 rounded-xl shadow-lg">
+                                        <div className="flex justify-between items-start mb-2">
                                             <p className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Efetivo Total</p>
                                             <Users size={16} className="text-blue-400"/>
                                         </div>
-                                        <p className="text-3xl font-bold text-white relative z-10">{stats.totalMembers}</p>
+                                        <p className="text-3xl font-bold text-white">{stats.totalMembers}</p>
                                     </div>
 
-                                    <div className="bg-slate-800/80 border border-slate-700 p-4 rounded-xl shadow-lg relative overflow-hidden group">
-                                        <div className="flex justify-between items-start mb-2 relative z-10">
+                                    <div className="bg-slate-800/80 border border-slate-700 p-4 rounded-xl shadow-lg">
+                                        <div className="flex justify-between items-start mb-2">
                                             <p className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Nível Médio</p>
                                             <TrendingUp size={16} className="text-emerald-400"/>
                                         </div>
-                                        <p className="text-3xl font-bold text-white relative z-10">{avgLevel}</p>
+                                        <p className="text-3xl font-bold text-white">{avgLevel}</p>
                                     </div>
 
-                                    <div className="bg-slate-800/80 border border-slate-700 p-4 rounded-xl shadow-lg relative overflow-hidden group">
-                                        <div className="flex justify-between items-start mb-2 relative z-10">
+                                    <div className="bg-slate-800/80 border border-slate-700 p-4 rounded-xl shadow-lg">
+                                        <div className="flex justify-between items-start mb-2">
                                             <p className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Recrutas (7d)</p>
                                             <UserPlus size={16} className="text-cyan-400"/>
                                         </div>
-                                        <p className="text-3xl font-bold text-white relative z-10">{stats.newMembers}</p>
+                                        <p className="text-3xl font-bold text-white">{stats.newMembers}</p>
                                     </div>
 
-                                    <div className="bg-slate-800/80 border border-slate-700 p-4 rounded-xl shadow-lg relative overflow-hidden group">
-                                        <div className="flex justify-between items-start mb-2 relative z-10">
+                                    <div className="bg-slate-800/80 border border-slate-700 p-4 rounded-xl shadow-lg">
+                                        <div className="flex justify-between items-start mb-2">
                                             <p className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Org. Destaque</p>
                                             <Crown size={16} className="text-yellow-400"/>
                                         </div>
-                                        <div className="flex flex-col relative z-10">
+                                        <div className="flex flex-col">
                                             <p className="text-lg font-bold text-white truncate" title={topOrgName}>{topOrgName}</p>
                                             <p className="text-[10px] text-slate-500">Média: <span className="text-yellow-400 font-bold">{stats.topOrg.avg} pts</span></p>
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* Gráfico de Colunas: Distribuição de Patentes */}
+                                {/* Distribuição de Patentes (Estilo Barra Horizontal) */}
                                 <div className="bg-slate-800/50 border border-slate-700 p-6 rounded-xl">
                                     <h3 className="text-sm font-bold text-slate-300 mb-6 flex items-center gap-2">
                                         <Medal size={16}/> Distribuição de Patentes
                                     </h3>
                                     {sortedRanks.length > 0 ? (
-                                        <div className="flex items-end gap-2 h-40 pt-4 px-2">
+                                        <div className="space-y-4">
                                             {sortedRanks.map(([rank, count]) => {
                                                 const percentage = stats.totalMembers > 0 ? (count / stats.totalMembers) * 100 : 0;
-                                                const height = Math.max(percentage, 5); // Altura mínima visual
                                                 
-                                                // Cores manuais para o gráfico de barras
                                                 let barColor = 'bg-slate-600';
-                                                if (rank.includes('Kage')) barColor = 'bg-red-600';
-                                                else if (rank.includes('Sannin')) barColor = 'bg-orange-600';
-                                                else if (rank.includes('Anbu')) barColor = 'bg-purple-600';
-                                                else if (rank.includes('Jonin')) barColor = 'bg-emerald-600';
-                                                else if (rank.includes('Tokubetsu')) barColor = 'bg-teal-600';
-                                                else if (rank.includes('Chunin')) barColor = 'bg-blue-600';
-                                                else if (rank.includes('Genin')) barColor = 'bg-cyan-600';
-                                                else if (rank.includes('Estudante')) barColor = 'bg-slate-500';
+                                                let textColor = 'text-slate-400';
+                                                
+                                                if (rank.includes('Kage')) { barColor = 'bg-red-600'; textColor = 'text-red-400'; }
+                                                else if (rank.includes('Sannin')) { barColor = 'bg-orange-600'; textColor = 'text-orange-400'; }
+                                                else if (rank.includes('Anbu')) { barColor = 'bg-purple-600'; textColor = 'text-purple-400'; }
+                                                else if (rank.includes('Jonin')) { barColor = 'bg-emerald-600'; textColor = 'text-emerald-400'; }
+                                                else if (rank.includes('Tokubetsu')) { barColor = 'bg-teal-600'; textColor = 'text-teal-400'; }
+                                                else if (rank.includes('Chunin')) { barColor = 'bg-blue-600'; textColor = 'text-blue-400'; }
+                                                else if (rank.includes('Genin')) { barColor = 'bg-cyan-600'; textColor = 'text-cyan-400'; }
+                                                else if (rank.includes('Estudante')) { barColor = 'bg-slate-500'; textColor = 'text-slate-400'; }
 
                                                 return (
-                                                    <div key={rank} className="flex-1 flex flex-col items-center group relative h-full justify-end">
-                                                        {/* Tooltip */}
-                                                        <div className="absolute bottom-full mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 text-xs px-2 py-1 rounded border border-slate-700 pointer-events-none whitespace-nowrap z-20 shadow-lg">
-                                                            {rank}: {count} ({Math.round(percentage)}%)
+                                                    <div key={rank} className="flex items-center gap-4">
+                                                        <div className={`w-24 text-xs font-bold uppercase truncate text-right ${textColor}`} title={rank}>
+                                                            {rank.split(' ')[0]}
                                                         </div>
-                                                        <span className="text-[10px] font-bold text-white mb-1">{count}</span>
-                                                        <div className={`w-full rounded-t ${barColor} hover:brightness-110 transition-all`} style={{ height: `${height}%` }}></div>
-                                                        <div className="h-6 flex items-center justify-center w-full mt-1">
-                                                            <span className="text-[9px] text-slate-400 font-bold truncate w-full text-center uppercase tracking-tighter" title={rank}>{rank.split(' ')[0]}</span>
+                                                        <div className="flex-1 bg-slate-900/50 h-3 rounded-full overflow-hidden relative">
+                                                            <div 
+                                                                className={`h-full ${barColor} rounded-full transition-all duration-1000 relative`} 
+                                                                style={{ width: `${percentage}%` }}
+                                                            >
+                                                                <div className="absolute inset-0 bg-white/10"></div>
+                                                            </div>
+                                                        </div>
+                                                        <div className="w-12 text-right font-mono font-bold text-white text-sm">
+                                                            {count}
                                                         </div>
                                                     </div>
                                                 );
@@ -496,29 +465,39 @@ const SummaryPanel = ({ members }) => {
                         {/* === ABA MAESTRIAS === */}
                         {activeView === 'masteries' && (
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                {/* Gráfico de Pizza */}
-                                <div className="bg-slate-800/50 border border-slate-700 p-6 rounded-xl flex flex-col items-center justify-center">
+                                {/* Distribuição Elementar (Estilo Barra Horizontal) */}
+                                <div className="bg-slate-800/50 border border-slate-700 p-6 rounded-xl">
                                     <h3 className="text-sm font-bold text-slate-300 mb-6 flex items-center gap-2 w-full">
                                         <PieChart size={16}/> Distribuição Elementar
                                     </h3>
                                     
-                                    <div className="flex flex-col md:flex-row items-center gap-8">
-                                        <PieChartVisual data={sortedMasteries} total={stats.totalMembers} />
-                                        
-                                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
-                                            {sortedMasteries.slice(0, 8).map(([name, count]) => {
-                                                const percentage = Math.round((count / stats.totalMembers) * 100);
-                                                const colorHex = ELEMENT_COLORS[name] || ELEMENT_COLORS['Pendente'];
-                                                
-                                                return (
-                                                    <div key={name} className="flex items-center gap-2">
-                                                        <span className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: colorHex }}></span>
-                                                        <span className="text-slate-300 font-bold">{name}</span>
-                                                        <span className="text-slate-500">({percentage}%)</span>
+                                    <div className="space-y-4">
+                                        {sortedMasteries.map(([name, count]) => {
+                                            const percentage = Math.round((count / stats.totalMembers) * 100);
+                                            const colorHex = ELEMENT_COLORS[name] || ELEMENT_COLORS['Pendente'];
+                                            
+                                            return (
+                                                <div key={name} className="flex items-center gap-4">
+                                                    <div className="w-24 text-xs font-bold text-slate-400 uppercase truncate text-right flex items-center justify-end gap-2">
+                                                        {name}
                                                     </div>
-                                                );
-                                            })}
-                                        </div>
+                                                    <div className="flex-1 bg-slate-900/50 h-3 rounded-full overflow-hidden relative">
+                                                        <div 
+                                                            className="h-full rounded-full transition-all duration-1000 relative" 
+                                                            style={{ 
+                                                                width: `${percentage}%`,
+                                                                backgroundColor: colorHex
+                                                            }}
+                                                        >
+                                                            <div className="absolute inset-0 bg-white/10"></div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="w-16 text-right font-mono font-bold text-white text-sm">
+                                                        {count} <span className="text-xs text-slate-500">({percentage}%)</span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 </div>
 
@@ -527,7 +506,7 @@ const SummaryPanel = ({ members }) => {
                                     <h3 className="text-sm font-bold text-slate-300 mb-4 flex items-center gap-2">
                                         <Layers size={16}/> Combos Populares
                                     </h3>
-                                    <div className="space-y-2 max-h-[300px] overflow-y-auto scroll-custom pr-2">
+                                    <div className="space-y-2 max-h-[400px] overflow-y-auto scroll-custom pr-2">
                                         {sortedCombos.map(([combo, count], idx) => {
                                             const percent = Math.round((count / stats.totalMembers) * 100);
                                             return (
