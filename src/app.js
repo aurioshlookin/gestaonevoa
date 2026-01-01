@@ -86,7 +86,7 @@ const App = () => {
     const [isCreating, setIsCreating] = useState(false);
     const [editingOrgId, setEditingOrgId] = useState(null);
 
-    // Estado do Tutorial (Agora guarda o objeto de conteúdo, não passos)
+    // Estado do Tutorial (Corrigido para usar tutorialContent)
     const [tutorialContent, setTutorialContent] = useState(null);
 
     const hasLoggedAccess = useRef(false);
@@ -244,6 +244,7 @@ const App = () => {
             }
         }
 
+        // CORREÇÃO: Usando setTutorialContent corretamente
         setTutorialContent(TUTORIALS[tutorialKey] || TUTORIALS['visitor']);
     };
 
@@ -339,10 +340,17 @@ const App = () => {
 
     const canManageOrg = (orgId) => checkPermission('EDIT_MEMBER', orgId);
     
+    // Regras Estritas: Apenas o criador real (ou simulado como criador) vê esses botões
+    // Se o usuário real for o criador, ele sempre vê. 
+    // Se estiver simulando (effectiveUser.id é 'simulated-user-id'), ele NÃO vê, exceto se a simulação fosse do criador (o que não é o caso padrão).
+    // Para garantir que o Mizukami NÃO veja configurações, mantemos assim.
     const isRealCreator = effectiveUser?.id === accessConfig.creatorId; 
     const isMizukami = effectiveUser?.roles?.includes(accessConfig.kamiRoleId);
     
+    // Monitoramento: Criador + Mizukami
     const canViewHistory = isRealCreator || isMizukami; 
+    
+    // Configurações: Apenas Criador
     const canManageSettings = isRealCreator;
     
     const canAccessPanel = useMemo(() => {
@@ -387,6 +395,7 @@ const App = () => {
         return roles.join(" & ");
     }, [effectiveUser, accessConfig, leaderRoleConfig, roleConfig]);
 
+    // --- HELPERS E ACTIONS ---
     const showNotification = (msg, type) => { setNotification({ msg, type }); setTimeout(() => setNotification(null), 3000); };
     
     const multiOrgUsers = useMemo(() => {
@@ -578,7 +587,7 @@ const App = () => {
             {tutorialContent && isTutorialEnabled && (
                 <TutorialOverlay 
                     content={tutorialContent} 
-                    onClose={() => setTutorialSteps(null)} // Mudou para setTutorialContent internamente, mas aqui pode ser a mesma função de estado se a lógica de render mudou
+                    onClose={() => setTutorialContent(null)} // CORREÇÃO AQUI
                 />
             )}
 
