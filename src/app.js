@@ -86,8 +86,8 @@ const App = () => {
     const [isCreating, setIsCreating] = useState(false);
     const [editingOrgId, setEditingOrgId] = useState(null);
 
-    // Estado do Tutorial
-    const [tutorialSteps, setTutorialSteps] = useState(null);
+    // Estado do Tutorial (Agora guarda o objeto de conteúdo, não passos)
+    const [tutorialContent, setTutorialContent] = useState(null);
 
     const hasLoggedAccess = useRef(false);
 
@@ -139,7 +139,7 @@ const App = () => {
 
     // --- SCROLL LOCK ---
     useEffect(() => {
-        const isModalOpen = selectedMember || isCreating || showSettings || deleteConfirmation;
+        const isModalOpen = selectedMember || isCreating || showSettings || deleteConfirmation || tutorialContent;
         if (isModalOpen) {
             document.body.style.setProperty('overflow', 'hidden', 'important');
             document.documentElement.style.setProperty('overflow', 'hidden', 'important');
@@ -151,7 +151,7 @@ const App = () => {
             document.body.style.removeProperty('overflow');
             document.documentElement.style.removeProperty('overflow');
         }
-    }, [selectedMember, isCreating, showSettings, deleteConfirmation]);
+    }, [selectedMember, isCreating, showSettings, deleteConfirmation, tutorialContent]);
 
     // --- LOGIN ---
     useEffect(() => { 
@@ -192,7 +192,7 @@ const App = () => {
         }
     };
 
-    // --- LÓGICA DE TUTORIAL ---
+    // --- LÓGICA DE TUTORIAL (MODAL) ---
     const startTutorial = () => {
         if (!effectiveUser || !isTutorialEnabled) return;
         
@@ -237,18 +237,17 @@ const App = () => {
 
             if (foundOrg) {
                 tutorialKey = `${isLeader ? 'leader' : 'member'}_${foundOrg}`;
+                // Fallback para líder/membro genérico se o específico não existir
+                if (!TUTORIALS[tutorialKey]) {
+                    tutorialKey = isLeader ? 'leader' : 'member';
+                }
             }
         }
 
-        setTutorialSteps(TUTORIALS[tutorialKey] || TUTORIALS['visitor']);
+        setTutorialContent(TUTORIALS[tutorialKey] || TUTORIALS['visitor']);
     };
 
-    const handleTutorialStepChange = (step) => {
-        if (step.navigate) {
-            setActiveTab(step.navigate);
-        }
-    };
-
+    // Auto-início
     useEffect(() => {
         if (effectiveUser && isTutorialEnabled && !sessionStorage.getItem('tutorial_seen')) {
             setTimeout(() => {
@@ -575,11 +574,11 @@ const App = () => {
         <ErrorBoundary>
             {SimulationBanner}
             
-            {tutorialSteps && isTutorialEnabled && (
+            {/* Modal de Tutorial substituído pelo TutorialOverlay (versão Modal) */}
+            {tutorialContent && isTutorialEnabled && (
                 <TutorialOverlay 
-                    steps={tutorialSteps} 
-                    onClose={() => setTutorialSteps(null)} 
-                    onStepChange={handleTutorialStepChange} 
+                    content={tutorialContent} 
+                    onClose={() => setTutorialSteps(null)} // Mudou para setTutorialContent internamente, mas aqui pode ser a mesma função de estado se a lógica de render mudou
                 />
             )}
 
