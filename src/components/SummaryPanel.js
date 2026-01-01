@@ -2,14 +2,14 @@ import React, { useMemo, useState } from 'react';
 import { 
     BarChart3, PieChart, Zap, Activity, Users, Layers, Award, AlertCircle, 
     ChevronRight, TrendingUp, UserPlus, Crown, ChevronDown, ChevronUp, Info, 
-    Flame, Swords
+    Flame, Swords, Heart, Dumbbell, Brain, Wind, ShieldCheck
 } from 'lucide-react';
 import { MASTERIES, ORG_CONFIG, Icons } from '../config/constants.js';
-import { getActivityStats } from '../utils/helpers.js';
+import { getActivityStats, calculateStats } from '../utils/helpers.js';
 
 const SummaryPanel = ({ members }) => {
     const [isExpanded, setIsExpanded] = useState(false);
-    const [activeView, setActiveView] = useState('general'); // 'general', 'masteries', 'activity'
+    const [activeView, setActiveView] = useState('general'); // 'general', 'masteries', 'activity', 'combat'
     const [selectedActivityTier, setSelectedActivityTier] = useState(null);
 
     const stats = useMemo(() => {
@@ -22,7 +22,12 @@ const SummaryPanel = ({ members }) => {
             totalMembers: members.length,
             totalLevel: 0,
             newMembers: 0, // Últimos 7 dias
-            orgActivity: {}
+            orgActivity: {},
+            combat: {
+                maxHp: { value: 0, member: null },
+                maxCp: { value: 0, member: null },
+                avgStats: { Força: 0, Fortitude: 0, Intelecto: 0, Agilidade: 0, Chakra: 0 }
+            }
         };
 
         const oneWeekAgo = new Date();
@@ -31,11 +36,9 @@ const SummaryPanel = ({ members }) => {
         members.forEach(m => {
             // 1. Maestrias & Combos
             if (m.masteries && m.masteries.length > 0) {
-                // Contagem Individual
                 m.masteries.forEach(mast => {
                     data.masteries[mast] = (data.masteries[mast] || 0) + 1;
                 });
-                // Contagem de Combo (Combinação exata)
                 const comboKey = m.masteries.slice().sort().join(' + ');
                 data.combos[comboKey] = (data.combos[comboKey] || 0) + 1;
             } else {
@@ -72,7 +75,27 @@ const SummaryPanel = ({ members }) => {
             if (!data.orgActivity[m.org]) data.orgActivity[m.org] = { total: 0, count: 0 };
             data.orgActivity[m.org].total += activityInfo.total;
             data.orgActivity[m.org].count += 1;
+
+            // 5. Combate e Atributos
+            const mStats = m.stats || { Força: 5, Fortitude: 5, Intelecto: 5, Agilidade: 5, Chakra: 5 };
+            const derived = calculateStats(mStats, m.guildBonus);
+
+            if (derived.hp > data.combat.maxHp.value) data.combat.maxHp = { value: derived.hp, member: m };
+            if (derived.cp > data.combat.maxCp.value) data.combat.maxCp = { value: derived.cp, member: m };
+
+            data.combat.avgStats.Força += mStats.Força || 5;
+            data.combat.avgStats.Fortitude += mStats.Fortitude || 5;
+            data.combat.avgStats.Intelecto += mStats.Intelecto || 5;
+            data.combat.avgStats.Agilidade += mStats.Agilidade || 5;
+            data.combat.avgStats.Chakra += mStats.Chakra || 5;
         });
+
+        // Médias
+        if (data.totalMembers > 0) {
+            Object.keys(data.combat.avgStats).forEach(k => {
+                data.combat.avgStats[k] = Math.round(data.combat.avgStats[k] / data.totalMembers);
+            });
+        }
 
         // Calcula Top Org
         let bestOrg = { id: null, avg: 0 };
@@ -171,6 +194,7 @@ const SummaryPanel = ({ members }) => {
                     {/* BARRA DE NAVEGAÇÃO (ABAS) */}
                     <div className="flex flex-wrap gap-2 mb-6">
                         <TabButton id="general" label="Geral" icon={Info} />
+                        <TabButton id="combat" label="Status & Combate" icon={Swords} />
                         <TabButton id="masteries" label="Maestrias" icon={Zap} />
                         <TabButton id="activity" label="Atividade" icon={Activity} />
                     </div>
@@ -216,6 +240,78 @@ const SummaryPanel = ({ members }) => {
                                     <div className="flex flex-col">
                                         <p className="text-lg font-bold text-white truncate" title={topOrgName}>{topOrgName}</p>
                                         <p className="text-[10px] text-slate-500">Média: {stats.topOrg.avg} pts</p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* === ABA COMBATE === */}
+                        {activeView === 'combat' && (
+                            <div className="space-y-6">
+                                {/* Destaques Individuais */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {/* Maior HP */}
+                                    <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl flex items-center gap-4 relative overflow-hidden">
+                                        <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-red-500/10 to-transparent pointer-events-none"></div>
+                                        <div className="p-4 bg-red-900/30 rounded-full border border-red-500/30 text-red-500">
+                                            <Heart size={32} fill="currentColor" className="animate-pulse" />
+                                        </div>
+                                        <div>
+                                            <p className="text-xs text-red-400 font-bold uppercase tracking-wider mb-1">Titã da Vitalidade (Maior HP)</p>
+                                            {stats.combat.maxHp.member ? (
+                                                <>
+                                                    <p className="text-2xl font-bold text-white">{stats.combat.maxHp.member.rpName || stats.combat.maxHp.member.name}</p>
+                                                    <p className="text-sm text-slate-400 font-mono">
+                                                        <span className="text-red-400 font-bold">{stats.combat.maxHp.value} HP</span> 
+                                                        <span className="mx-2">•</span> 
+                                                        {ORG_CONFIG[stats.combat.maxHp.member.org]?.name}
+                                                    </p>
+                                                </>
+                                            ) : <p className="text-slate-500 italic">Nenhum dado.</p>}
+                                        </div>
+                                    </div>
+
+                                    {/* Maior Chakra */}
+                                    <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl flex items-center gap-4 relative overflow-hidden">
+                                        <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-blue-500/10 to-transparent pointer-events-none"></div>
+                                        <div className="p-4 bg-blue-900/30 rounded-full border border-blue-500/30 text-blue-500">
+                                            <Zap size={32} fill="currentColor" className="animate-[pulse_2s_infinite]" />
+                                        </div>
+                                        <div>
+                                            <p className="text-xs text-blue-400 font-bold uppercase tracking-wider mb-1">Mestre de Chakra (Maior CP)</p>
+                                            {stats.combat.maxCp.member ? (
+                                                <>
+                                                    <p className="text-2xl font-bold text-white">{stats.combat.maxCp.member.rpName || stats.combat.maxCp.member.name}</p>
+                                                    <p className="text-sm text-slate-400 font-mono">
+                                                        <span className="text-blue-400 font-bold">{stats.combat.maxCp.value} CP</span> 
+                                                        <span className="mx-2">•</span> 
+                                                        {ORG_CONFIG[stats.combat.maxCp.member.org]?.name}
+                                                    </p>
+                                                </>
+                                            ) : <p className="text-slate-500 italic">Nenhum dado.</p>}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Média de Atributos da Vila */}
+                                <div className="bg-slate-800/50 border border-slate-700 p-6 rounded-xl">
+                                    <h3 className="text-sm font-bold text-slate-300 mb-6 flex items-center gap-2">
+                                        <TrendingUp size={16}/> Média de Atributos da Vila
+                                    </h3>
+                                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                                        {[
+                                            { label: 'Força', icon: Dumbbell, color: 'text-orange-400', key: 'Força' },
+                                            { label: 'Agilidade', icon: Wind, color: 'text-cyan-400', key: 'Agilidade' },
+                                            { label: 'Fortitude', icon: ShieldCheck, color: 'text-green-400', key: 'Fortitude' },
+                                            { label: 'Intelecto', icon: Brain, color: 'text-purple-400', key: 'Intelecto' },
+                                            { label: 'Chakra', icon: Zap, color: 'text-blue-400', key: 'Chakra' }
+                                        ].map(stat => (
+                                            <div key={stat.key} className="bg-slate-900/50 p-4 rounded-lg border border-slate-700/50 flex flex-col items-center text-center hover:bg-slate-800 transition-colors">
+                                                <stat.icon size={20} className={`${stat.color} mb-2`}/>
+                                                <span className="text-2xl font-bold text-white mb-1">{stats.combat.avgStats[stat.key]}</span>
+                                                <span className="text-[10px] text-slate-500 uppercase tracking-wider">{stat.label}</span>
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
                             </div>
