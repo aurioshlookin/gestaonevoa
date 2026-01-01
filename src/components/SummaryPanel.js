@@ -492,7 +492,7 @@ const SummaryPanel = ({ members }) => {
                                                             </div>
                                                         );
                                                     })}
-                                                </tbody>
+                                                </div>
                                             </div>
 
                                             {/* Coluna 2: Atributos Base */}
