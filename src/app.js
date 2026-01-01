@@ -436,7 +436,6 @@ const App = () => {
                 if (selectedMember.ninRole !== formData.ninRole) changes.push(`Cargo: ${selectedMember.ninRole}->${formData.ninRole}`);
                 if (selectedMember.isLeader !== formData.isLeader) changes.push(`Líder: ${selectedMember.isLeader ? 'S' : 'N'}->${formData.isLeader ? 'S' : 'N'}`);
                 
-                // --- CORREÇÃO DO ERRO DE LEITURA DE PROPRIEDADES ---
                 const oldStats = selectedMember.stats || { Força: 5, Fortitude: 5, Intelecto: 5, Agilidade: 5, Chakra: 5 };
                 const newStats = formData.stats || { Força: 5, Fortitude: 5, Intelecto: 5, Agilidade: 5, Chakra: 5 };
 
@@ -445,7 +444,6 @@ const App = () => {
                     const statsDiff = statsChanged.map(s => `${s}: ${oldStats[s]}->${newStats[s]}`).join(', ');
                     changes.push(`Stats [${statsDiff}]`);
                 }
-                // ---------------------------------------------------
 
                 const oldMasteries = (selectedMember.masteries || []).sort().join(',');
                 const newMasteries = (formData.masteries || []).sort().join(',');
@@ -599,6 +597,10 @@ const App = () => {
                         onSave={handleSaveMember}
                         canManage={hasManagePermission} 
                         isReadOnly={!hasManagePermission} 
+                        // NOVAS PROPS para filtragem
+                        roleConfig={roleConfig}
+                        leaderRoleConfig={leaderRoleConfig}
+                        secLeaderRoleConfig={secLeaderRoleConfig}
                     />
                 )}
 
