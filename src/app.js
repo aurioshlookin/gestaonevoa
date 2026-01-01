@@ -16,7 +16,7 @@ import SettingsModal from './components/SettingsModal.js';
 import DashboardTab from './components/DashboardTab.js';
 import OrganizationTab from './components/OrganizationTab.js';
 import MonitoringTab from './components/MonitoringTab.js';
-import TutorialOverlay from './components/TutorialOverlay.js'; // Certifique-se que este é o arquivo do Modal
+import TutorialOverlay from './components/TutorialOverlay.js';
 
 // --- SISTEMA DE DEBUG DE ERROS ---
 window.addEventListener('error', (event) => {
@@ -86,7 +86,7 @@ const App = () => {
     const [isCreating, setIsCreating] = useState(false);
     const [editingOrgId, setEditingOrgId] = useState(null);
 
-    // Estado do Tutorial (Modo Modal/Manual)
+    // Estado do Tutorial
     const [tutorialContent, setTutorialContent] = useState(null);
 
     const hasLoggedAccess = useRef(false);
@@ -139,7 +139,6 @@ const App = () => {
 
     // --- SCROLL LOCK ---
     useEffect(() => {
-        // Trava rolagem se qualquer modal (incluindo tutorial) estiver aberto
         const isModalOpen = selectedMember || isCreating || showSettings || deleteConfirmation || tutorialContent;
         if (isModalOpen) {
             document.body.style.setProperty('overflow', 'hidden', 'important');
@@ -193,14 +192,13 @@ const App = () => {
         }
     };
 
-    // --- LÓGICA DE TUTORIAL (MODAL) ---
+    // --- LÓGICA DE TUTORIAL ---
     const startTutorial = () => {
         if (!effectiveUser || !isTutorialEnabled) return;
         
         let tutorialKey = 'visitor';
         let foundOrg = null;
 
-        // Hierarquia de Detecção
         if (effectiveUser.id === accessConfig.creatorId || effectiveUser.roles.includes(accessConfig.kamiRoleId)) {
             tutorialKey = 'mizukami';
         } 
@@ -208,8 +206,8 @@ const App = () => {
             tutorialKey = 'council';
         } 
         else {
-            // Verifica Liderança
             let isLeader = false;
+
             for (const [orgId, roleId] of Object.entries(leaderRoleConfig)) {
                 if (effectiveUser.roles.includes(roleId)) {
                     foundOrg = orgId;
@@ -217,16 +215,17 @@ const App = () => {
                     break;
                 }
             }
+            
             if (!foundOrg && !isLeader) {
                 for (const [orgId, roleId] of Object.entries(secLeaderRoleConfig)) {
                     if (effectiveUser.roles.includes(roleId)) {
                         foundOrg = orgId;
-                        isLeader = true;
+                        isLeader = true; 
                         break;
                     }
                 }
             }
-            // Verifica Membro Comum
+
             if (!foundOrg) {
                 for (const [orgId, roleId] of Object.entries(roleConfig)) {
                     if (effectiveUser.roles.includes(roleId)) {
@@ -238,25 +237,26 @@ const App = () => {
 
             if (foundOrg) {
                 tutorialKey = `${isLeader ? 'leader' : 'member'}_${foundOrg}`;
-                // Fallback se não houver tutorial específico
                 if (!TUTORIALS[tutorialKey]) {
                     tutorialKey = isLeader ? 'leader' : 'member';
                 }
             }
         }
 
-        // 1. Abre a página relevante para exemplificar (navegação automática)
+        console.log("Iniciando tutorial:", tutorialKey); // DEBUG
+
+        // 1. Navega
         if (foundOrg) {
             setActiveTab(foundOrg);
         } else if (tutorialKey === 'mizukami' || tutorialKey === 'council') {
-            setActiveTab('dashboard'); // Admins vão pro dashboard
+            setActiveTab('dashboard'); 
         }
 
-        // 2. Abre o Modal de Manual
-        setTutorialContent(TUTORIALS[tutorialKey] || TUTORIALS['visitor']);
+        // 2. Abre Modal
+        const content = TUTORIALS[tutorialKey] || TUTORIALS['visitor'];
+        setTutorialContent(content);
     };
 
-    // Auto-início
     useEffect(() => {
         if (effectiveUser && isTutorialEnabled && !sessionStorage.getItem('tutorial_seen')) {
             setTimeout(() => {
@@ -287,14 +287,14 @@ const App = () => {
         else if (activeTab === 'access') pageName = 'Monitoramento';
         else if (ORG_CONFIG[activeTab]) pageName = ORG_CONFIG[activeTab].name;
 
-        // Só loga navegação se não for modal de histórico antigo (removido)
-        addDoc(collection(db, "access_logs"), {
-            userId: user.id,
-            username: user.username || user.displayName,
-            action: `Navegou: ${pageName}`,
-            timestamp: new Date().toISOString()
-        }).catch(err => console.error("Erro ao logar navegação:", err));
-        
+        if (pageName && activeTab !== 'history') {
+            addDoc(collection(db, "access_logs"), {
+                userId: user.id,
+                username: user.username || user.displayName,
+                action: `Navegou: ${pageName}`,
+                timestamp: new Date().toISOString()
+            }).catch(err => console.error("Erro ao logar navegação:", err));
+        }
     }, [activeTab, user, loading, simulation]);
 
     useEffect(() => {
@@ -344,7 +344,6 @@ const App = () => {
 
     const canManageOrg = (orgId) => checkPermission('EDIT_MEMBER', orgId);
     
-    // Regras Estritas
     const isRealCreator = effectiveUser?.id === accessConfig.creatorId; 
     const isMizukami = effectiveUser?.roles?.includes(accessConfig.kamiRoleId);
     
