@@ -2,17 +2,17 @@ import React, { useMemo, useState } from 'react';
 import { 
     BarChart3, PieChart, Zap, Activity, Users, Layers, Award, AlertCircle, 
     ChevronRight, TrendingUp, UserPlus, Crown, ChevronDown, ChevronUp, Info, 
-    Flame, Swords, Heart, Dumbbell, Brain, Wind, ShieldCheck, Target, Medal
+    Flame, Swords, Heart, Dumbbell, Brain, Wind, ShieldCheck, Target, Medal, Droplets
 } from 'lucide-react';
 import { MASTERIES, ORG_CONFIG, Icons } from '../config/constants.js';
 import { getActivityStats, calculateStats } from '../utils/helpers.js';
 
-// Mapa de cores Hex para garantir visualização correta nos gráficos (onde classes Tailwind não funcionam bem)
+// Mapa de cores Hex para garantir visualização correta nos gráficos
 const ELEMENT_COLORS = {
     'Fogo': '#ef4444',     // red-500
     'Água': '#3b82f6',     // blue-500
     'Vento': '#22c55e',    // green-500
-    'Terra': '#a855f7',    // purple-500 (Terra roxo no tema ou marrom #854d0e)
+    'Terra': '#a855f7',    // purple-500
     'Raio': '#eab308',     // yellow-500
     'Relâmpago': '#eab308',
     'Gelo': '#06b6d4',     // cyan-500
@@ -160,10 +160,8 @@ const SummaryPanel = ({ members }) => {
     // Ordenação de Patentes
     const rankOrder = ['Kage', 'Sannin', 'Anbu', 'Jonin', 'Tokubetsu', 'Chunin', 'Genin', 'Estudante'];
     const sortedRanks = Object.entries(stats.ranks).sort((a, b) => {
-        // Encontra índice parcial (ex: "Tokubetsu Jonin" bate com "Tokubetsu")
         const indexA = rankOrder.findIndex(r => a[0].includes(r));
         const indexB = rankOrder.findIndex(r => b[0].includes(r));
-        // Se não achar, joga pro fim
         const valA = indexA === -1 ? 99 : indexA;
         const valB = indexB === -1 ? 99 : indexB;
         return valA - valB;
@@ -195,12 +193,14 @@ const SummaryPanel = ({ members }) => {
         </button>
     );
 
-    // Gráfico de Pizza com Cores Hex
+    // Gráfico de Pizza com Cores Hex (Renderização via CSS Conic Gradient)
     const PieChartVisual = ({ data, total }) => {
+        if (total === 0) return <div className="w-32 h-32 rounded-full bg-slate-700"></div>;
+
         let currentAngle = 0;
         const gradients = data.map(([key, value]) => {
             const angle = (value / total) * 360;
-            const color = ELEMENT_COLORS[key] || ELEMENT_COLORS['Pendente']; // Fallback seguro
+            const color = ELEMENT_COLORS[key] || ELEMENT_COLORS['Pendente']; 
             const segment = `${color} ${currentAngle}deg ${currentAngle + angle}deg`;
             currentAngle += angle;
             return segment;
@@ -310,35 +310,39 @@ const SummaryPanel = ({ members }) => {
                                         <Medal size={16}/> Distribuição de Patentes
                                     </h3>
                                     {sortedRanks.length > 0 ? (
-                                        <div className="flex items-end gap-2 h-40 pt-4">
+                                        <div className="flex items-end gap-2 h-40 pt-4 px-2">
                                             {sortedRanks.map(([rank, count]) => {
                                                 const percentage = stats.totalMembers > 0 ? (count / stats.totalMembers) * 100 : 0;
-                                                const height = Math.max(percentage, 8); // Altura mínima visual
+                                                const height = Math.max(percentage, 5); // Altura mínima visual
                                                 
+                                                // Cores manuais para o gráfico de barras
                                                 let barColor = 'bg-slate-600';
-                                                if (rank.includes('Kage')) barColor = 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]';
-                                                else if (rank.includes('Sannin')) barColor = 'bg-orange-500';
-                                                else if (rank.includes('Anbu')) barColor = 'bg-purple-500';
-                                                else if (rank.includes('Jonin')) barColor = 'bg-emerald-500';
-                                                else if (rank.includes('Chunin')) barColor = 'bg-blue-500';
-                                                else if (rank.includes('Genin')) barColor = 'bg-cyan-500';
+                                                if (rank.includes('Kage')) barColor = 'bg-red-600';
+                                                else if (rank.includes('Sannin')) barColor = 'bg-orange-600';
+                                                else if (rank.includes('Anbu')) barColor = 'bg-purple-600';
+                                                else if (rank.includes('Jonin')) barColor = 'bg-emerald-600';
+                                                else if (rank.includes('Tokubetsu')) barColor = 'bg-teal-600';
+                                                else if (rank.includes('Chunin')) barColor = 'bg-blue-600';
+                                                else if (rank.includes('Genin')) barColor = 'bg-cyan-600';
+                                                else if (rank.includes('Estudante')) barColor = 'bg-slate-500';
 
                                                 return (
                                                     <div key={rank} className="flex-1 flex flex-col items-center group relative h-full justify-end">
-                                                        <div className="absolute bottom-full mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 text-xs px-2 py-1 rounded border border-slate-700 pointer-events-none whitespace-nowrap z-20">
+                                                        {/* Tooltip */}
+                                                        <div className="absolute bottom-full mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 text-xs px-2 py-1 rounded border border-slate-700 pointer-events-none whitespace-nowrap z-20 shadow-lg">
                                                             {rank}: {count} ({Math.round(percentage)}%)
                                                         </div>
-                                                        <span className="text-xs font-bold text-white mb-1">{count}</span>
-                                                        <div className={`w-full rounded-t-sm ${barColor} transition-all relative`} style={{ height: `${height}%` }}></div>
-                                                        <div className="h-6 flex items-center justify-center w-full mt-2">
-                                                            <span className="text-[10px] text-slate-400 font-bold truncate w-full text-center" title={rank}>{rank.split(' ')[0]}</span>
+                                                        <span className="text-[10px] font-bold text-white mb-1">{count}</span>
+                                                        <div className={`w-full rounded-t ${barColor} hover:brightness-110 transition-all`} style={{ height: `${height}%` }}></div>
+                                                        <div className="h-6 flex items-center justify-center w-full mt-1">
+                                                            <span className="text-[9px] text-slate-400 font-bold truncate w-full text-center uppercase tracking-tighter" title={rank}>{rank.split(' ')[0]}</span>
                                                         </div>
                                                     </div>
                                                 );
                                             })}
                                         </div>
                                     ) : (
-                                        <div className="text-center text-slate-500 py-4">Nenhuma patente registrada.</div>
+                                        <div className="text-center text-slate-500 py-4 italic">Nenhuma patente registrada.</div>
                                     )}
                                 </div>
                             </div>
@@ -349,9 +353,9 @@ const SummaryPanel = ({ members }) => {
                             <div className="space-y-6">
                                 {/* Destaques Individuais */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl flex items-center gap-4 relative overflow-hidden">
+                                    <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl flex items-center gap-4 relative overflow-hidden shadow-lg">
                                         <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-red-500/10 to-transparent pointer-events-none"></div>
-                                        <div className="p-4 bg-red-900/30 rounded-full border border-red-500/30 text-red-500">
+                                        <div className="p-4 bg-red-900/30 rounded-full border border-red-500/30 text-red-500 shadow-[0_0_15px_rgba(239,68,68,0.3)]">
                                             <Heart size={32} fill="currentColor" className="animate-pulse" />
                                         </div>
                                         <div>
@@ -360,7 +364,7 @@ const SummaryPanel = ({ members }) => {
                                                 <>
                                                     <p className="text-xl font-bold text-white truncate">{stats.combat.maxHp.member.rpName || stats.combat.maxHp.member.name}</p>
                                                     <p className="text-sm text-slate-400 font-mono">
-                                                        <span className="text-red-400 font-bold">{stats.combat.maxHp.value} HP</span> 
+                                                        <span className="text-red-400 font-bold text-lg">{stats.combat.maxHp.value} HP</span> 
                                                         <span className="mx-2 text-slate-600">|</span> 
                                                         {ORG_CONFIG[stats.combat.maxHp.member.org]?.name}
                                                     </p>
@@ -369,9 +373,9 @@ const SummaryPanel = ({ members }) => {
                                         </div>
                                     </div>
 
-                                    <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl flex items-center gap-4 relative overflow-hidden">
+                                    <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl flex items-center gap-4 relative overflow-hidden shadow-lg">
                                         <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-blue-500/10 to-transparent pointer-events-none"></div>
-                                        <div className="p-4 bg-blue-900/30 rounded-full border border-blue-500/30 text-blue-500">
+                                        <div className="p-4 bg-blue-900/30 rounded-full border border-blue-500/30 text-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.3)]">
                                             <Zap size={32} fill="currentColor" className="animate-[pulse_2s_infinite]" />
                                         </div>
                                         <div>
@@ -380,7 +384,7 @@ const SummaryPanel = ({ members }) => {
                                                 <>
                                                     <p className="text-xl font-bold text-white truncate">{stats.combat.maxCp.member.rpName || stats.combat.maxCp.member.name}</p>
                                                     <p className="text-sm text-slate-400 font-mono">
-                                                        <span className="text-blue-400 font-bold">{stats.combat.maxCp.value} CP</span> 
+                                                        <span className="text-blue-400 font-bold text-lg">{stats.combat.maxCp.value} CP</span> 
                                                         <span className="mx-2 text-slate-600">|</span> 
                                                         {ORG_CONFIG[stats.combat.maxCp.member.org]?.name}
                                                     </p>
@@ -390,61 +394,99 @@ const SummaryPanel = ({ members }) => {
                                     </div>
                                 </div>
 
-                                {/* Gráfico de Atributos Médios + HP/CP */}
+                                {/* Seção de Médias */}
                                 <div className="bg-slate-800/50 border border-slate-700 p-6 rounded-xl">
                                     <div className="flex justify-between items-center mb-6">
                                         <h3 className="text-sm font-bold text-slate-300 flex items-center gap-2">
-                                            <TrendingUp size={16}/> Média de Atributos da Vila
+                                            <TrendingUp size={16}/> Estatísticas Médias da Vila
                                         </h3>
                                         <div className="flex items-center gap-2 text-[10px] text-slate-400 bg-slate-900 px-2 py-1 rounded border border-slate-700">
                                             <Target size={12} className="text-cyan-400"/>
-                                            <span>Nível 35+ ({stats.combat.countLevel35} ninjas)</span>
+                                            <span>Base: Nível 35+ ({stats.combat.countLevel35} ninjas)</span>
                                         </div>
                                     </div>
                                     
                                     {stats.combat.countLevel35 > 0 ? (
-                                        <div className="space-y-4">
-                                            {[
-                                                { label: 'Vida (HP)', icon: Heart, color: 'text-red-400', barColor: 'bg-red-500', key: 'HP' },
-                                                { label: 'Chakra (CP)', icon: Zap, color: 'text-blue-400', barColor: 'bg-blue-500', key: 'CP' },
-                                                { label: 'Força', icon: Dumbbell, color: 'text-orange-400', barColor: 'bg-orange-500', key: 'Força' },
-                                                { label: 'Agilidade', icon: Wind, color: 'text-cyan-400', barColor: 'bg-cyan-500', key: 'Agilidade' },
-                                                { label: 'Fortitude', icon: ShieldCheck, color: 'text-green-400', barColor: 'bg-green-500', key: 'Fortitude' },
-                                                { label: 'Intelecto', icon: Brain, color: 'text-purple-400', barColor: 'bg-purple-500', key: 'Intelecto' },
-                                                { label: 'Controle', icon: Zap, color: 'text-yellow-400', barColor: 'bg-yellow-500', key: 'Chakra' }
-                                            ].map(stat => {
-                                                const value = stats.combat.avgStats[stat.key];
-                                                // Normaliza a barra em relação ao MÁXIMO daquele atributo encontrado na vila
-                                                // Isso permite que HP (5000) e Força (100) coexistam visualmente
-                                                const maxForThisStat = Math.max(stats.combat.maxValues[stat.key], 1);
-                                                const percentage = (value / maxForThisStat) * 100;
+                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                            
+                                            {/* Coluna 1: Recursos Vitais (HP/CP) */}
+                                            <div className="bg-slate-900/30 p-4 rounded-lg border border-slate-700/50">
+                                                <h4 className="text-xs font-bold text-slate-500 uppercase mb-4 flex items-center gap-2">
+                                                    <Droplets size={14}/> Recursos Vitais
+                                                </h4>
+                                                <div className="space-y-4">
+                                                    {[
+                                                        { label: 'Vida (HP)', icon: Heart, color: 'text-red-400', barColor: 'bg-red-500', key: 'HP' },
+                                                        { label: 'Chakra (CP)', icon: Zap, color: 'text-blue-400', barColor: 'bg-blue-500', key: 'CP' }
+                                                    ].map(stat => {
+                                                        const value = stats.combat.avgStats[stat.key];
+                                                        const maxForThisStat = Math.max(stats.combat.maxValues[stat.key], 1);
+                                                        const percentage = (value / maxForThisStat) * 100;
 
-                                                return (
-                                                    <div key={stat.key} className="flex items-center gap-4">
-                                                        <div className="w-24 flex items-center gap-2 text-slate-400 text-xs font-bold uppercase">
-                                                            <stat.icon size={14} className={stat.color}/>
-                                                            {stat.label}
-                                                        </div>
-                                                        <div className="flex-1 bg-slate-900/50 h-3 rounded-full overflow-hidden relative group">
-                                                            <div 
-                                                                className={`h-full ${stat.barColor} rounded-full transition-all duration-1000`} 
-                                                                style={{ width: `${percentage}%` }}
-                                                            ></div>
-                                                            {/* Tooltip de contexto */}
-                                                            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full opacity-0 group-hover:opacity-100 bg-black/80 text-[10px] text-white px-2 rounded pointer-events-none">
-                                                                {percentage.toFixed(0)}% do máx. da vila
+                                                        return (
+                                                            <div key={stat.key} className="space-y-1">
+                                                                <div className="flex justify-between text-xs font-bold text-slate-300">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <stat.icon size={12} className={stat.color}/>
+                                                                        {stat.label}
+                                                                    </div>
+                                                                    <span className="font-mono text-white">{value}</span>
+                                                                </div>
+                                                                <div className="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden">
+                                                                    <div 
+                                                                        className={`h-full ${stat.barColor} rounded-full transition-all duration-1000 relative`} 
+                                                                        style={{ width: `${percentage}%` }}
+                                                                    >
+                                                                        <div className="absolute inset-0 bg-white/20"></div>
+                                                                    </div>
+                                                                </div>
                                                             </div>
-                                                        </div>
-                                                        <div className="w-16 text-right font-mono font-bold text-white text-sm">
-                                                            {value}
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+
+                                            {/* Coluna 2: Atributos Base */}
+                                            <div className="bg-slate-900/30 p-4 rounded-lg border border-slate-700/50">
+                                                <h4 className="text-xs font-bold text-slate-500 uppercase mb-4 flex items-center gap-2">
+                                                    <Dumbbell size={14}/> Atributos de Combate
+                                                </h4>
+                                                <div className="space-y-3">
+                                                    {[
+                                                        { label: 'Força', icon: Dumbbell, color: 'text-orange-400', barColor: 'bg-orange-500', key: 'Força' },
+                                                        { label: 'Agilidade', icon: Wind, color: 'text-cyan-400', barColor: 'bg-cyan-500', key: 'Agilidade' },
+                                                        { label: 'Fortitude', icon: ShieldCheck, color: 'text-green-400', barColor: 'bg-green-500', key: 'Fortitude' },
+                                                        { label: 'Intelecto', icon: Brain, color: 'text-purple-400', barColor: 'bg-purple-500', key: 'Intelecto' },
+                                                        { label: 'Controle', icon: Zap, color: 'text-yellow-400', barColor: 'bg-yellow-500', key: 'Chakra' }
+                                                    ].map(stat => {
+                                                        const value = stats.combat.avgStats[stat.key];
+                                                        const maxForThisStat = Math.max(stats.combat.maxValues[stat.key], 1);
+                                                        const percentage = (value / maxForThisStat) * 100;
+
+                                                        return (
+                                                            <div key={stat.key} className="flex items-center gap-3">
+                                                                <div className="w-20 text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1.5">
+                                                                    <stat.icon size={10} className={stat.color}/>
+                                                                    {stat.label}
+                                                                </div>
+                                                                <div className="flex-1 bg-slate-800 h-2 rounded-full overflow-hidden">
+                                                                    <div 
+                                                                        className={`h-full ${stat.barColor} rounded-full transition-all duration-1000`} 
+                                                                        style={{ width: `${percentage}%` }}
+                                                                    ></div>
+                                                                </div>
+                                                                <div className="w-8 text-right font-mono font-bold text-white text-xs">
+                                                                    {value}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
                                         </div>
                                     ) : (
                                         <div className="text-center py-8 text-slate-500 italic bg-slate-900/20 rounded border border-dashed border-slate-700">
-                                            Dados insuficientes (Nível 35+ necessário).
+                                            Dados insuficientes (Nenhum ninja acima do nível 35 encontrado).
                                         </div>
                                     )}
                                 </div>
@@ -470,7 +512,7 @@ const SummaryPanel = ({ members }) => {
                                                 
                                                 return (
                                                     <div key={name} className="flex items-center gap-2">
-                                                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: colorHex }}></span>
+                                                        <span className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: colorHex }}></span>
                                                         <span className="text-slate-300 font-bold">{name}</span>
                                                         <span className="text-slate-500">({percentage}%)</span>
                                                     </div>
