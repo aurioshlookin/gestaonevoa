@@ -133,9 +133,9 @@ const SummaryPanel = ({ members }) => {
                     totalVoice: 0
                 };
             }
-            data.orgActivity[m.org].total += activityInfo.total;
-            data.orgActivity[m.org].totalMsgs += activityInfo.details.msgs;
-            data.orgActivity[m.org].totalVoice += activityInfo.details.voice;
+            data.orgActivity[m.org].total += (activityInfo.total || 0);
+            data.orgActivity[m.org].totalMsgs += (activityInfo.details.msgs || 0);
+            data.orgActivity[m.org].totalVoice += (activityInfo.details.voice || 0);
             data.orgActivity[m.org].count += 1;
 
             // 5. Combate
@@ -319,7 +319,7 @@ const SummaryPanel = ({ members }) => {
                                             {/* Detalhes de Mensagens e Voz - Visíveis sempre */}
                                             <div className="mt-2 pt-2 border-t border-slate-700/50 flex justify-between text-[10px] text-slate-400">
                                                 <span className="flex items-center gap-1"><MessageSquare size={10}/> {stats.topOrg.totalMsgs}</span>
-                                                <span className="flex items-center gap-1"><Mic size={10}/> {Math.round(stats.topOrg.totalVoice/60)}h</span>
+                                                <span className="flex items-center gap-1"><Mic size={10}/> {Math.round((stats.topOrg.totalVoice || 0)/60)}h</span>
                                             </div>
                                         </div>
                                     </div>
@@ -339,7 +339,7 @@ const SummaryPanel = ({ members }) => {
                                                 {/* Detalhes de Mensagens e Voz - Visíveis sempre */}
                                                 <div className="mt-2 pt-2 border-t border-slate-700/50 flex justify-between text-[10px] text-slate-400">
                                                     <span className="flex items-center gap-1"><MessageSquare size={10}/> {stats.lowOrg.totalMsgs}</span>
-                                                    <span className="flex items-center gap-1"><Mic size={10}/> {Math.round(stats.lowOrg.totalVoice/60)}h</span>
+                                                    <span className="flex items-center gap-1"><Mic size={10}/> {Math.round((stats.lowOrg.totalVoice || 0)/60)}h</span>
                                                 </div>
                                             </div>
                                         ) : (
@@ -631,12 +631,12 @@ const SummaryPanel = ({ members }) => {
                                                     <div className={`w-28 text-xs font-bold uppercase truncate text-right ${orgConfig.color}`}>
                                                         {data.name}
                                                     </div>
-                                                    <div className="flex-1 bg-slate-900/50 h-5 rounded-full overflow-hidden relative">
+                                                    <div className="flex-1 bg-slate-900/50 h-5 rounded-full overflow-hidden relative group">
                                                         <div 
                                                             className={`h-full ${barColor} rounded-full transition-all duration-1000 relative flex items-center justify-end pr-2`} 
                                                             style={{ width: `${percentage}%` }}
                                                         >
-                                                            <div className="absolute inset-0 bg-white/10"></div>
+                                                            <div className="absolute inset-0 bg-white/10 group-hover:bg-white/20 transition-colors"></div>
                                                         </div>
                                                         <div className="absolute inset-0 flex items-center justify-end px-2 gap-3 text-[10px] text-white font-mono pointer-events-none">
                                                             <span className="flex items-center gap-1 opacity-70"><MessageSquare size={8} /> {Math.round(data.totalMsgs / data.count)}</span>
