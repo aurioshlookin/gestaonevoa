@@ -16,7 +16,7 @@ import SettingsModal from './components/SettingsModal.js';
 import DashboardTab from './components/DashboardTab.js';
 import OrganizationTab from './components/OrganizationTab.js';
 import MonitoringTab from './components/MonitoringTab.js';
-import TutorialOverlay from './components/TutorialOverlay.js';
+import TutorialOverlay from './components/TutorialOverlay.js'; // Certifique-se que este é o arquivo do Modal
 
 // --- SISTEMA DE DEBUG DE ERROS ---
 window.addEventListener('error', (event) => {
@@ -86,8 +86,8 @@ const App = () => {
     const [isCreating, setIsCreating] = useState(false);
     const [editingOrgId, setEditingOrgId] = useState(null);
 
-    // Estado do Tutorial
-    const [tutorialSteps, setTutorialSteps] = useState(null);
+    // Estado do Tutorial (Modo Modal/Manual)
+    const [tutorialContent, setTutorialContent] = useState(null);
 
     const hasLoggedAccess = useRef(false);
 
@@ -139,7 +139,8 @@ const App = () => {
 
     // --- SCROLL LOCK ---
     useEffect(() => {
-        const isModalOpen = selectedMember || isCreating || showSettings || deleteConfirmation || tutorialSteps;
+        // Trava rolagem se qualquer modal (incluindo tutorial) estiver aberto
+        const isModalOpen = selectedMember || isCreating || showSettings || deleteConfirmation || tutorialContent;
         if (isModalOpen) {
             document.body.style.setProperty('overflow', 'hidden', 'important');
             document.documentElement.style.setProperty('overflow', 'hidden', 'important');
@@ -151,7 +152,7 @@ const App = () => {
             document.body.style.removeProperty('overflow');
             document.documentElement.style.removeProperty('overflow');
         }
-    }, [selectedMember, isCreating, showSettings, deleteConfirmation, tutorialSteps]);
+    }, [selectedMember, isCreating, showSettings, deleteConfirmation, tutorialContent]);
 
     // --- LOGIN ---
     useEffect(() => { 
@@ -192,43 +193,43 @@ const App = () => {
         }
     };
 
-    // --- LÓGICA DE TUTORIAL ---
+    // --- LÓGICA DE TUTORIAL (MODAL) ---
     const startTutorial = () => {
         if (!effectiveUser || !isTutorialEnabled) return;
         
         let tutorialKey = 'visitor';
+        let foundOrg = null;
 
-        if (effectiveUser.id === accessConfig.creatorId || (effectiveUser.roles && effectiveUser.roles.includes(accessConfig.kamiRoleId))) {
+        // Hierarquia de Detecção
+        if (effectiveUser.id === accessConfig.creatorId || effectiveUser.roles.includes(accessConfig.kamiRoleId)) {
             tutorialKey = 'mizukami';
         } 
-        else if (effectiveUser.roles && effectiveUser.roles.includes(accessConfig.councilRoleId)) {
+        else if (effectiveUser.roles.includes(accessConfig.councilRoleId)) {
             tutorialKey = 'council';
         } 
         else {
-            let foundOrg = null;
+            // Verifica Liderança
             let isLeader = false;
-
             for (const [orgId, roleId] of Object.entries(leaderRoleConfig)) {
-                if (effectiveUser.roles && effectiveUser.roles.includes(roleId)) {
+                if (effectiveUser.roles.includes(roleId)) {
                     foundOrg = orgId;
                     isLeader = true;
                     break;
                 }
             }
-            
             if (!foundOrg && !isLeader) {
                 for (const [orgId, roleId] of Object.entries(secLeaderRoleConfig)) {
-                    if (effectiveUser.roles && effectiveUser.roles.includes(roleId)) {
+                    if (effectiveUser.roles.includes(roleId)) {
                         foundOrg = orgId;
-                        isLeader = true; 
+                        isLeader = true;
                         break;
                     }
                 }
             }
-
+            // Verifica Membro Comum
             if (!foundOrg) {
                 for (const [orgId, roleId] of Object.entries(roleConfig)) {
-                    if (effectiveUser.roles && effectiveUser.roles.includes(roleId)) {
+                    if (effectiveUser.roles.includes(roleId)) {
                         foundOrg = orgId;
                         break;
                     }
@@ -237,22 +238,25 @@ const App = () => {
 
             if (foundOrg) {
                 tutorialKey = `${isLeader ? 'leader' : 'member'}_${foundOrg}`;
-                // Fallback para líder/membro genérico se o específico não existir
+                // Fallback se não houver tutorial específico
                 if (!TUTORIALS[tutorialKey]) {
                     tutorialKey = isLeader ? 'leader' : 'member';
                 }
             }
         }
 
-        setTutorialSteps(TUTORIALS[tutorialKey] || TUTORIALS['visitor']);
-    };
-
-    const handleTutorialStepChange = (step) => {
-        if (step.navigate) {
-            setActiveTab(step.navigate);
+        // 1. Abre a página relevante para exemplificar (navegação automática)
+        if (foundOrg) {
+            setActiveTab(foundOrg);
+        } else if (tutorialKey === 'mizukami' || tutorialKey === 'council') {
+            setActiveTab('dashboard'); // Admins vão pro dashboard
         }
+
+        // 2. Abre o Modal de Manual
+        setTutorialContent(TUTORIALS[tutorialKey] || TUTORIALS['visitor']);
     };
 
+    // Auto-início
     useEffect(() => {
         if (effectiveUser && isTutorialEnabled && !sessionStorage.getItem('tutorial_seen')) {
             setTimeout(() => {
@@ -264,10 +268,8 @@ const App = () => {
 
     const handleToggleTutorial = async () => {
         if (simulation) { showNotification('Simulação: Ação bloqueada.', 'error'); return; }
-        
         const newState = !isTutorialEnabled;
         setIsTutorialEnabled(newState);
-        
         try {
             await setDoc(doc(db, "server", "config"), { tutorialEnabled: newState }, { merge: true });
             showNotification(`Tutorial Global ${newState ? 'Ativado' : 'Desativado'}`, 'success');
@@ -285,14 +287,14 @@ const App = () => {
         else if (activeTab === 'access') pageName = 'Monitoramento';
         else if (ORG_CONFIG[activeTab]) pageName = ORG_CONFIG[activeTab].name;
 
-        if (pageName && activeTab !== 'history') {
-            addDoc(collection(db, "access_logs"), {
-                userId: user.id,
-                username: user.username || user.displayName,
-                action: `Navegou: ${pageName}`,
-                timestamp: new Date().toISOString()
-            }).catch(err => console.error("Erro ao logar navegação:", err));
-        }
+        // Só loga navegação se não for modal de histórico antigo (removido)
+        addDoc(collection(db, "access_logs"), {
+            userId: user.id,
+            username: user.username || user.displayName,
+            action: `Navegou: ${pageName}`,
+            timestamp: new Date().toISOString()
+        }).catch(err => console.error("Erro ao logar navegação:", err));
+        
     }, [activeTab, user, loading, simulation]);
 
     useEffect(() => {
@@ -321,8 +323,7 @@ const App = () => {
         if (effectiveUser.id === accessConfig.creatorId) return true;
         if (accessConfig.vipIds && accessConfig.vipIds.includes(effectiveUser.id)) return true;
 
-        if (action === 'MANAGE_SETTINGS') return false; 
-        if (action === 'VIEW_HISTORY') return false; // Mizukami tem acesso, mas checkPermission é para ações de edição. Visualização é tratada nas vars abaixo.
+        if (action === 'MANAGE_SETTINGS' || action === 'VIEW_HISTORY') return false;
 
         const userRoles = effectiveUser.roles || [];
 
@@ -332,9 +333,7 @@ const App = () => {
             if (contextOrgId) {
                 const leaderRoleId = leaderRoleConfig[contextOrgId];
                 const secLeaderRoleId = secLeaderRoleConfig[contextOrgId];
-                
-                if ((leaderRoleId && userRoles.includes(leaderRoleId)) || 
-                    (secLeaderRoleId && userRoles.includes(secLeaderRoleId))) {
+                if ((leaderRoleId && userRoles.includes(leaderRoleId)) || (secLeaderRoleId && userRoles.includes(secLeaderRoleId))) {
                     return true;
                 }
             }
@@ -347,7 +346,7 @@ const App = () => {
     
     // Regras Estritas
     const isRealCreator = effectiveUser?.id === accessConfig.creatorId; 
-    const isMizukami = effectiveUser?.roles && effectiveUser.roles.includes(accessConfig.kamiRoleId);
+    const isMizukami = effectiveUser?.roles?.includes(accessConfig.kamiRoleId);
     
     const canViewHistory = isRealCreator || isMizukami; 
     const canManageSettings = isRealCreator;
@@ -375,17 +374,17 @@ const App = () => {
         let roles = [];
         if (effectiveUser.id === accessConfig.creatorId) roles.push("Criador");
         if (accessConfig.vipIds && accessConfig.vipIds.includes(effectiveUser.id)) roles.push("VIP");
-        if (effectiveUser.roles && effectiveUser.roles.includes(accessConfig.kamiRoleId)) roles.push("Mizukami");
-        if (effectiveUser.roles && effectiveUser.roles.includes(accessConfig.councilRoleId)) roles.push("Conselho");
-        if (effectiveUser.roles && effectiveUser.roles.includes(accessConfig.moderatorRoleId)) roles.push("Moderador");
+        if (effectiveUser.roles.includes(accessConfig.kamiRoleId)) roles.push("Mizukami");
+        if (effectiveUser.roles.includes(accessConfig.councilRoleId)) roles.push("Conselho");
+        if (effectiveUser.roles.includes(accessConfig.moderatorRoleId)) roles.push("Moderador");
         
         Object.entries(leaderRoleConfig).forEach(([orgId, roleId]) => { 
-            if (effectiveUser.roles && effectiveUser.roles.includes(roleId)) roles.push(`Líder ${ORG_CONFIG[orgId]?.name || ''}`); 
+            if (effectiveUser.roles.includes(roleId)) roles.push(`Líder ${ORG_CONFIG[orgId]?.name || ''}`); 
         });
         
         Object.entries(roleConfig).forEach(([orgId, roleId]) => {
-            const isLeader = leaderRoleConfig[orgId] && effectiveUser.roles && effectiveUser.roles.includes(leaderRoleConfig[orgId]);
-            if (effectiveUser.roles && effectiveUser.roles.includes(roleId) && !isLeader) {
+            const isLeader = leaderRoleConfig[orgId] && effectiveUser.roles.includes(leaderRoleConfig[orgId]);
+            if (effectiveUser.roles.includes(roleId) && !isLeader) {
                 roles.push(`Membro ${ORG_CONFIG[orgId]?.name || ''}`);
             }
         });
@@ -394,7 +393,6 @@ const App = () => {
         return roles.join(" & ");
     }, [effectiveUser, accessConfig, leaderRoleConfig, roleConfig]);
 
-    // --- HELPERS E ACTIONS ---
     const showNotification = (msg, type) => { setNotification({ msg, type }); setTimeout(() => setNotification(null), 3000); };
     
     const multiOrgUsers = useMemo(() => {
@@ -582,11 +580,10 @@ const App = () => {
         <ErrorBoundary>
             {SimulationBanner}
             
-            {tutorialSteps && isTutorialEnabled && (
+            {tutorialContent && isTutorialEnabled && (
                 <TutorialOverlay 
-                    steps={tutorialSteps} 
-                    onClose={() => setTutorialSteps(null)} 
-                    onStepChange={handleTutorialStepChange} 
+                    content={tutorialContent} 
+                    onClose={() => setTutorialContent(null)} 
                 />
             )}
 
