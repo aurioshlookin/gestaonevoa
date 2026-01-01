@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { AlertTriangle, AlertCircle, ChevronRight, UserPlus, CheckCircle, Shield, Users, Activity } from 'lucide-react';
+import { AlertTriangle, AlertCircle, ChevronRight, UserPlus, CheckCircle, Shield, Users, Activity, BarChart, PieChart } from 'lucide-react';
 import { ORG_CONFIG, Icons } from '../config/constants.js';
 import { getActivityStats } from '../utils/helpers.js';
 import SummaryPanel from './SummaryPanel.js';
@@ -11,9 +11,33 @@ const DashboardTab = ({ members, roleConfig, multiOrgUsers, onTabChange }) => {
     const cadastroStats = useMemo(() => {
         const totalSlots = Object.values(ORG_CONFIG).reduce((acc, org) => acc + org.limit, 0);
         const totalRegistered = members.length;
-        const totalPending = totalSlots - totalRegistered; // Vagas restantes
+        const totalPending = totalSlots - totalRegistered;
+        const occupancyRate = Math.round((totalRegistered / totalSlots) * 100);
+
+        // Detalhamento por Organização para o card de recrutamento
+        const orgDetails = Object.values(ORG_CONFIG).map(org => {
+            const count = members.filter(m => m.org === org.id).length;
+            const free = org.limit - count;
+            const percent = Math.round((count / org.limit) * 100);
+            
+            let statusColor = 'text-emerald-400';
+            let barColor = 'bg-emerald-500';
+            let statusText = 'Disponível';
+
+            if (free === 0) {
+                statusColor = 'text-red-400';
+                barColor = 'bg-red-500';
+                statusText = 'Lotado';
+            } else if (free <= 2) {
+                statusColor = 'text-yellow-400';
+                barColor = 'bg-yellow-500';
+                statusText = 'Crítico';
+            }
+
+            return { ...org, count, free, percent, statusColor, barColor, statusText };
+        });
         
-        return { totalRegistered, totalPending, totalSlots };
+        return { totalRegistered, totalPending, totalSlots, occupancyRate, orgDetails };
     }, [members]);
 
     const activityColors = {
@@ -33,40 +57,82 @@ const DashboardTab = ({ members, roleConfig, multiOrgUsers, onTabChange }) => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* COLUNA ESQUERDA: RELATÓRIO DE CADASTRO E CONFLITOS */}
                 <div className="space-y-6">
-                    {/* Relatório de Cadastro */}
-                    <div className="bg-slate-800/80 border border-slate-700 p-6 rounded-xl shadow-lg">
-                        <h3 className="text-white font-bold mb-4 flex items-center gap-2">
-                            <Users size={20} className="text-cyan-400"/> Status do Recrutamento
-                        </h3>
+                    
+                    {/* CENTRAL DE RECRUTAMENTO (Card Reformulado) */}
+                    <div className="bg-slate-800/80 border border-slate-700 p-6 rounded-xl shadow-lg flex flex-col gap-6">
                         
-                        <div className="flex items-center justify-between mb-2 text-sm">
-                            <span className="text-slate-400">Vagas Preenchidas</span>
-                            <span className="text-white font-bold">{cadastroStats.totalRegistered}</span>
-                        </div>
-                        <div className="w-full bg-slate-700 h-2 rounded-full overflow-hidden mb-4">
-                            <div 
-                                className="h-full bg-emerald-500 transition-all duration-1000" 
-                                style={{ width: `${(cadastroStats.totalRegistered / cadastroStats.totalSlots) * 100}%` }}
-                            ></div>
+                        {/* Cabeçalho */}
+                        <div>
+                            <h3 className="text-white font-bold mb-4 flex items-center gap-2">
+                                <Users size={20} className="text-cyan-400"/> Central de Recrutamento
+                            </h3>
+                            
+                            {/* Barra Global */}
+                            <div className="flex items-center justify-between mb-2 text-sm">
+                                <span className="text-slate-400">Ocupação Global da Vila</span>
+                                <span className="text-white font-bold">{cadastroStats.occupancyRate}%</span>
+                            </div>
+                            <div className="w-full bg-slate-700 h-3 rounded-full overflow-hidden shadow-inner">
+                                <div 
+                                    className="h-full bg-gradient-to-r from-cyan-600 to-blue-500 transition-all duration-1000 relative" 
+                                    style={{ width: `${cadastroStats.occupancyRate}%` }}
+                                >
+                                    <div className="absolute inset-0 bg-white/10 animate-pulse"></div>
+                                </div>
+                            </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4 mt-4">
-                            <div className="bg-emerald-900/20 p-3 rounded-lg border border-emerald-500/20 text-center">
-                                <CheckCircle size={24} className="mx-auto text-emerald-500 mb-1"/>
-                                <span className="block text-2xl font-bold text-white">{cadastroStats.totalRegistered}</span>
-                                <span className="text-xs text-emerald-400 uppercase font-bold">Cadastrados</span>
+                        {/* Grid de KPIs */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="bg-slate-700/30 p-3 rounded-lg border border-slate-600/50 flex flex-col items-center justify-center">
+                                <span className="text-2xl font-bold text-white">{cadastroStats.totalRegistered}</span>
+                                <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Ninjas Ativos</span>
                             </div>
-                            <div className="bg-slate-700/30 p-3 rounded-lg border border-slate-600/30 text-center">
-                                <UserPlus size={24} className="mx-auto text-slate-400 mb-1"/>
-                                <span className="block text-2xl font-bold text-white">{cadastroStats.totalPending}</span>
-                                <span className="text-xs text-slate-400 uppercase font-bold">Vagas Livres</span>
+                            <div className="bg-slate-700/30 p-3 rounded-lg border border-slate-600/50 flex flex-col items-center justify-center">
+                                <span className="text-2xl font-bold text-cyan-400">{cadastroStats.totalPending}</span>
+                                <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Vagas Abertas</span>
                             </div>
+                        </div>
+
+                        {/* Detalhamento por Setor (Lista Visual) */}
+                        <div className="space-y-3 pt-2 border-t border-slate-700/50">
+                            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Disponibilidade por Setor</h4>
+                            
+                            {cadastroStats.orgDetails.map(org => {
+                                const IconComp = (Icons && org.icon && Icons[org.icon]) ? Icons[org.icon] : Icons.Shield;
+                                return (
+                                    <div key={org.id} className="group relative bg-slate-900/40 p-3 rounded-lg border border-slate-700/50 hover:border-slate-600 transition-colors">
+                                        <div className="flex justify-between items-center mb-2 relative z-10">
+                                            <div className="flex items-center gap-2">
+                                                <IconComp size={14} className="text-slate-400" />
+                                                <span className="text-sm font-bold text-slate-200">{org.name}</span>
+                                            </div>
+                                            <span className={`text-xs font-bold ${org.statusColor} bg-slate-800 px-2 py-0.5 rounded border border-slate-700`}>
+                                                {org.free} vagas
+                                            </span>
+                                        </div>
+                                        
+                                        {/* Barra de Progresso Mini */}
+                                        <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden relative z-10">
+                                            <div className={`h-full ${org.barColor} transition-all`} style={{ width: `${org.percent}%` }}></div>
+                                        </div>
+
+                                        {/* Fundo Hover */}
+                                        <div className={`absolute inset-0 opacity-0 group-hover:opacity-5 transition-opacity ${org.barColor} rounded-lg`}></div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* Rodapé Informativo */}
+                        <div className="text-[10px] text-slate-500 text-center italic mt-auto">
+                            Dados atualizados em tempo real.
                         </div>
                     </div>
 
-                    {/* Alertas de Conflito */}
+                    {/* Alertas de Conflito (Mantido) */}
                     {multiOrgUsers.length > 0 && (
-                        <div className="bg-yellow-900/20 border border-yellow-600/30 rounded-xl p-6">
+                        <div className="bg-yellow-900/20 border border-yellow-600/30 rounded-xl p-6 shadow-lg animate-pulse">
                             <h3 className="text-yellow-400 font-bold flex items-center gap-2 mb-4">
                                 <AlertTriangle size={20} /> Conflitos de Organização
                             </h3>
@@ -174,7 +240,7 @@ const DashboardTab = ({ members, roleConfig, multiOrgUsers, onTabChange }) => {
                                                     </div>
                                                 </div>
 
-                                                {/* Bloco 2: Atividade da Organização (NOVO) */}
+                                                {/* Bloco 2: Atividade da Organização */}
                                                 <div className="lg:col-span-2">
                                                     <h4 className="text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-2">
                                                         <Activity size={12}/> Atividade da Organização
@@ -182,7 +248,7 @@ const DashboardTab = ({ members, roleConfig, multiOrgUsers, onTabChange }) => {
                                                     <div className="grid grid-cols-2 gap-2">
                                                         {Object.entries(orgActivityStats).map(([tier, tierCount]) => {
                                                             const tierPercent = count > 0 ? Math.round((tierCount / count) * 100) : 0;
-                                                            if (tierCount === 0) return null; // Oculta se não tiver ninguém
+                                                            if (tierCount === 0) return null; 
 
                                                             return (
                                                                 <div key={tier} className="bg-slate-800/40 p-2 rounded border border-slate-700/50 flex flex-col relative overflow-hidden">
