@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { AlertTriangle, ChevronRight, Shield, Activity, AlertCircle } from 'lucide-react';
 import { ORG_CONFIG, Icons } from '../config/constants.js';
 import { getActivityStats } from '../utils/helpers.js';
@@ -18,12 +18,12 @@ const DashboardTab = ({ members, roleConfig, multiOrgUsers, onTabChange }) => {
     return (
         <div className="animate-fade-in flex flex-col gap-8">
             
-            {/* 1. PAINEL DE INTELIGÊNCIA (TOPO) */}
+            {/* 1. PAINEL DE INTELIGÊNCIA */}
             <div className="w-full">
                 <SummaryPanel members={members} />
             </div>
 
-            {/* 2. ALERTAS (SOMENTE SE HOUVER PROBLEMAS) */}
+            {/* 2. ALERTAS */}
             {multiOrgUsers.length > 0 && (
                 <div className="w-full bg-yellow-900/20 border border-yellow-600/30 rounded-xl p-4 shadow-lg animate-pulse flex flex-col md:flex-row items-start md:items-center gap-4">
                     <div className="flex items-center gap-3 text-yellow-400 font-bold min-w-fit">
@@ -41,13 +41,13 @@ const DashboardTab = ({ members, roleConfig, multiOrgUsers, onTabChange }) => {
                 </div>
             )}
 
-            {/* 3. LISTA DE ORGANIZAÇÕES (GRID PRINCIPAL) */}
+            {/* 3. LISTA DE ORGANIZAÇÕES (FLEX WRAP PARA EVITAR QUEBRAS) */}
             <div className="w-full">
                 <h3 className="text-white font-bold mb-4 flex items-center gap-2 text-lg border-b border-slate-700 pb-2">
                     <Shield size={20} className="text-cyan-400"/> Organizações
                 </h3>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="flex flex-wrap gap-6">
                     {Object.values(ORG_CONFIG).map((org) => {
                         const orgMembers = members.filter(m => m.org === org.id);
                         const count = orgMembers.length;
@@ -58,21 +58,23 @@ const DashboardTab = ({ members, roleConfig, multiOrgUsers, onTabChange }) => {
                         // Busca líder
                         const leader = orgMembers.find(m => m.isLeader);
 
-                        // Cálculo de Atividade da Organização
-                        const orgActivityStats = {
-                            'Lendário': 0, 'Ativo': 0, 'Regular': 0, 'Adormecido': 0, 'Fantasma': 0
-                        };
-                        
+                        // Atividade
+                        const orgActivityStats = { 'Lendário': 0, 'Ativo': 0, 'Regular': 0, 'Adormecido': 0, 'Fantasma': 0 };
                         orgMembers.forEach(m => {
                             const stats = getActivityStats(m);
-                            if (orgActivityStats[stats.tier] !== undefined) {
-                                orgActivityStats[stats.tier]++;
-                            }
+                            if (orgActivityStats[stats.tier] !== undefined) orgActivityStats[stats.tier]++;
                         });
 
                         return (
-                            <div key={org.id} className={`glass-panel rounded-xl transition-all duration-300 flex flex-col ${isExpanded ? 'border-cyan-500/50 shadow-lg shadow-cyan-500/10 col-span-1 md:col-span-2 lg:col-span-3' : 'border-slate-700 hover:border-slate-600'}`}>
-                                {/* Cabeçalho do Card (Clicável) */}
+                            <div 
+                                key={org.id} 
+                                className={`glass-panel rounded-xl transition-all duration-300 flex flex-col ${
+                                    isExpanded 
+                                    ? 'w-full border-cyan-500/50 shadow-lg shadow-cyan-500/10 order-first md:order-none' 
+                                    : 'w-full md:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] border-slate-700 hover:border-slate-600'
+                                }`}
+                            >
+                                {/* Cabeçalho do Card */}
                                 <div 
                                     className="p-5 cursor-pointer flex items-center justify-between"
                                     onClick={() => setExpandedOrg(isExpanded ? null : org.id)}
@@ -101,7 +103,7 @@ const DashboardTab = ({ members, roleConfig, multiOrgUsers, onTabChange }) => {
                                     <div className="px-6 pb-6 animate-fade-in border-t border-slate-700/50 pt-4 cursor-default">
                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                             {/* Bloco 1: Liderança e Status */}
-                                            <div className="bg-slate-800/30 p-4 rounded-lg border border-slate-700/50 h-full">
+                                            <div className="bg-slate-800/30 p-4 rounded-lg border border-slate-700/50 h-full flex flex-col">
                                                 <h4 className="text-xs font-bold text-slate-500 uppercase mb-4 border-b border-slate-700 pb-2">Comando</h4>
                                                 {leader ? (
                                                     <div className="flex items-center gap-3 mb-4">
@@ -138,10 +140,7 @@ const DashboardTab = ({ members, roleConfig, multiOrgUsers, onTabChange }) => {
                                                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                                                     {Object.entries(orgActivityStats).map(([tier, tierCount]) => {
                                                         const tierPercent = count > 0 ? Math.round((tierCount / count) * 100) : 0;
-                                                        
-                                                        // Opacidade reduzida se for 0
                                                         const opacityClass = tierCount === 0 ? 'opacity-40 grayscale' : '';
-
                                                         return (
                                                             <div key={tier} className={`bg-slate-900/60 p-2 rounded border border-slate-700/50 flex flex-col items-center justify-center relative overflow-hidden h-20 ${opacityClass}`}>
                                                                 <div className={`absolute bottom-0 left-0 w-full h-1 ${activityColors[tier]}`}></div>
