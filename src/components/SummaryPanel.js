@@ -68,6 +68,11 @@ const SummaryPanel = ({ members }) => {
         const oneWeekAgo = new Date();
         oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
+        // Data de corte para somar apenas voz recente (14 dias), igual ao helper
+        const cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - 14);
+        const cutoffStr = cutoffDate.toISOString().split('T')[0];
+
         members.forEach(m => {
             // Inicializa contador de org se não existir
             if (!data.orgPendingStats[m.org]) {
@@ -98,10 +103,15 @@ const SummaryPanel = ({ members }) => {
             const score = Number(activityInfo.total || 0);
             const msgs = Number(activityInfo.details?.msgs || 0);
             
-            // Tenta pegar do helper, se não tiver, tenta somar do dailyVoice direto do objeto m se existir
-            let voice = Number(activityInfo.details?.voice || 0);
-            if (voice === 0 && m.dailyVoice) {
-                 voice = Object.values(m.dailyVoice).reduce((a, b) => a + Number(b || 0), 0);
+            // CORREÇÃO CRÍTICA: Calcular voz bruta somando dailyVoice (filtrando por data recente)
+            let voiceMins = 0;
+            if (m.dailyVoice) {
+                 voiceMins = Object.entries(m.dailyVoice).reduce((acc, [date, mins]) => {
+                     if (date >= cutoffStr) {
+                         return acc + Number(mins || 0);
+                     }
+                     return acc;
+                 }, 0);
             }
 
             if (!data.membersByTier[tier]) data.membersByTier[tier] = [];
@@ -112,7 +122,7 @@ const SummaryPanel = ({ members }) => {
                 org: m.org,
                 score: score,
                 msgs: msgs,
-                voice: voice,
+                voice: voiceMins,
                 role: m.ninRole,
                 level: m.level || 1
             });
@@ -149,7 +159,7 @@ const SummaryPanel = ({ members }) => {
             }
             data.orgActivity[m.org].total += score;
             data.orgActivity[m.org].totalMsgs += msgs;
-            data.orgActivity[m.org].totalVoice += voice;
+            data.orgActivity[m.org].totalVoice += voiceMins;
             data.orgActivity[m.org].count += 1;
 
             // 5. Combate
