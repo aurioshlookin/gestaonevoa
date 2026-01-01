@@ -2,7 +2,8 @@ import React, { useMemo, useState } from 'react';
 import { 
     BarChart3, PieChart, Zap, Activity, Users, Layers, Award, AlertCircle, 
     ChevronRight, TrendingUp, UserPlus, Crown, ChevronDown, ChevronUp, Info, 
-    Flame, Swords, Heart, Dumbbell, Brain, Wind, ShieldCheck, Target, Medal, Droplets, HelpCircle
+    Flame, Swords, Heart, Dumbbell, Brain, Wind, ShieldCheck, Target, Medal, Droplets, HelpCircle, TrendingDown,
+    BarChart4
 } from 'lucide-react';
 import { MASTERIES, ORG_CONFIG, Icons } from '../config/constants.js';
 import { getActivityStats, calculateStats } from '../utils/helpers.js';
@@ -121,7 +122,7 @@ const SummaryPanel = ({ members }) => {
             if (m.joinDate && new Date(m.joinDate) >= oneWeekAgo) data.newMembers++;
 
             // 4. Org Activity
-            if (!data.orgActivity[m.org]) data.orgActivity[m.org] = { total: 0, count: 0 };
+            if (!data.orgActivity[m.org]) data.orgActivity[m.org] = { total: 0, count: 0, name: ORG_CONFIG[m.org]?.name || m.org };
             data.orgActivity[m.org].total += activityInfo.total;
             data.orgActivity[m.org].count += 1;
 
@@ -157,17 +158,30 @@ const SummaryPanel = ({ members }) => {
             });
         }
 
-        let bestOrg = { id: null, avg: 0 };
+        // Calcula Org Destaque (Maior Média) e Menor Atividade (Menor Média)
+        let bestOrg = { id: null, avg: -1, total: 0 };
+        let worstOrg = { id: null, avg: 999999, total: 0 }; // Começa alto para encontrar o menor
+
         Object.entries(data.orgActivity).forEach(([orgId, info]) => {
-            const avg = info.total / info.count;
-            if (avg > bestOrg.avg) bestOrg = { id: orgId, avg: Math.round(avg) };
+            if (info.count > 0) {
+                const avg = info.total / info.count;
+                if (avg > bestOrg.avg) bestOrg = { id: orgId, avg: Math.round(avg), total: info.total, name: info.name };
+                if (avg < worstOrg.avg) worstOrg = { id: orgId, avg: Math.round(avg), total: info.total, name: info.name };
+            }
         });
+        
+        // Se só tiver uma org ou nenhuma, ajusta para não mostrar o mesmo no pior
+        if (worstOrg.avg === 999999) worstOrg = { id: null, avg: 0, total: 0 };
+        if (bestOrg.id === worstOrg.id && Object.keys(data.orgActivity).length <= 1) worstOrg = { id: null };
+
         data.topOrg = bestOrg;
+        data.lowOrg = worstOrg;
 
         return data;
     }, [members]);
 
     const topOrgName = stats.topOrg.id ? (ORG_CONFIG[stats.topOrg.id]?.name || stats.topOrg.id) : "-";
+    const lowOrgName = stats.lowOrg.id ? (ORG_CONFIG[stats.lowOrg.id]?.name || stats.lowOrg.id) : "-";
     
     // Média de nível (35+ e pontos distribuídos)
     const avgLevel = stats.level35PlusCount > 0 ? Math.round(stats.level35PlusTotal / stats.level35PlusCount) : 0;
@@ -177,6 +191,10 @@ const SummaryPanel = ({ members }) => {
     
     const sortedPendingStats = Object.entries(stats.orgPendingStats)
         .sort((a, b) => b[1].pending - a[1].pending);
+
+    // Ordenação de Orgs por Atividade Total para o gráfico
+    const sortedOrgActivity = Object.entries(stats.orgActivity)
+        .sort((a, b) => b[1].total - a[1].total);
 
     const activityColors = {
         'Lendário': 'bg-purple-500 text-purple-100 border-purple-500/30',
@@ -254,14 +272,22 @@ const SummaryPanel = ({ members }) => {
                             <div className="space-y-6">
                                 {/* KPIs Principais */}
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                    {/* Card 1: Visão Geral do Efetivo (Combinado) */}
                                     <div className="bg-slate-800/80 border border-slate-700 p-4 rounded-xl shadow-lg">
                                         <div className="flex justify-between items-start mb-2">
-                                            <p className="text-slate-400 text-xs uppercase font-bold tracking-wider">Efetivo Total</p>
+                                            <p className="text-slate-400 text-xs uppercase font-bold tracking-wider">Visão Geral do Efetivo</p>
                                             <Users size={18} className="text-blue-400"/>
                                         </div>
-                                        <p className="text-4xl font-bold text-white">{stats.totalMembers}</p>
+                                        <div className="flex items-end gap-3">
+                                            <p className="text-4xl font-bold text-white">{stats.totalMembers}</p>
+                                            <div className="mb-1.5 flex items-center gap-1 text-xs text-cyan-400 bg-cyan-900/30 px-1.5 py-0.5 rounded border border-cyan-500/20">
+                                                <UserPlus size={10} />
+                                                <span>+{stats.newMembers} novos (7d)</span>
+                                            </div>
+                                        </div>
                                     </div>
 
+                                    {/* Card 2: Nível Médio */}
                                     <div className="bg-slate-800/80 border border-slate-700 p-4 rounded-xl shadow-lg">
                                         <div className="flex justify-between items-start mb-2">
                                             <p className="text-slate-400 text-xs uppercase font-bold tracking-wider">Nível Médio (35+)</p>
@@ -271,23 +297,41 @@ const SummaryPanel = ({ members }) => {
                                         <p className="text-xs text-slate-500">Base: {stats.level35PlusCount} ninjas</p>
                                     </div>
 
-                                    <div className="bg-slate-800/80 border border-slate-700 p-4 rounded-xl shadow-lg">
-                                        <div className="flex justify-between items-start mb-2">
-                                            <p className="text-slate-400 text-xs uppercase font-bold tracking-wider">Recrutas (7d)</p>
-                                            <UserPlus size={18} className="text-cyan-400"/>
-                                        </div>
-                                        <p className="text-4xl font-bold text-white">{stats.newMembers}</p>
-                                    </div>
-
-                                    <div className="bg-slate-800/80 border border-slate-700 p-4 rounded-xl shadow-lg">
+                                    {/* Card 3: Org Destaque (Maior Média) */}
+                                    <div className="bg-slate-800/80 border border-slate-700 p-4 rounded-xl shadow-lg relative group">
                                         <div className="flex justify-between items-start mb-2">
                                             <p className="text-slate-400 text-xs uppercase font-bold tracking-wider">Org. Destaque</p>
                                             <Crown size={18} className="text-yellow-400"/>
                                         </div>
                                         <div className="flex flex-col">
                                             <p className="text-xl font-bold text-white truncate" title={topOrgName}>{topOrgName}</p>
-                                            <p className="text-xs text-slate-500">Média: <span className="text-yellow-400 font-bold">{stats.topOrg.avg} pts</span></p>
+                                            <div className="flex justify-between items-end mt-1">
+                                                <p className="text-xs text-slate-400">Média de Ativ.: <span className="text-yellow-400 font-bold">{stats.topOrg.avg}</span></p>
+                                                <p className="text-[10px] text-slate-600">Total: {stats.topOrg.total}</p>
+                                            </div>
                                         </div>
+                                        {/* Tooltip explicativo */}
+                                        <div className="absolute top-full left-0 mt-2 p-2 bg-slate-900 border border-slate-700 rounded text-xs text-slate-300 w-full z-10 hidden group-hover:block shadow-xl">
+                                            Baseado na média de pontos de atividade (mensagens + voz) por membro.
+                                        </div>
+                                    </div>
+
+                                    {/* Card 4: Org em Alerta (Menor Média) */}
+                                    <div className="bg-slate-800/80 border border-slate-700 p-4 rounded-xl shadow-lg">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <p className="text-slate-400 text-xs uppercase font-bold tracking-wider">Em Alerta</p>
+                                            <TrendingDown size={18} className="text-red-400"/>
+                                        </div>
+                                        {stats.lowOrg.id ? (
+                                            <div className="flex flex-col">
+                                                <p className="text-xl font-bold text-white truncate" title={lowOrgName}>{lowOrgName}</p>
+                                                <div className="flex justify-between items-end mt-1">
+                                                    <p className="text-xs text-slate-400">Média de Ativ.: <span className="text-red-400 font-bold">{stats.lowOrg.avg}</span></p>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <p className="text-sm text-slate-500 italic mt-2">Dados insuficientes</p>
+                                        )}
                                     </div>
                                 </div>
 
@@ -448,7 +492,7 @@ const SummaryPanel = ({ members }) => {
                                                             </div>
                                                         );
                                                     })}
-                                                </div>
+                                                </tbody>
                                             </div>
 
                                             {/* Coluna 2: Atributos Base */}
@@ -510,7 +554,6 @@ const SummaryPanel = ({ members }) => {
                                     <div className="space-y-4">
                                         {sortedMasteries.map(([name, count]) => {
                                             const percentage = Math.round((count / stats.totalMembers) * 100);
-                                            // Fallback para cinza apenas se não encontrar a cor
                                             const colorHex = ELEMENT_COLORS[name] || ELEMENT_COLORS[name.charAt(0).toUpperCase() + name.slice(1)] || ELEMENT_COLORS['Pendente'];
                                             
                                             return (
@@ -566,63 +609,109 @@ const SummaryPanel = ({ members }) => {
 
                         {/* === ABA ATIVIDADE === */}
                         {activeView === 'activity' && (
-                            <div className="bg-slate-800/50 border border-slate-700 p-6 rounded-xl">
-                                <h3 className="text-base font-bold text-slate-300 mb-4 flex items-center gap-2">
-                                    <Activity size={18}/> Saúde da Comunidade
-                                </h3>
-                                
-                                <div className="space-y-3">
-                                    {['Lendário', 'Ativo', 'Regular', 'Adormecido', 'Fantasma'].map(tier => {
-                                        const count = stats.activity[tier] || 0;
-                                        const percentage = Math.round((count / stats.totalMembers) * 100) || 0;
-                                        const colorStyle = activityColors[tier] || 'bg-slate-500 text-slate-100';
-                                        const isSelected = selectedActivityTier === tier;
-                                        const tierMembers = stats.membersByTier[tier] || [];
-
-                                        if (count === 0) return null;
-
-                                        return (
-                                            <div key={tier} className="flex flex-col">
-                                                <div 
-                                                    onClick={(e) => toggleTierDetails(e, tier)}
-                                                    className={`group relative flex items-center justify-between p-4 rounded-lg border transition-all cursor-pointer hover:brightness-110 ${isSelected ? 'bg-slate-700 border-slate-500' : 'bg-slate-900/50 border-slate-700/50'}`}
-                                                >
-                                                    <div className={`absolute inset-0 opacity-10 rounded-lg ${colorStyle.split(' ')[0]} transition-all duration-1000`} style={{ width: `${percentage}%` }}></div>
-                                                    <div className="flex items-center gap-3 relative z-10">
-                                                        <span className={`w-3 h-3 rounded-full ${colorStyle.split(' ')[0]} shadow-[0_0_8px_currentColor]`}></span>
-                                                        <span className="text-base font-bold text-slate-200">{tier}</span>
+                            <div className="space-y-6">
+                                {/* Comparativo de Atividade por Org (Gráfico de Barras) */}
+                                <div className="bg-slate-800/50 border border-slate-700 p-6 rounded-xl">
+                                    <h3 className="text-base font-bold text-slate-300 mb-6 flex items-center gap-2">
+                                        <BarChart4 size={18}/> Comparativo de Atividade por Organização
+                                    </h3>
+                                    <div className="space-y-4">
+                                        {sortedOrgActivity.map(([orgId, data], idx) => {
+                                            if (data.total === 0) return null;
+                                            
+                                            // Encontrar o maior valor total para escala relativa
+                                            const maxActivity = sortedOrgActivity[0][1].total;
+                                            const percentage = (data.total / maxActivity) * 100;
+                                            const orgConfig = ORG_CONFIG[orgId] || { name: orgId, color: 'text-slate-400', bgColor: 'bg-slate-800' };
+                                            
+                                            // Extrai cor para fundo (ex: 'text-red-500' -> 'bg-red-500')
+                                            // Fallback simples se a estrutura for diferente
+                                            let barColor = orgConfig.color.replace('text-', 'bg-');
+                                            
+                                            return (
+                                                <div key={orgId} className="flex items-center gap-4">
+                                                    <div className={`w-28 text-xs font-bold uppercase truncate text-right ${orgConfig.color}`}>
+                                                        {data.name}
                                                     </div>
-                                                    <div className="flex items-center gap-3 relative z-10">
-                                                        <span className="font-mono text-cyan-400 font-bold text-lg">{count}</span>
-                                                        {isSelected ? <ChevronUp size={20} className="text-slate-400"/> : <ChevronDown size={20} className="text-slate-600 group-hover:text-white"/>}
+                                                    <div className="flex-1 bg-slate-900/50 h-4 rounded-full overflow-hidden relative group">
+                                                        <div 
+                                                            className={`h-full ${barColor} rounded-full transition-all duration-1000 relative`} 
+                                                            style={{ width: `${percentage}%` }}
+                                                        >
+                                                            <div className="absolute inset-0 bg-white/10 group-hover:bg-white/20 transition-colors"></div>
+                                                        </div>
+                                                        {/* Tooltip */}
+                                                        <div className="absolute top-0 right-0 -mt-8 hidden group-hover:block bg-slate-800 text-xs text-white px-2 py-1 rounded border border-slate-600 z-10 whitespace-nowrap">
+                                                            Média: {Math.round(data.total / data.count)} pts/membro
+                                                        </div>
+                                                    </div>
+                                                    <div className="w-16 text-right font-mono font-bold text-white text-sm">
+                                                        {data.total}
                                                     </div>
                                                 </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
 
-                                                {isSelected && (
-                                                    <div className="mt-2 pl-4 border-l-2 border-slate-700 space-y-2 animate-fade-in mb-2">
-                                                        {tierMembers.map((m, idx) => {
-                                                            const orgInfo = ORG_CONFIG[m.org] || { name: m.org, color: 'text-slate-500' };
-                                                            return (
-                                                                <div key={idx} className="bg-slate-800/50 p-3 rounded flex justify-between items-center text-sm border border-slate-700/50 hover:bg-slate-800 transition-colors">
-                                                                    <div className="flex items-center gap-3">
-                                                                        <div className={`w-8 h-8 rounded bg-slate-700 flex items-center justify-center font-bold text-white uppercase text-sm ${orgInfo.color}`}>{m.name.charAt(0)}</div>
-                                                                        <div>
-                                                                            <p className={`font-bold ${orgInfo.color.replace('text-', 'text-') || 'text-white'}`}>{m.name}</p>
-                                                                            <p className="text-xs text-slate-400">{orgInfo.name} • {m.role} • Nvl. {m.level}</p>
+                                <div className="bg-slate-800/50 border border-slate-700 p-6 rounded-xl">
+                                    <h3 className="text-base font-bold text-slate-300 mb-4 flex items-center gap-2">
+                                        <Activity size={18}/> Detalhamento por Nível de Atividade
+                                    </h3>
+                                    
+                                    <div className="space-y-3">
+                                        {['Lendário', 'Ativo', 'Regular', 'Adormecido', 'Fantasma'].map(tier => {
+                                            const count = stats.activity[tier] || 0;
+                                            const percentage = Math.round((count / stats.totalMembers) * 100) || 0;
+                                            const colorStyle = activityColors[tier] || 'bg-slate-500 text-slate-100';
+                                            const isSelected = selectedActivityTier === tier;
+                                            const tierMembers = stats.membersByTier[tier] || [];
+
+                                            if (count === 0) return null;
+
+                                            return (
+                                                <div key={tier} className="flex flex-col">
+                                                    <div 
+                                                        onClick={(e) => toggleTierDetails(e, tier)}
+                                                        className={`group relative flex items-center justify-between p-4 rounded-lg border transition-all cursor-pointer hover:brightness-110 ${isSelected ? 'bg-slate-700 border-slate-500' : 'bg-slate-900/50 border-slate-700/50'}`}
+                                                    >
+                                                        <div className={`absolute inset-0 opacity-10 rounded-lg ${colorStyle.split(' ')[0]} transition-all duration-1000`} style={{ width: `${percentage}%` }}></div>
+                                                        <div className="flex items-center gap-3 relative z-10">
+                                                            <span className={`w-3 h-3 rounded-full ${colorStyle.split(' ')[0]} shadow-[0_0_8px_currentColor]`}></span>
+                                                            <span className="text-base font-bold text-slate-200">{tier}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-3 relative z-10">
+                                                            <span className="font-mono text-cyan-400 font-bold text-lg">{count}</span>
+                                                            {isSelected ? <ChevronUp size={20} className="text-slate-400"/> : <ChevronDown size={20} className="text-slate-600 group-hover:text-white"/>}
+                                                        </div>
+                                                    </div>
+
+                                                    {isSelected && (
+                                                        <div className="mt-2 pl-4 border-l-2 border-slate-700 space-y-2 animate-fade-in mb-2">
+                                                            {tierMembers.map((m, idx) => {
+                                                                const orgInfo = ORG_CONFIG[m.org] || { name: m.org, color: 'text-slate-500' };
+                                                                return (
+                                                                    <div key={idx} className="bg-slate-800/50 p-3 rounded flex justify-between items-center text-sm border border-slate-700/50 hover:bg-slate-800 transition-colors">
+                                                                        <div className="flex items-center gap-3">
+                                                                            <div className={`w-8 h-8 rounded bg-slate-700 flex items-center justify-center font-bold text-white uppercase text-sm ${orgInfo.color}`}>{m.name.charAt(0)}</div>
+                                                                            <div>
+                                                                                <p className={`font-bold ${orgInfo.color.replace('text-', 'text-') || 'text-white'}`}>{m.name}</p>
+                                                                                <p className="text-xs text-slate-400">{orgInfo.name} • {m.role} • Nvl. {m.level}</p>
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="text-right">
+                                                                            <p className="text-cyan-400 font-bold">{Math.round(m.score)} pts</p>
+                                                                            <p className="text-xs text-slate-500">{m.msgs} msgs</p>
                                                                         </div>
                                                                     </div>
-                                                                    <div className="text-right">
-                                                                        <p className="text-cyan-400 font-bold">{Math.round(m.score)} pts</p>
-                                                                        <p className="text-xs text-slate-500">{m.msgs} msgs</p>
-                                                                    </div>
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
                             </div>
                         )}
