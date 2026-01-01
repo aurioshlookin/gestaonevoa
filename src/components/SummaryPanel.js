@@ -1,49 +1,98 @@
 import React, { useMemo, useState } from 'react';
-import { BarChart3, PieChart, Zap, Activity, Users, Layers, Award, AlertCircle, ChevronRight } from 'lucide-react';
-import { MASTERIES, Icons } from '../config/constants.js';
+import { 
+    BarChart3, PieChart, Zap, Activity, Users, Layers, Award, AlertCircle, 
+    ChevronRight, TrendingUp, UserPlus, Crown, ChevronDown, Swords 
+} from 'lucide-react';
+import { MASTERIES, ORG_CONFIG, Icons } from '../config/constants.js';
 import { getActivityStats } from '../utils/helpers.js';
 
 const SummaryPanel = ({ members }) => {
     const [isExpanded, setIsExpanded] = useState(false);
+    const [selectedActivityTier, setSelectedActivityTier] = useState(null);
 
     const stats = useMemo(() => {
         const data = {
             masteries: {},
             combos: {},
             activity: {},
-            pendingMastery: 0, // Contador para sem maestria
-            totalMembers: members.length
+            membersByTier: {}, // Armazena a lista de membros por tier
+            pendingMastery: 0,
+            totalMembers: members.length,
+            totalLevel: 0,
+            newMembers: 0, // Últimos 7 dias
+            orgActivity: {} // Para calcular org mais ativa
         };
 
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
         members.forEach(m => {
-            // 1. Contagem por Maestria Individual e Pendentes
+            // 1. Maestrias & Combos
             if (m.masteries && m.masteries.length > 0) {
                 m.masteries.forEach(mast => {
                     data.masteries[mast] = (data.masteries[mast] || 0) + 1;
                 });
             } else {
-                // Se não tiver maestria, conta como pendente
                 data.masteries['Pendente'] = (data.masteries['Pendente'] || 0) + 1;
                 data.pendingMastery += 1;
             }
 
-            // 2. Contagem por Combinação (Combo)
             const comboKey = (m.masteries || []).length > 0 
                 ? (m.masteries || []).slice().sort().join(' + ') 
                 : 'Cadastro Incompleto';
             data.combos[comboKey] = (data.combos[comboKey] || 0) + 1;
 
-            // 3. Contagem por Atividade
+            // 2. Atividade Detalhada
             const activityInfo = getActivityStats(m);
             const tier = activityInfo.tier; 
+            
             data.activity[tier] = (data.activity[tier] || 0) + 1;
+            
+            // Agrupa membro no tier para o drill-down
+            if (!data.membersByTier[tier]) data.membersByTier[tier] = [];
+            data.membersByTier[tier].push({
+                id: m.id,
+                name: m.rpName || m.name,
+                discordName: m.name,
+                org: m.org,
+                score: activityInfo.total,
+                msgs: activityInfo.details.msgs,
+                voice: activityInfo.details.voice,
+                role: m.ninRole
+            });
+
+            // 3. Estatísticas Gerais
+            data.totalLevel += parseInt(m.level || 1);
+            
+            if (m.joinDate && new Date(m.joinDate) >= oneWeekAgo) {
+                data.newMembers++;
+            }
+
+            // 4. Atividade por Organização (para achar a Top Org)
+            if (!data.orgActivity[m.org]) data.orgActivity[m.org] = { total: 0, count: 0 };
+            data.orgActivity[m.org].total += activityInfo.total;
+            data.orgActivity[m.org].count += 1;
+        });
+
+        // Calcula Top Org
+        let bestOrg = { id: null, avg: 0 };
+        Object.entries(data.orgActivity).forEach(([orgId, info]) => {
+            const avg = info.total / info.count;
+            if (avg > bestOrg.avg) {
+                bestOrg = { id: orgId, avg: Math.round(avg) };
+            }
+        });
+        data.topOrg = bestOrg;
+
+        // Ordena as listas de membros por score (do maior para o menor)
+        Object.keys(data.membersByTier).forEach(tier => {
+            data.membersByTier[tier].sort((a, b) => b.score - a.score);
         });
 
         return data;
     }, [members]);
 
     const getTop = (obj) => {
-        // Filtra "Pendente" e "Cadastro Incompleto" para não serem o "Top" destaque
         const sorted = Object.entries(obj)
             .filter(([key]) => key !== 'Pendente' && key !== 'Cadastro Incompleto')
             .sort((a, b) => b[1] - a[1]);
@@ -52,22 +101,28 @@ const SummaryPanel = ({ members }) => {
 
     const topMastery = getTop(stats.masteries);
     const topCombo = getTop(stats.combos);
+    const avgLevel = stats.totalMembers > 0 ? Math.round(stats.totalLevel / stats.totalMembers) : 0;
+    const topOrgName = stats.topOrg.id ? (ORG_CONFIG[stats.topOrg.id]?.name || stats.topOrg.id) : "-";
 
-    const sortedMasteries = Object.entries(stats.masteries)
-        .sort((a, b) => b[1] - a[1]);
+    const sortedMasteries = Object.entries(stats.masteries).sort((a, b) => b[1] - a[1]);
 
     const activityColors = {
-        'Lendário': 'bg-purple-500 text-purple-100',
-        'Ativo': 'bg-emerald-500 text-emerald-100',
-        'Regular': 'bg-blue-500 text-blue-100',
-        'Adormecido': 'bg-yellow-500 text-yellow-100',
-        'Fantasma': 'bg-red-500 text-red-100'
+        'Lendário': 'bg-purple-500 text-purple-100 border-purple-500/30',
+        'Ativo': 'bg-emerald-500 text-emerald-100 border-emerald-500/30',
+        'Regular': 'bg-blue-500 text-blue-100 border-blue-500/30',
+        'Adormecido': 'bg-yellow-500 text-yellow-100 border-yellow-500/30',
+        'Fantasma': 'bg-red-500 text-red-100 border-red-500/30'
+    };
+
+    const toggleTierDetails = (e, tier) => {
+        e.stopPropagation(); // Impede fechar o painel principal
+        setSelectedActivityTier(selectedActivityTier === tier ? null : tier);
     };
 
     return (
         <div className={`glass-panel rounded-xl transition-all duration-300 mb-8 ${isExpanded ? 'border-cyan-500/50 shadow-lg shadow-cyan-500/10' : 'border-slate-700 hover:border-slate-600'}`}>
             
-            {/* CABEÇALHO CLICÁVEL (Estilo igual ao das Organizações) */}
+            {/* CABEÇALHO CLICÁVEL */}
             <div 
                 className="p-6 cursor-pointer flex items-center justify-between"
                 onClick={() => setIsExpanded(!isExpanded)}
@@ -79,7 +134,6 @@ const SummaryPanel = ({ members }) => {
                     <div>
                         <h2 className="text-xl font-bold text-white">Relatório de Inteligência</h2>
                         <div className="flex items-center gap-3 mt-1">
-                            {/* Mini Resumo visível quando fechado */}
                             <span className="text-xs text-slate-400 font-mono flex items-center gap-1">
                                 <Users size={12}/> {stats.totalMembers} Ninjas
                             </span>
@@ -100,70 +154,147 @@ const SummaryPanel = ({ members }) => {
             {isExpanded && (
                 <div className="px-6 pb-6 animate-fade-in border-t border-slate-700/50 pt-6 space-y-6">
                     
-                    {/* CARDS DE RESUMO (KPIs) */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <div className="bg-slate-800/80 border border-slate-700 p-4 rounded-xl flex items-center justify-between shadow-lg">
-                            <div>
-                                <p className="text-slate-400 text-xs uppercase font-bold tracking-wider">Efetivo Total</p>
-                                <p className="text-3xl font-bold text-white mt-1">{stats.totalMembers}</p>
+                    {/* LINHA 1: KPIs GERAIS */}
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                        {/* Efetivo */}
+                        <div className="bg-slate-800/80 border border-slate-700 p-3 rounded-xl shadow-lg">
+                            <div className="flex justify-between items-start mb-2">
+                                <p className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Efetivo</p>
+                                <Users size={16} className="text-blue-400"/>
                             </div>
-                            <div className="p-3 bg-blue-500/20 text-blue-400 rounded-lg">
-                                <Users size={24} />
+                            <p className="text-2xl font-bold text-white">{stats.totalMembers}</p>
+                        </div>
+
+                        {/* Média Nível (NOVO) */}
+                        <div className="bg-slate-800/80 border border-slate-700 p-3 rounded-xl shadow-lg">
+                            <div className="flex justify-between items-start mb-2">
+                                <p className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Nível Médio</p>
+                                <TrendingUp size={16} className="text-emerald-400"/>
+                            </div>
+                            <p className="text-2xl font-bold text-white">{avgLevel}</p>
+                        </div>
+
+                        {/* Recrutas (NOVO) */}
+                        <div className="bg-slate-800/80 border border-slate-700 p-3 rounded-xl shadow-lg">
+                            <div className="flex justify-between items-start mb-2">
+                                <p className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Recrutas (7d)</p>
+                                <UserPlus size={16} className="text-cyan-400"/>
+                            </div>
+                            <p className="text-2xl font-bold text-white flex items-center gap-2">
+                                {stats.newMembers} 
+                                {stats.newMembers > 0 && <span className="text-[10px] bg-cyan-900 text-cyan-300 px-1 rounded">Novos</span>}
+                            </p>
+                        </div>
+
+                        {/* Top Org (NOVO) */}
+                        <div className="bg-slate-800/80 border border-slate-700 p-3 rounded-xl shadow-lg lg:col-span-2">
+                            <div className="flex justify-between items-start mb-2">
+                                <p className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Org. Destaque (Atividade)</p>
+                                <Crown size={16} className="text-yellow-400"/>
+                            </div>
+                            <div className="flex flex-col">
+                                <p className="text-lg font-bold text-white truncate" title={topOrgName}>{topOrgName}</p>
+                                <p className="text-[10px] text-slate-500">Média: {stats.topOrg.avg} pts</p>
                             </div>
                         </div>
 
-                        {/* CARD: Pendentes */}
-                        <div className="bg-slate-800/80 border border-slate-700 p-4 rounded-xl flex items-center justify-between shadow-lg">
-                            <div>
-                                <p className="text-slate-400 text-xs uppercase font-bold tracking-wider">Pendentes</p>
-                                <div className="flex items-center gap-2 mt-1">
-                                    <p className="text-3xl font-bold text-white">{stats.pendingMastery}</p>
-                                    {stats.pendingMastery > 0 && (
-                                        <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded font-bold">Atenção</span>
-                                    )}
-                                </div>
-                                <p className="text-[10px] text-slate-500 mt-1">Sem maestria definida</p>
+                        {/* Maestria Top */}
+                        <div className="bg-slate-800/80 border border-slate-700 p-3 rounded-xl shadow-lg">
+                            <div className="flex justify-between items-start mb-2">
+                                <p className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Maestria #1</p>
+                                <Zap size={16} className="text-orange-400"/>
                             </div>
-                            <div className="p-3 bg-yellow-500/20 text-yellow-400 rounded-lg">
-                                <AlertCircle size={24} />
-                            </div>
-                        </div>
-
-                        <div className="bg-slate-800/80 border border-slate-700 p-4 rounded-xl flex items-center justify-between shadow-lg">
-                            <div>
-                                <p className="text-slate-400 text-xs uppercase font-bold tracking-wider">Maestria Dominante</p>
-                                <div className="flex items-center gap-2 mt-1">
-                                    <p className="text-xl font-bold text-white truncate max-w-[100px]" title={topMastery[0]}>{topMastery[0]}</p>
-                                    <span className="text-xs bg-slate-700 px-2 py-1 rounded text-cyan-400 font-mono">{topMastery[1]}</span>
-                                </div>
-                            </div>
-                            <div className="p-3 bg-orange-500/20 text-orange-400 rounded-lg">
-                                <Zap size={24} />
-                            </div>
-                        </div>
-
-                        <div className="bg-slate-800/80 border border-slate-700 p-4 rounded-xl flex items-center justify-between shadow-lg">
-                            <div>
-                                <p className="text-slate-400 text-xs uppercase font-bold tracking-wider">Combo Comum</p>
-                                <div className="flex items-center gap-2 mt-1">
-                                    <p className="text-sm font-bold text-white truncate max-w-[120px]" title={topCombo[0]}>{topCombo[0]}</p>
-                                    <span className="text-xs bg-slate-700 px-2 py-1 rounded text-purple-400 font-mono">{topCombo[1]}</span>
-                                </div>
-                            </div>
-                            <div className="p-3 bg-purple-500/20 text-purple-400 rounded-lg">
-                                <Layers size={24} />
-                            </div>
+                            <p className="text-lg font-bold text-white truncate" title={topMastery[0]}>{topMastery[0]}</p>
                         </div>
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        {/* GRÁFICO DE MAESTRIAS */}
+                        {/* PAINEL DE ATIVIDADE (INTERATIVO) */}
                         <div className="lg:col-span-2 bg-slate-800/50 border border-slate-700 p-6 rounded-xl">
                             <h3 className="text-sm font-bold text-slate-300 mb-4 flex items-center gap-2">
-                                <PieChart size={16}/> Distribuição de Elementos & Estilos
+                                <Activity size={16}/> Saúde da Comunidade
+                                <span className="text-[10px] font-normal text-slate-500 ml-auto">(Clique para ver membros)</span>
                             </h3>
+                            
                             <div className="space-y-3">
-                                {sortedMasteries.map(([name, count]) => {
+                                {['Lendário', 'Ativo', 'Regular', 'Adormecido', 'Fantasma'].map(tier => {
+                                    const count = stats.activity[tier] || 0;
+                                    const percentage = Math.round((count / stats.totalMembers) * 100) || 0;
+                                    const colorStyle = activityColors[tier] || 'bg-slate-500 text-slate-100';
+                                    const isSelected = selectedActivityTier === tier;
+                                    const tierMembers = stats.membersByTier[tier] || [];
+
+                                    if (count === 0) return null;
+
+                                    return (
+                                        <div key={tier} className="flex flex-col">
+                                            {/* Barra Clicável */}
+                                            <div 
+                                                onClick={(e) => toggleTierDetails(e, tier)}
+                                                className={`group relative flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer hover:brightness-110 ${isSelected ? 'bg-slate-700 border-slate-500' : 'bg-slate-900/50 border-slate-700/50'}`}
+                                            >
+                                                {/* Barra de Fundo (Progresso) */}
+                                                <div className={`absolute inset-0 opacity-10 rounded-lg ${colorStyle.split(' ')[0]} transition-all duration-1000`} style={{ width: `${percentage}%` }}></div>
+                                                
+                                                <div className="flex items-center gap-3 relative z-10">
+                                                    <span className={`w-3 h-3 rounded-full ${colorStyle.split(' ')[0]} shadow-[0_0_8px_currentColor]`}></span>
+                                                    <span className="text-sm font-bold text-slate-200">{tier}</span>
+                                                    <span className="text-xs text-slate-500 font-mono hidden sm:inline">({percentage}%)</span>
+                                                </div>
+
+                                                <div className="flex items-center gap-3 relative z-10">
+                                                    <span className="font-mono text-cyan-400 font-bold">{count}</span>
+                                                    {isSelected ? <ChevronUp size={16} className="text-slate-400"/> : <ChevronDown size={16} className="text-slate-600 group-hover:text-white"/>}
+                                                </div>
+                                            </div>
+
+                                            {/* Lista Detalhada (Accordion) */}
+                                            {isSelected && (
+                                                <div className="mt-2 pl-4 border-l-2 border-slate-700 space-y-2 animate-fade-in mb-2">
+                                                    {tierMembers.slice(0, 10).map((m, idx) => (
+                                                        <div key={idx} className="bg-slate-800/50 p-2 rounded flex justify-between items-center text-xs border border-slate-700/50 hover:bg-slate-800 transition-colors">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className={`w-6 h-6 rounded bg-slate-700 flex items-center justify-center font-bold text-white uppercase text-[10px] ${ORG_CONFIG[m.org]?.color || 'text-slate-400'}`}>
+                                                                    {m.name.charAt(0)}
+                                                                </div>
+                                                                <div>
+                                                                    <p className="font-bold text-white">{m.name}</p>
+                                                                    <p className="text-slate-500">{m.role}</p>
+                                                                </div>
+                                                            </div>
+                                                            <div className="text-right">
+                                                                <p className="text-cyan-400 font-bold">{Math.round(m.score)} pts</p>
+                                                                <p className="text-[9px] text-slate-500">{m.msgs} msgs</p>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                    {tierMembers.length > 10 && (
+                                                        <p className="text-[10px] text-center text-slate-500 italic pt-1">
+                                                            + {tierMembers.length - 10} outros membros...
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            
+                            <div className="mt-6 pt-4 border-t border-slate-700">
+                                <div className="bg-yellow-900/20 p-3 rounded text-xs text-yellow-200/80 border border-yellow-700/30">
+                                    <Award size={14} className="inline mr-1 -mt-0.5"/>
+                                    <strong>Critério Lendário:</strong> Acima de 250 pontos (msgs + tempo de voz) nas últimas 2 semanas.
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* GRÁFICO DE MAESTRIAS (Menor) */}
+                        <div className="bg-slate-800/50 border border-slate-700 p-6 rounded-xl flex flex-col">
+                            <h3 className="text-sm font-bold text-slate-300 mb-4 flex items-center gap-2">
+                                <PieChart size={16}/> Distribuição (Top 5)
+                            </h3>
+                            <div className="space-y-4 flex-1">
+                                {sortedMasteries.slice(0, 5).map(([name, count]) => {
                                     const masteryConfig = MASTERIES.find(m => m.id === name);
                                     const colorClass = name === 'Pendente' 
                                         ? 'bg-yellow-600' 
@@ -175,51 +306,22 @@ const SummaryPanel = ({ members }) => {
                                         <div key={name} className="relative group">
                                             <div className="flex justify-between text-xs mb-1">
                                                 <span className={`font-bold ${name === 'Pendente' ? 'text-yellow-400' : 'text-slate-300'}`}>
-                                                    {name === 'Pendente' ? '⚠️ Pendente de Cadastro' : name}
+                                                    {name}
                                                 </span>
                                                 <span className="text-slate-400">{count} ({percentage}%)</span>
                                             </div>
-                                            <div className="w-full bg-slate-700/50 h-2.5 rounded-full overflow-hidden">
+                                            <div className="w-full bg-slate-700/50 h-2 rounded-full overflow-hidden">
                                                 <div 
-                                                    className={`h-full rounded-full ${colorClass} ${name === 'Pendente' ? 'animate-pulse' : ''}`} 
-                                                    style={{ width: `${percentage}%`, transition: 'width 1s ease-in-out' }}
+                                                    className={`h-full rounded-full ${colorClass}`} 
+                                                    style={{ width: `${percentage}%` }}
                                                 ></div>
                                             </div>
                                         </div>
                                     );
                                 })}
-                            </div>
-                        </div>
-
-                        {/* PAINEL DE ATIVIDADE */}
-                        <div className="bg-slate-800/50 border border-slate-700 p-6 rounded-xl">
-                            <h3 className="text-sm font-bold text-slate-300 mb-4 flex items-center gap-2">
-                                <Activity size={16}/> Saúde da Comunidade
-                            </h3>
-                            <div className="space-y-3">
-                                {['Lendário', 'Ativo', 'Regular', 'Adormecido', 'Fantasma'].map(tier => {
-                                    const count = stats.activity[tier] || 0;
-                                    const color = activityColors[tier] || 'bg-slate-500 text-slate-100';
-                                    
-                                    if (count === 0) return null;
-
-                                    return (
-                                        <div key={tier} className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg border border-slate-700/50">
-                                            <div className="flex items-center gap-3">
-                                                <span className={`w-3 h-3 rounded-full ${color.split(' ')[0]}`}></span>
-                                                <span className="text-sm font-bold text-slate-200">{tier}</span>
-                                            </div>
-                                            <span className="font-mono text-cyan-400 font-bold">{count}</span>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                            
-                            <div className="mt-6 pt-4 border-t border-slate-700">
-                                <div className="bg-yellow-900/20 p-3 rounded text-xs text-yellow-200/80 border border-yellow-700/30">
-                                    <Award size={14} className="inline mr-1 -mt-0.5"/>
-                                    <strong>Dica:</strong> Membros "Lendários" têm mais de 250 pontos de atividade recente.
-                                </div>
+                                {sortedMasteries.length > 5 && (
+                                    <p className="text-xs text-center text-slate-500 mt-2">...e mais {sortedMasteries.length - 5}</p>
+                                )}
                             </div>
                         </div>
                     </div>
