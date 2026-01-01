@@ -4,15 +4,18 @@ import React from 'react';
 import { Icons } from '../config/constants.js';
 
 const TutorialOverlay = ({ content, onClose }) => {
-    // Debug: Verifique o console para ver o conteúdo recebido
-    console.log("TutorialOverlay content:", content);
+    // Debug: Verifique o console para ver o conteúdo recebido (Formatado)
+    // Se isso aparecer vazio ou undefined no console, o erro está no App.js/TUTORIALS
+    console.log("TutorialOverlay content received:", JSON.stringify(content, null, 2));
 
-    // Safety check: Se não tiver conteúdo, não renderiza nada (ou fecha)
+    // Safety check: Se não tiver conteúdo, não renderiza nada
     if (!content) return null;
 
-    // Fallback para ícones caso não estejam carregados
-    const BookIcon = (Icons && Icons.BookOpen) ? Icons.BookOpen : 'span';
-    const CloseIcon = (Icons && Icons.X) ? Icons.X : 'button';
+    // Fallback seguro para ícones
+    // Se Icons for undefined (erro de import), usa string 'span'/'button' para não quebrar
+    const safeIcons = Icons || {};
+    const BookIcon = safeIcons.BookOpen || 'span'; // Ícone padrão do cabeçalho
+    const CloseIcon = safeIcons.X || 'button';     // Ícone de fechar
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -29,12 +32,13 @@ const TutorialOverlay = ({ content, onClose }) => {
                 <div className="p-6 border-b border-slate-700 bg-slate-900/50 rounded-t-2xl flex justify-between items-start">
                     <div className="flex gap-4">
                         <div className="p-3 bg-cyan-900/30 rounded-xl border border-cyan-500/30 text-cyan-400 h-fit">
-                            <BookIcon size={32} />
+                            {/* Renderização segura do ícone */}
+                            {typeof BookIcon === 'string' ? <span className="font-bold text-2xl">📖</span> : <BookIcon size={32} />}
                         </div>
                         <div>
                             <h2 className="text-2xl font-bold text-white mb-1">Manual de Funções</h2>
                             <span className="inline-block bg-slate-700 text-cyan-300 text-xs font-bold px-2 py-1 rounded uppercase tracking-wider border border-slate-600">
-                                {content.roleName || "Informações"}
+                                {content.roleName || "Informações Gerais"}
                             </span>
                         </div>
                     </div>
@@ -43,7 +47,7 @@ const TutorialOverlay = ({ content, onClose }) => {
                         className="text-slate-400 hover:text-white transition-colors p-2 hover:bg-slate-700 rounded-lg"
                         title="Fechar Tutorial"
                     >
-                        <CloseIcon size={24} />
+                        {typeof CloseIcon === 'string' ? <span className="font-bold">X</span> : <CloseIcon size={24} />}
                     </button>
                 </div>
 
@@ -51,9 +55,13 @@ const TutorialOverlay = ({ content, onClose }) => {
                 <div className="p-8 overflow-y-auto scroll-custom space-y-8">
                     
                     {/* Descrição Geral */}
-                    {content.description && (
+                    {content.description ? (
                         <div className="text-lg text-slate-300 leading-relaxed font-light border-l-4 border-cyan-500 pl-4">
                             {content.description}
+                        </div>
+                    ) : (
+                        <div className="text-sm text-yellow-500 bg-yellow-900/20 p-2 rounded">
+                            Descrição não disponível.
                         </div>
                     )}
 
@@ -72,7 +80,10 @@ const TutorialOverlay = ({ content, onClose }) => {
                             ))
                         ) : (
                             /* Fallback se não houver seções */
-                            <p className="text-slate-500 italic">Nenhuma informação detalhada disponível para este cargo.</p>
+                            <div className="text-center p-8 bg-slate-900/30 rounded-xl border border-dashed border-slate-600">
+                                <p className="text-slate-400 italic mb-2">Nenhuma seção detalhada encontrada.</p>
+                                <p className="text-xs text-slate-600">Conteúdo recebido: {JSON.stringify(content)}</p>
+                            </div>
                         )}
                     </div>
 
