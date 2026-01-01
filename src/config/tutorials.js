@@ -1,84 +1,118 @@
 export const TUTORIALS = {
     // --- ADMINISTRAÇÃO GLOBAL ---
-    mizukami: [
-        {
-            title: "Painel do Mizukami",
-            message: "Como líder da vila, você possui autoridade para supervisionar todas as forças militares e médicas.",
-            target: "#main-header",
-            navigate: "dashboard"
-        },
-        {
-            title: "Gestão das Organizações",
-            message: "Você tem acesso livre para entrar em qualquer organização (clicando nos cards) e gerenciar membros, promover líderes ou ajustar fichas.",
-            target: "#dashboard-grid",
-            navigate: "dashboard"
-        },
-        {
-            title: "Monitoramento de Segurança",
-            message: "Acesse a aba 'Monitoramento' para auditar quem entrou no painel e verificar o log de alterações feitas por seus subordinados.",
-            target: "#btn-monitoring",
-            navigate: "access"
-        }
-    ],
+    mizukami: {
+        roleName: "Mizukami (Líder Supremo)",
+        description: "Como líder da vila, você possui autoridade para supervisionar todas as forças militares e médicas.",
+        sections: [
+            {
+                title: "Painel do Mizukami",
+                content: "Este painel é o centro nervoso da Vila Oculta da Névoa. Aqui você tem controle total sobre todas as organizações e hierarquias."
+            },
+            {
+                title: "Gestão das Organizações",
+                content: "Você tem acesso livre para entrar em qualquer organização (clicando nos cards) e gerenciar membros, promover líderes ou ajustar fichas."
+            },
+            {
+                title: "Monitoramento de Segurança",
+                content: "Acesse a aba 'Monitoramento' para auditar quem entrou no painel e verificar o log de alterações feitas por seus subordinados."
+            }
+        ]
+    },
 
-    council: [
-        {
-            title: "Acesso do Conselho",
-            message: "Bem-vindo, Conselheiro. Você tem permissão para auditar e editar membros de todas as organizações da vila.",
-            target: "#main-header",
-            navigate: "dashboard"
-        },
-        {
-            title: "Supervisão",
-            message: "Navegue pelas organizações clicando nos cards para verificar o cumprimento das regras e hierarquias.",
-            target: "#dashboard-grid",
-            navigate: "dashboard"
-        }
-    ],
+    council: {
+        roleName: "Conselheiro",
+        description: "Como membro do Conselho, você auxilia o Mizukami na administração e fiscalização da vila.",
+        sections: [
+            {
+                title: "Acesso do Conselho",
+                content: "Bem-vindo, Conselheiro. Você tem permissão para auditar e editar membros de todas as organizações da vila."
+            },
+            {
+                title: "Supervisão",
+                content: "Navegue pelas organizações clicando nos cards para verificar o cumprimento das regras e hierarquias."
+            }
+        ]
+    },
 
     // --- LÍDERES ---
-    'leader_sete-laminas': [
-        { title: "Líder dos Espadachins", message: "Você comanda os Sete Espadachins da Névoa.", target: "#org-header", navigate: "sete-laminas" },
-        { title: "Gestão de Membros", message: "Use a tabela para verificar quem porta cada espada e atualizar seus status.", target: "#members-table", navigate: "sete-laminas" },
-        { title: "Adicionar Membro", message: "Clique aqui para registrar novos portadores ou aspirantes.", target: "#btn-add-member", navigate: "sete-laminas" }
-    ],
-    'leader_divisao-especial': [
-        { title: "Comandante ANBU", message: "Lidere as operações secretas da vila com eficiência.", target: "#org-header", navigate: "divisao-especial" },
-        { title: "Identidades Secretas", message: "Garanta que todos os agentes tenham seus codinomes registrados na tabela.", target: "#members-table", navigate: "divisao-especial" },
-        { title: "Novo Agente", message: "Recrute novos membros para a divisão através deste botão.", target: "#btn-add-member", navigate: "divisao-especial" }
-    ],
-    'leader_forca-policial': [
-        { title: "Chefe de Polícia", message: "Mantenha a ordem na vila gerenciando a Força Policial.", target: "#org-header", navigate: "forca-policial" },
-        { title: "Hierarquia Militar", message: "Organize seus oficiais por patente e monitore sua atividade.", target: "#members-table", navigate: "forca-policial" },
-        { title: "Registrar Oficial", message: "Adicione novos membros à corporação aqui.", target: "#btn-add-member", navigate: "forca-policial" }
-    ],
-    'leader_unidade-medica': [
-        { title: "Diretor Médico", message: "Gerencie o hospital e a equipe médica da vila.", target: "#org-header", navigate: "unidade-medica" },
-        { title: "Corpo Clínico", message: "Acompanhe a especialização e carreira dos seus médicos.", target: "#members-table", navigate: "unidade-medica" },
-        { title: "Nova Contratação", message: "Adicione médicos e estagiários à sua equipe.", target: "#btn-add-member", navigate: "unidade-medica" }
-    ],
+    'leader_sete-laminas': {
+        roleName: "Líder dos Sete Espadachins",
+        description: "Comandante da elite dos Espadachins da Névoa.",
+        sections: [
+            { title: "Liderança dos Espadachins", content: "Você comanda os Sete Espadachins da Névoa." },
+            { title: "Gestão de Membros", content: "Use a tabela para verificar quem porta cada espada e atualizar seus status." },
+            { title: "Adicionar Membro", content: "Clique no botão de adicionar para registrar novos portadores ou aspirantes." }
+        ]
+    },
+    'leader_divisao-especial': {
+        roleName: "Comandante da ANBU",
+        description: "Líder das operações secretas e táticas.",
+        sections: [
+            { title: "Comandante ANBU", content: "Lidere as operações secretas da vila com eficiência." },
+            { title: "Identidades Secretas", content: "Garanta que todos os agentes tenham seus codinomes registrados na tabela." },
+            { title: "Novo Agente", content: "Recrute novos membros para a divisão através do botão de adicionar." }
+        ]
+    },
+    'leader_forca-policial': {
+        roleName: "Chefe de Polícia",
+        description: "Responsável pela ordem pública e cumprimento das leis.",
+        sections: [
+            { title: "Chefe de Polícia", content: "Mantenha a ordem na vila gerenciando a Força Policial." },
+            { title: "Hierarquia Militar", content: "Organize seus oficiais por patente e monitore sua atividade." },
+            { title: "Registrar Oficial", content: "Adicione novos membros à corporação através do botão de adicionar." }
+        ]
+    },
+    'leader_unidade-medica': {
+        roleName: "Diretor Médico",
+        description: "Gestor do hospital e da saúde pública.",
+        sections: [
+            { title: "Diretor Médico", content: "Gerencie o hospital e a equipe médica da vila." },
+            { title: "Corpo Clínico", content: "Acompanhe a especialização e carreira dos seus médicos." },
+            { title: "Nova Contratação", content: "Adicione médicos e estagiários à sua equipe através do botão de adicionar." }
+        ]
+    },
 
     // --- MEMBROS ---
-    'member_sete-laminas': [
-        { title: "Espadachim", message: "Bem-vindo à elite. Acompanhe seu status na organização.", target: "#org-header", navigate: "sete-laminas" },
-        { title: "Sua Ficha", message: "Encontre seu nome na lista para ver seus atributos e maestrias.", target: "#members-table", navigate: "sete-laminas" }
-    ],
-    'member_divisao-especial': [
-        { title: "Agente", message: "Bem-vindo à ANBU. Mantenha sua identidade e status atualizados.", target: "#org-header", navigate: "divisao-especial" },
-        { title: "Seu Registro", message: "Verifique seu codinome e rank na tabela operacional.", target: "#members-table", navigate: "divisao-especial" }
-    ],
-    'member_forca-policial': [
-        { title: "Oficial", message: "Bem-vindo à Força Policial. Servir e proteger.", target: "#org-header", navigate: "forca-policial" },
-        { title: "Sua Patente", message: "Confira sua patente e atividade recente na lista de oficiais.", target: "#members-table", navigate: "forca-policial" }
-    ],
-    'member_unidade-medica': [
-        { title: "Médico Ninja", message: "Bem-vindo à Unidade Médica. Sua cura é essencial.", target: "#org-header", navigate: "unidade-medica" },
-        { title: "Seu Status", message: "Verifique seu nível e especializações na tabela da equipe.", target: "#members-table", navigate: "unidade-medica" }
-    ],
-
-    // --- VISITANTE ---
-    'visitor': [
-        { title: "Bem-vindo", message: "Este é o painel da Vila Oculta da Névoa. Aguarde um líder adicioná-lo.", target: "#main-header", navigate: "dashboard" },
-        { title: "Organizações", message: "Você pode visualizar a estrutura das organizações clicando nos cards.", target: "#dashboard-grid", navigate: "dashboard" }
-    ]
+    'member_sete-laminas': {
+        roleName: "Espadachim da Névoa",
+        description: "Membro da elite dos Espadachins da Névoa.",
+        sections: [
+            { title: "Espadachim", content: "Bem-vindo à elite. Acompanhe seu status na organização." },
+            { title: "Sua Ficha", content: "Encontre seu nome na lista para ver seus atributos e maestrias." }
+        ]
+    },
+    'member_divisao-especial': {
+        roleName: "Agente ANBU",
+        description: "Agente das operações secretas.",
+        sections: [
+            { title: "Agente", content: "Bem-vindo às sombras. Mantenha sua identidade e status atualizados." },
+            { title: "Seu Registro", content: "Verifique seu codinome e rank na tabela operacional." }
+        ]
+    },
+    'member_forca-policial': {
+        roleName: "Oficial da Lei",
+        description: "Membro da Força Policial.",
+        sections: [
+            { title: "Oficial", content: "Bem-vindo à Força Policial. Servir e proteger." },
+            { title: "Sua Patente", content: "Confira sua patente e atividade recente na lista de oficiais." }
+        ]
+    },
+    'member_unidade-medica': {
+        roleName: "Médico Ninja",
+        description: "Membro da Unidade Médica.",
+        sections: [
+            { title: "Médico Ninja", content: "Bem-vindo à Unidade Médica. Sua cura é essencial." },
+            { title: "Seu Status", content: "Verifique seu nível e especializações na tabela da equipe." }
+        ]
+    },
+    
+    // --- VISITANTE / PADRÃO ---
+    'visitor': {
+        roleName: "Visitante",
+        description: "Usuário sem organização vinculada.",
+        sections: [
+            { title: "Bem-vindo", content: "Este é o painel da Vila Oculta da Névoa. Aguarde um líder adicioná-lo." },
+            { title: "Organizações", content: "Você pode visualizar a estrutura das organizações clicando nos cards." }
+        ]
+    }
 };
