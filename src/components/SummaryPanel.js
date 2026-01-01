@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { BarChart3, PieChart, Zap, Activity, Users, Layers, Award } from 'lucide-react';
+import { BarChart3, PieChart, Zap, Activity, Users, Layers, Award, AlertCircle } from 'lucide-react';
 import { MASTERIES, Icons } from '../config/constants.js';
 import { getActivityStats } from '../utils/helpers.js';
 
@@ -9,49 +9,51 @@ const SummaryPanel = ({ members }) => {
             masteries: {},
             combos: {},
             activity: {},
+            pendingMastery: 0, // Contador para sem maestria
             totalMembers: members.length
         };
 
         members.forEach(m => {
-            // 1. Contagem por Maestria Individual
+            // 1. Contagem por Maestria Individual e Pendentes
             if (m.masteries && m.masteries.length > 0) {
                 m.masteries.forEach(mast => {
                     data.masteries[mast] = (data.masteries[mast] || 0) + 1;
                 });
             } else {
-                data.masteries['Nenhuma'] = (data.masteries['Nenhuma'] || 0) + 1;
+                // Se não tiver maestria, conta como pendente
+                data.masteries['Pendente'] = (data.masteries['Pendente'] || 0) + 1;
+                data.pendingMastery += 1;
             }
 
             // 2. Contagem por Combinação (Combo)
             const comboKey = (m.masteries || []).length > 0 
                 ? (m.masteries || []).slice().sort().join(' + ') 
-                : 'Nenhuma';
+                : 'Cadastro Incompleto';
             data.combos[comboKey] = (data.combos[comboKey] || 0) + 1;
 
             // 3. Contagem por Atividade
             const activityInfo = getActivityStats(m);
-            const tier = activityInfo.tier; // Lendário, Ativo, Regular, etc.
+            const tier = activityInfo.tier; 
             data.activity[tier] = (data.activity[tier] || 0) + 1;
         });
 
         return data;
     }, [members]);
 
-    // Helpers para encontrar os "Top 1"
     const getTop = (obj) => {
-        const sorted = Object.entries(obj).sort((a, b) => b[1] - a[1]);
+        // Filtra "Pendente" e "Cadastro Incompleto" para não serem o "Top" destaque (opcional, mas recomendado)
+        const sorted = Object.entries(obj)
+            .filter(([key]) => key !== 'Pendente' && key !== 'Cadastro Incompleto')
+            .sort((a, b) => b[1] - a[1]);
         return sorted.length > 0 ? sorted[0] : ['-', 0];
     };
 
     const topMastery = getTop(stats.masteries);
     const topCombo = getTop(stats.combos);
 
-    // Ordenação para os gráficos
     const sortedMasteries = Object.entries(stats.masteries)
-        .sort((a, b) => b[1] - a[1])
-        .filter(([key]) => key !== 'Nenhuma'); // Remove 'Nenhuma' do gráfico principal
+        .sort((a, b) => b[1] - a[1]);
 
-    // Cores para atividade
     const activityColors = {
         'Lendário': 'bg-purple-500 text-purple-100',
         'Ativo': 'bg-emerald-500 text-emerald-100',
@@ -68,7 +70,7 @@ const SummaryPanel = ({ members }) => {
             </div>
 
             {/* CARDS DE RESUMO (KPIs) */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="bg-slate-800/80 border border-slate-700 p-4 rounded-xl flex items-center justify-between shadow-lg">
                     <div>
                         <p className="text-slate-400 text-xs uppercase font-bold tracking-wider">Efetivo Total</p>
@@ -79,12 +81,29 @@ const SummaryPanel = ({ members }) => {
                     </div>
                 </div>
 
+                {/* NOVO CARD: Pendentes */}
+                <div className="bg-slate-800/80 border border-slate-700 p-4 rounded-xl flex items-center justify-between shadow-lg">
+                    <div>
+                        <p className="text-slate-400 text-xs uppercase font-bold tracking-wider">Pendentes</p>
+                        <div className="flex items-center gap-2 mt-1">
+                            <p className="text-3xl font-bold text-white">{stats.pendingMastery}</p>
+                            {stats.pendingMastery > 0 && (
+                                <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded font-bold">Atenção</span>
+                            )}
+                        </div>
+                        <p className="text-[10px] text-slate-500 mt-1">Sem maestria definida</p>
+                    </div>
+                    <div className="p-3 bg-yellow-500/20 text-yellow-400 rounded-lg">
+                        <AlertCircle size={24} />
+                    </div>
+                </div>
+
                 <div className="bg-slate-800/80 border border-slate-700 p-4 rounded-xl flex items-center justify-between shadow-lg">
                     <div>
                         <p className="text-slate-400 text-xs uppercase font-bold tracking-wider">Maestria Dominante</p>
                         <div className="flex items-center gap-2 mt-1">
-                            <p className="text-xl font-bold text-white">{topMastery[0]}</p>
-                            <span className="text-xs bg-slate-700 px-2 py-1 rounded text-cyan-400 font-mono">{topMastery[1]} ninjas</span>
+                            <p className="text-xl font-bold text-white truncate max-w-[100px]" title={topMastery[0]}>{topMastery[0]}</p>
+                            <span className="text-xs bg-slate-700 px-2 py-1 rounded text-cyan-400 font-mono">{topMastery[1]}</span>
                         </div>
                     </div>
                     <div className="p-3 bg-orange-500/20 text-orange-400 rounded-lg">
@@ -96,7 +115,7 @@ const SummaryPanel = ({ members }) => {
                     <div>
                         <p className="text-slate-400 text-xs uppercase font-bold tracking-wider">Combo Comum</p>
                         <div className="flex items-center gap-2 mt-1">
-                            <p className="text-sm font-bold text-white truncate max-w-[150px]" title={topCombo[0]}>{topCombo[0]}</p>
+                            <p className="text-sm font-bold text-white truncate max-w-[120px]" title={topCombo[0]}>{topCombo[0]}</p>
                             <span className="text-xs bg-slate-700 px-2 py-1 rounded text-purple-400 font-mono">{topCombo[1]}</span>
                         </div>
                     </div>
@@ -115,18 +134,24 @@ const SummaryPanel = ({ members }) => {
                     <div className="space-y-3">
                         {sortedMasteries.map(([name, count]) => {
                             const masteryConfig = MASTERIES.find(m => m.id === name);
-                            const colorClass = masteryConfig ? masteryConfig.color.replace('text-', 'bg-') : 'bg-slate-500';
+                            // Se for "Pendente", usa cor de alerta (amarelo/laranja) ou cinza
+                            const colorClass = name === 'Pendente' 
+                                ? 'bg-yellow-600' 
+                                : (masteryConfig ? masteryConfig.color.replace('text-', 'bg-') : 'bg-slate-500');
+                            
                             const percentage = Math.round((count / stats.totalMembers) * 100);
                             
                             return (
-                                <div key={name} className="relative">
+                                <div key={name} className="relative group">
                                     <div className="flex justify-between text-xs mb-1">
-                                        <span className="text-slate-300 font-bold">{name}</span>
+                                        <span className={`font-bold ${name === 'Pendente' ? 'text-yellow-400' : 'text-slate-300'}`}>
+                                            {name === 'Pendente' ? '⚠️ Pendente de Cadastro' : name}
+                                        </span>
                                         <span className="text-slate-400">{count} ({percentage}%)</span>
                                     </div>
                                     <div className="w-full bg-slate-700/50 h-2.5 rounded-full overflow-hidden">
                                         <div 
-                                            className={`h-full rounded-full ${colorClass}`} 
+                                            className={`h-full rounded-full ${colorClass} ${name === 'Pendente' ? 'animate-pulse' : ''}`} 
                                             style={{ width: `${percentage}%`, transition: 'width 1s ease-in-out' }}
                                         ></div>
                                     </div>
