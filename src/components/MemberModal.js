@@ -3,12 +3,17 @@ import { X, Crown, Calendar, Activity, Clock, Heart, Zap, User, VenetianMask } f
 import { ORG_CONFIG, STATS, MASTERIES, Icons } from '../config/constants.js';
 import { calculateMaxPoints, calculateStats, formatDateTime } from '../utils/helpers.js';
 
-const MemberModal = ({ member, orgId, isCreating, discordRoster, discordRoles, onClose, onSave, canManage, isReadOnly }) => {
+const MemberModal = ({ 
+    member, orgId, isCreating, discordRoster, discordRoles, 
+    onClose, onSave, canManage, isReadOnly,
+    // NOVAS PROPS
+    roleConfig, leaderRoleConfig, secLeaderRoleConfig 
+}) => {
     // Inicializa o estado com os dados do membro ou valores padrão
     const [form, setForm] = useState({
-        name: member?.name || '', 
-        rpName: member?.rpName || '', 
-        codinome: member?.codinome || '', 
+        name: member?.name || '',
+        rpName: member?.rpName || '',
+        codinome: member?.codinome || '',
         discordId: member?.discordId || '',
         org: orgId,
         ninRole: member?.ninRole || ORG_CONFIG[orgId]?.internalRoles[0] || 'Membro',
@@ -31,9 +36,24 @@ const MemberModal = ({ member, orgId, isCreating, discordRoster, discordRoles, o
     
     const isAnbu = orgId === 'divisao-especial';
 
-    // Filtro do dropdown de usuários
-    const filteredRoster = discordRoster.filter(u => 
-        (u.displayName || u.username).toLowerCase().includes(searchTerm.toLowerCase())
+    // --- LÓGICA DE FILTRAGEM DE CARGOS ---
+    const allowedRoleIds = new Set([
+        roleConfig?.[orgId],
+        leaderRoleConfig?.[orgId],
+        secLeaderRoleConfig?.[orgId]
+    ].filter(id => id)); // Remove nulos/undefined
+
+    // Se houver cargos configurados, filtra. Senão, mostra todos (fallback).
+    // Se o usuário já tiver um cargo que não está na lista permitida, nós o incluímos para não "sumir" da lista
+    const filteredRoles = (discordRoles || []).filter(r => {
+        if (allowedRoleIds.size === 0) return true; // Se não tem config, mostra tudo
+        return allowedRoleIds.has(r.id) || r.id === form.specificRoleId;
+    });
+
+    // --- FIM DA LÓGICA DE FILTRAGEM ---
+
+    const filteredRoster = (discordRoster || []).filter(u => 
+        (u.displayName || u.username || "").toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     const handleSelectUser = (user) => {
@@ -122,7 +142,7 @@ const MemberModal = ({ member, orgId, isCreating, discordRoster, discordRoles, o
                         <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700 space-y-3">
                             <div>
                                 <label className="text-sm font-bold text-white mb-1 block flex items-center gap-2">
-                                    <User size={14} className="text-cyan-400"/> Nome do Personagem
+                                    <User size={14} className="text-cyan-400"/> Nome do Personagem (RP)
                                 </label>
                                 <input 
                                     type="text" 
@@ -193,7 +213,7 @@ const MemberModal = ({ member, orgId, isCreating, discordRoster, discordRoles, o
                         </div>
                     </div>
 
-                    {/* Coluna Direita */}
+                    {/* Coluna Direita: Cargos e Maestrias */}
                     <div className="space-y-4">
                         <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700">
                             <h3 className="text-white font-bold mb-3">Cargos & Função</h3>
@@ -205,9 +225,14 @@ const MemberModal = ({ member, orgId, isCreating, discordRoster, discordRoles, o
                             </div>
                             <div className="mb-4">
                                 <label className="text-xs text-slate-400 mb-1 block">Cargo Específico Discord (Opcional)</label>
-                                <select className={`w-full bg-slate-800 border border-slate-600 rounded p-2 text-white outline-none text-sm ${isReadOnly ? 'opacity-50' : ''}`} value={form.specificRoleId} onChange={(e) => setForm({...form, specificRoleId: e.target.value})} disabled={isReadOnly}>
+                                <select 
+                                    className={`w-full bg-slate-800 border border-slate-600 rounded p-2 text-white outline-none text-sm ${isReadOnly ? 'opacity-50' : ''}`} 
+                                    value={form.specificRoleId} 
+                                    onChange={(e) => setForm({...form, specificRoleId: e.target.value})} 
+                                    disabled={isReadOnly}
+                                >
                                     <option value="">Padrão da Organização</option>
-                                    {(discordRoles || []).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                                    {filteredRoles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                                 </select>
                             </div>
                             <div className="flex items-center gap-3 bg-slate-800 p-3 rounded border border-slate-600">
@@ -219,7 +244,7 @@ const MemberModal = ({ member, orgId, isCreating, discordRoster, discordRoles, o
                         <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700">
                             <h3 className="text-white font-bold mb-4">Maestrias</h3>
                             <div className="grid grid-cols-2 gap-3">
-                                {(MASTERIES || []).map(m => {
+                                {MASTERIES.map(m => {
                                     const isActive = form.masteries.includes(m.id);
                                     let IconComp = Activity;
                                     if (typeof m.icon === 'function' || typeof m.icon === 'object') {
