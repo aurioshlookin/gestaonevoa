@@ -421,23 +421,26 @@ const SummaryPanel = ({ members }) => {
                                                 {/* Lista Detalhada */}
                                                 {isSelected && (
                                                     <div className="mt-2 pl-4 border-l-2 border-slate-700 space-y-2 animate-fade-in mb-2">
-                                                        {tierMembers.slice(0, 15).map((m, idx) => (
-                                                            <div key={idx} className="bg-slate-800/50 p-2 rounded flex justify-between items-center text-xs border border-slate-700/50 hover:bg-slate-800 transition-colors">
-                                                                <div className="flex items-center gap-2">
-                                                                    <div className={`w-6 h-6 rounded bg-slate-700 flex items-center justify-center font-bold text-white uppercase text-[10px] ${ORG_CONFIG[m.org]?.color || 'text-slate-400'}`}>
-                                                                        {m.name.charAt(0)}
+                                                        {tierMembers.slice(0, 15).map((m, idx) => {
+                                                            const orgInfo = ORG_CONFIG[m.org] || { name: m.org, color: 'text-slate-500' };
+                                                            return (
+                                                                <div key={idx} className="bg-slate-800/50 p-2 rounded flex justify-between items-center text-xs border border-slate-700/50 hover:bg-slate-800 transition-colors">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div className={`w-6 h-6 rounded bg-slate-700 flex items-center justify-center font-bold text-white uppercase text-[10px] ${orgInfo.color || 'text-slate-400'}`}>
+                                                                            {m.name.charAt(0)}
+                                                                        </div>
+                                                                        <div>
+                                                                            <p className="font-bold text-white">{m.name}</p>
+                                                                            <p className="text-[10px] text-slate-400">{orgInfo.name} • {m.role}</p>
+                                                                        </div>
                                                                     </div>
-                                                                    <div>
-                                                                        <p className="font-bold text-white">{m.name}</p>
-                                                                        <p className="text-slate-500">{m.role}</p>
+                                                                    <div className="text-right">
+                                                                        <p className="text-cyan-400 font-bold">{Math.round(m.score)} pts</p>
+                                                                        <p className="text-[9px] text-slate-500">{m.msgs} msgs</p>
                                                                     </div>
                                                                 </div>
-                                                                <div className="text-right">
-                                                                    <p className="text-cyan-400 font-bold">{Math.round(m.score)} pts</p>
-                                                                    <p className="text-[9px] text-slate-500">{m.msgs} msgs</p>
-                                                                </div>
-                                                            </div>
-                                                        ))}
+                                                            );
+                                                        })}
                                                         {tierMembers.length > 15 && (
                                                             <p className="text-[10px] text-center text-slate-500 italic pt-1">
                                                                 + {tierMembers.length - 15} outros membros...
