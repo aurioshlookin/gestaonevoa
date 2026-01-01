@@ -32,6 +32,13 @@ const SummaryPanel = ({ members }) => {
     const [activeView, setActiveView] = useState('general'); 
     const [selectedActivityTier, setSelectedActivityTier] = useState(null);
 
+    // Função auxiliar para evitar NaN na renderização
+    const safeTime = (minutes) => {
+        const val = Number(minutes);
+        if (isNaN(val) || val <= 0) return 0;
+        return Math.round(val / 60);
+    };
+
     const stats = useMemo(() => {
         const data = {
             masteries: {},
@@ -87,15 +94,20 @@ const SummaryPanel = ({ members }) => {
             const tier = activityInfo.tier; 
             data.activity[tier] = (data.activity[tier] || 0) + 1;
             
+            // Garante valores numéricos
+            const score = Number(activityInfo.total || 0);
+            const msgs = Number(activityInfo.details?.msgs || 0);
+            const voice = Number(activityInfo.details?.voice || 0);
+
             if (!data.membersByTier[tier]) data.membersByTier[tier] = [];
             data.membersByTier[tier].push({
                 id: m.id,
                 name: m.rpName || m.name,
                 discordName: m.name,
                 org: m.org,
-                score: activityInfo.total,
-                msgs: activityInfo.details.msgs,
-                voice: activityInfo.details.voice, // Garante que temos voice
+                score: score,
+                msgs: msgs,
+                voice: voice,
                 role: m.ninRole,
                 level: m.level || 1
             });
@@ -103,17 +115,15 @@ const SummaryPanel = ({ members }) => {
             // 3. Patentes e Nível
             const level = parseInt(m.level || 1);
             
-            // Verificação de cadastro completo (Atributos > 25 indica que distribuiu pontos)
+            // Verificação de cadastro completo
             const mStats = m.stats || { Força: 5, Fortitude: 5, Intelecto: 5, Agilidade: 5, Chakra: 5 };
             const totalStatPoints = Object.values(mStats).reduce((a, b) => a + parseInt(b || 0), 0);
             const hasDistributedPoints = totalStatPoints > 25; 
 
-            // Para cálculo de nível médio global e combate, considera apenas quem distribuiu pontos e é 35+
             if (level >= 35 && hasDistributedPoints) {
                 data.level35PlusTotal += level;
                 data.level35PlusCount++;
             }
-            // Total Level para média geral simples (todos)
             data.totalLevel += level;
 
             let rank = m.ninRank || 'Desconhecido';
@@ -123,7 +133,6 @@ const SummaryPanel = ({ members }) => {
             if (m.joinDate && new Date(m.joinDate) >= oneWeekAgo) data.newMembers++;
 
             // 4. Org Activity
-            // Inicializa ou atualiza os acumuladores de atividade por org
             if (!data.orgActivity[m.org]) {
                 data.orgActivity[m.org] = { 
                     total: 0, 
@@ -133,9 +142,9 @@ const SummaryPanel = ({ members }) => {
                     totalVoice: 0
                 };
             }
-            data.orgActivity[m.org].total += (activityInfo.total || 0);
-            data.orgActivity[m.org].totalMsgs += (activityInfo.details.msgs || 0);
-            data.orgActivity[m.org].totalVoice += (activityInfo.details.voice || 0);
+            data.orgActivity[m.org].total += score;
+            data.orgActivity[m.org].totalMsgs += msgs;
+            data.orgActivity[m.org].totalVoice += voice;
             data.orgActivity[m.org].count += 1;
 
             // 5. Combate
@@ -166,11 +175,12 @@ const SummaryPanel = ({ members }) => {
 
         if (data.combat.countLevel35 > 0) {
             Object.keys(data.combat.avgStats).forEach(k => {
-                data.combat.avgStats[k] = Math.round(data.combat.accumulators[k] / data.combat.countLevel35);
+                const accumulator = data.combat.accumulators[k] || 0;
+                data.combat.avgStats[k] = Math.round(accumulator / data.combat.countLevel35);
             });
         }
 
-        // Calcula Org Destaque (Maior Média) e Menor Atividade (Menor Média)
+        // Top Org & Low Org
         let bestOrg = { id: null, avg: -1, total: 0, totalMsgs: 0, totalVoice: 0 };
         let worstOrg = { id: null, avg: 999999, total: 0, totalMsgs: 0, totalVoice: 0 };
 
@@ -188,7 +198,7 @@ const SummaryPanel = ({ members }) => {
         data.topOrg = bestOrg;
         data.lowOrg = worstOrg;
 
-        // Ordena membros por score dentro de cada tier
+        // Ordena membros por score
         Object.keys(data.membersByTier).forEach(tier => {
             data.membersByTier[tier].sort((a, b) => b.score - a.score);
         });
@@ -316,10 +326,9 @@ const SummaryPanel = ({ members }) => {
                                                 <p className="text-xs text-slate-400">Média: <span className="text-yellow-400 font-bold">{stats.topOrg.avg} pts</span></p>
                                                 <p className="text-[10px] text-slate-500">Total: {stats.topOrg.total}</p>
                                             </div>
-                                            {/* Detalhes de Mensagens e Voz - Visíveis sempre */}
                                             <div className="mt-2 pt-2 border-t border-slate-700/50 flex justify-between text-[10px] text-slate-400">
-                                                <span className="flex items-center gap-1"><MessageSquare size={10}/> {stats.topOrg.totalMsgs}</span>
-                                                <span className="flex items-center gap-1"><Mic size={10}/> {Math.round((stats.topOrg.totalVoice || 0)/60)}h</span>
+                                                <span className="flex items-center gap-1"><MessageSquare size={10}/> {stats.topOrg.totalMsgs || 0}</span>
+                                                <span className="flex items-center gap-1"><Mic size={10}/> {safeTime(stats.topOrg.totalVoice)}h</span>
                                             </div>
                                         </div>
                                     </div>
@@ -336,10 +345,9 @@ const SummaryPanel = ({ members }) => {
                                                 <div className="flex justify-between items-end mt-1">
                                                     <p className="text-xs text-slate-400">Média: <span className="text-red-400 font-bold">{stats.lowOrg.avg} pts</span></p>
                                                 </div>
-                                                {/* Detalhes de Mensagens e Voz - Visíveis sempre */}
                                                 <div className="mt-2 pt-2 border-t border-slate-700/50 flex justify-between text-[10px] text-slate-400">
-                                                    <span className="flex items-center gap-1"><MessageSquare size={10}/> {stats.lowOrg.totalMsgs}</span>
-                                                    <span className="flex items-center gap-1"><Mic size={10}/> {Math.round((stats.lowOrg.totalVoice || 0)/60)}h</span>
+                                                    <span className="flex items-center gap-1"><MessageSquare size={10}/> {stats.lowOrg.totalMsgs || 0}</span>
+                                                    <span className="flex items-center gap-1"><Mic size={10}/> {safeTime(stats.lowOrg.totalVoice)}h</span>
                                                 </div>
                                             </div>
                                         ) : (
@@ -627,20 +635,21 @@ const SummaryPanel = ({ members }) => {
                                             let barColor = orgConfig.color.replace('text-', 'bg-');
                                             
                                             return (
-                                                <div key={orgId} className="flex items-center gap-4">
+                                                <div key={orgId} className="flex items-center gap-4 group">
                                                     <div className={`w-28 text-xs font-bold uppercase truncate text-right ${orgConfig.color}`}>
                                                         {data.name}
                                                     </div>
-                                                    <div className="flex-1 bg-slate-900/50 h-5 rounded-full overflow-hidden relative group">
+                                                    <div className="flex-1 bg-slate-900/50 h-5 rounded-full overflow-hidden relative">
                                                         <div 
                                                             className={`h-full ${barColor} rounded-full transition-all duration-1000 relative flex items-center justify-end pr-2`} 
                                                             style={{ width: `${percentage}%` }}
                                                         >
                                                             <div className="absolute inset-0 bg-white/10 group-hover:bg-white/20 transition-colors"></div>
                                                         </div>
+                                                        {/* Labels Internos - Visíveis sem tooltip */}
                                                         <div className="absolute inset-0 flex items-center justify-end px-2 gap-3 text-[10px] text-white font-mono pointer-events-none">
-                                                            <span className="flex items-center gap-1 opacity-70"><MessageSquare size={8} /> {Math.round(data.totalMsgs / data.count)}</span>
-                                                            <span className="flex items-center gap-1 opacity-70"><Mic size={8} /> {Math.round((data.totalVoice / 60) / data.count)}h</span>
+                                                            <span className="flex items-center gap-1 opacity-90 drop-shadow-md"><MessageSquare size={8} /> {Math.round(data.totalMsgs / data.count)}</span>
+                                                            <span className="flex items-center gap-1 opacity-90 drop-shadow-md"><Mic size={8} /> {safeTime(data.totalVoice / data.count)}h</span>
                                                         </div>
                                                     </div>
                                                     <div className="w-16 text-right font-mono font-bold text-white text-sm">
@@ -703,7 +712,7 @@ const SummaryPanel = ({ members }) => {
                                                                             <p className="text-cyan-400 font-bold text-base">{Math.round(m.score)} pts</p>
                                                                             <div className="flex items-center gap-3 text-xs text-slate-500 mt-0.5">
                                                                                 <span className="flex items-center gap-1" title="Mensagens"><MessageSquare size={12}/> {m.msgs}</span>
-                                                                                <span className="flex items-center gap-1" title="Minutos em Voz"><Mic size={12}/> {m.voice}m</span>
+                                                                                <span className="flex items-center gap-1" title="Minutos em Voz"><Mic size={12}/> {safeTime(m.voice * 60)}h</span>
                                                                             </div>
                                                                         </div>
                                                                     </div>
