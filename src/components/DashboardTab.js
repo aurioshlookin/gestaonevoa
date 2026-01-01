@@ -1,14 +1,13 @@
 import React, { useState, useMemo } from 'react';
-import { AlertTriangle, AlertCircle, ChevronRight, UserPlus, CheckCircle, XCircle, Shield, Users } from 'lucide-react';
+import { AlertTriangle, AlertCircle, ChevronRight, UserPlus, CheckCircle, Shield, Users, Activity } from 'lucide-react';
 import { ORG_CONFIG, Icons } from '../config/constants.js';
+import { getActivityStats } from '../utils/helpers.js';
 import SummaryPanel from './SummaryPanel.js';
 
 const DashboardTab = ({ members, roleConfig, multiOrgUsers, onTabChange }) => {
     const [expandedOrg, setExpandedOrg] = useState(null);
 
     // Cálculos de Cadastro (Pendentes vs Concluídos)
-    // Assumindo que 'members' são os cadastrados e 'discordRoster' (não passado aqui, mas podemos inferir)
-    // Como não temos discordRoster aqui, faremos um resumo baseado nos dados disponíveis
     const cadastroStats = useMemo(() => {
         const totalSlots = Object.values(ORG_CONFIG).reduce((acc, org) => acc + org.limit, 0);
         const totalRegistered = members.length;
@@ -17,10 +16,18 @@ const DashboardTab = ({ members, roleConfig, multiOrgUsers, onTabChange }) => {
         return { totalRegistered, totalPending, totalSlots };
     }, [members]);
 
+    const activityColors = {
+        'Lendário': 'bg-purple-500',
+        'Ativo': 'bg-emerald-500',
+        'Regular': 'bg-blue-500',
+        'Adormecido': 'bg-yellow-500',
+        'Fantasma': 'bg-red-500'
+    };
+
     return (
         <div className="animate-fade-in space-y-8">
             
-            {/* PAINEL DE INTELIGÊNCIA (MANTIDO) */}
+            {/* PAINEL DE INTELIGÊNCIA (GLOBAL) */}
             <SummaryPanel members={members} />
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -84,13 +91,26 @@ const DashboardTab = ({ members, roleConfig, multiOrgUsers, onTabChange }) => {
                     </h3>
                     <div className="grid grid-cols-1 gap-4">
                         {Object.values(ORG_CONFIG).map((org) => {
-                            const count = members.filter(m => m.org === org.id).length;
+                            const orgMembers = members.filter(m => m.org === org.id);
+                            const count = orgMembers.length;
                             const percentage = (count / org.limit) * 100;
                             const IconComp = (Icons && org.icon && Icons[org.icon]) ? Icons[org.icon] : Icons.Shield;
                             const isExpanded = expandedOrg === org.id;
                             
                             // Busca líder
-                            const leader = members.find(m => m.org === org.id && m.isLeader);
+                            const leader = orgMembers.find(m => m.isLeader);
+
+                            // Cálculo de Atividade da Organização
+                            const orgActivityStats = {
+                                'Lendário': 0, 'Ativo': 0, 'Regular': 0, 'Adormecido': 0, 'Fantasma': 0
+                            };
+                            
+                            orgMembers.forEach(m => {
+                                const stats = getActivityStats(m);
+                                if (orgActivityStats[stats.tier] !== undefined) {
+                                    orgActivityStats[stats.tier]++;
+                                }
+                            });
 
                             return (
                                 <div key={org.id} className={`glass-panel rounded-xl transition-all duration-300 ${isExpanded ? 'border-cyan-500/50 shadow-lg shadow-cyan-500/10' : 'border-slate-700 hover:border-slate-600'}`}>
@@ -121,7 +141,8 @@ const DashboardTab = ({ members, roleConfig, multiOrgUsers, onTabChange }) => {
                                     {/* Detalhes Expandidos */}
                                     {isExpanded && (
                                         <div className="px-6 pb-6 animate-fade-in border-t border-slate-700/50 pt-4">
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                                {/* Bloco 1: Liderança */}
                                                 <div>
                                                     <h4 className="text-xs font-bold text-slate-500 uppercase mb-2">Liderança</h4>
                                                     {leader ? (
@@ -137,13 +158,12 @@ const DashboardTab = ({ members, roleConfig, multiOrgUsers, onTabChange }) => {
                                                     ) : (
                                                         <p className="text-sm text-slate-500 italic">Sem líder designado</p>
                                                     )}
-                                                </div>
-
-                                                <div>
-                                                    <h4 className="text-xs font-bold text-slate-500 uppercase mb-2">Status</h4>
-                                                    <div className="space-y-1">
-                                                        <div className="flex justify-between text-sm">
-                                                            <span className="text-slate-400">Vagas Disponíveis:</span>
+                                                    
+                                                    {/* Bloco Status Extra */}
+                                                    <div className="mt-4">
+                                                        <h4 className="text-xs font-bold text-slate-500 uppercase mb-2">Vagas</h4>
+                                                        <div className="flex justify-between text-sm bg-slate-800/30 p-2 rounded border border-slate-700/50">
+                                                            <span className="text-slate-400">Disponíveis:</span>
                                                             <span className="text-white font-bold">{org.limit - count}</span>
                                                         </div>
                                                         {!roleConfig[org.id] && (
@@ -153,11 +173,36 @@ const DashboardTab = ({ members, roleConfig, multiOrgUsers, onTabChange }) => {
                                                         )}
                                                     </div>
                                                 </div>
+
+                                                {/* Bloco 2: Atividade da Organização (NOVO) */}
+                                                <div className="lg:col-span-2">
+                                                    <h4 className="text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-2">
+                                                        <Activity size={12}/> Atividade da Organização
+                                                    </h4>
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                        {Object.entries(orgActivityStats).map(([tier, tierCount]) => {
+                                                            const tierPercent = count > 0 ? Math.round((tierCount / count) * 100) : 0;
+                                                            if (tierCount === 0) return null; // Oculta se não tiver ninguém
+
+                                                            return (
+                                                                <div key={tier} className="bg-slate-800/40 p-2 rounded border border-slate-700/50 flex flex-col relative overflow-hidden">
+                                                                    <div className={`absolute bottom-0 left-0 h-1 ${activityColors[tier]}`} style={{ width: `${tierPercent}%` }}></div>
+                                                                    <div className="flex justify-between items-center z-10">
+                                                                        <span className="text-xs text-slate-300 font-bold">{tier}</span>
+                                                                        <span className="text-xs font-mono text-white">{tierPercent}%</span>
+                                                                    </div>
+                                                                    <span className="text-[10px] text-slate-500 z-10">{tierCount} membros</span>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                        {count === 0 && <p className="text-xs text-slate-500 italic col-span-2">Nenhum membro registrado.</p>}
+                                                    </div>
+                                                </div>
                                             </div>
 
                                             <button 
                                                 onClick={(e) => { e.stopPropagation(); onTabChange(org.id); }}
-                                                className={`w-full mt-6 py-3 rounded-lg font-bold text-sm uppercase tracking-wider transition-colors ${org.bgColor} ${org.color} border ${org.border} hover:brightness-110`}
+                                                className={`w-full mt-6 py-3 rounded-lg font-bold text-sm uppercase tracking-wider transition-colors ${org.bgColor} ${org.color} border ${org.border} hover:brightness-110 shadow-lg`}
                                             >
                                                 Gerenciar Organização
                                             </button>
