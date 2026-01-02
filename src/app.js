@@ -186,6 +186,7 @@ const App = () => {
         if (simulation) {
             setSimulation(null);
             showNotification('Simulação encerrada.', 'success');
+            setShowSettings(true); // Reabre as configurações ao sair da simulação
         } else {
             localStorage.removeItem('discord_access_token'); 
             setUser(null); 
