@@ -83,32 +83,52 @@ const SettingsModal = ({
                                                 </div>
                                                 
                                                 {isExpanded && (
-                                                    <div className="grid grid-cols-1 gap-3 mt-3 pl-2 border-l-2 border-slate-700 animate-fade-in">
+                                                    <div className="grid grid-cols-1 gap-4 mt-3 pl-2 border-l-2 border-slate-700 animate-fade-in">
                                                         {org.internalRoles.map(internalRole => {
-                                                            // A chave no banco será "orgId_internalRole" (ex: lideres-clas_Líder Yagyu)
+                                                            // A chave no banco será "orgId_internalRole"
                                                             const configKey = `${org.id}_${internalRole}`;
                                                             return (
-                                                                <div key={configKey} className="flex flex-col gap-1">
-                                                                    <label className="text-xs text-cyan-400 font-bold">{internalRole}</label>
-                                                                    <select 
-                                                                        className="bg-slate-800 border border-slate-600 rounded p-2 text-white text-xs outline-none focus:border-cyan-500"
-                                                                        value={localRoleConfig[configKey] || ""}
-                                                                        onChange={(e) => setLocalRoleConfig({...localRoleConfig, [configKey]: e.target.value})}
-                                                                    >
-                                                                        <option value="">-- Selecione Cargo do Discord --</option>
-                                                                        {discordRoles.map(r => <option key={r.id} value={r.id} style={{color: r.color}}>{r.name}</option>)}
-                                                                    </select>
+                                                                <div key={configKey} className="bg-slate-900/30 p-2 rounded border border-slate-700/50">
+                                                                    <label className="text-xs text-cyan-400 font-bold block mb-2">{internalRole}</label>
+                                                                    
+                                                                    <div className="grid grid-cols-2 gap-2">
+                                                                        {/* CARGO PRINCIPAL */}
+                                                                        <div className="flex flex-col">
+                                                                            <span className="text-[10px] text-slate-500 mb-1">Principal</span>
+                                                                            <select 
+                                                                                className="bg-slate-800 border border-slate-600 rounded p-1 text-white text-xs outline-none focus:border-cyan-500"
+                                                                                value={localRoleConfig[configKey] || ""}
+                                                                                onChange={(e) => setLocalRoleConfig({...localRoleConfig, [configKey]: e.target.value})}
+                                                                            >
+                                                                                <option value="">-- Selecione --</option>
+                                                                                {discordRoles.map(r => <option key={r.id} value={r.id} style={{color: r.color}}>{r.name}</option>)}
+                                                                            </select>
+                                                                        </div>
+
+                                                                        {/* CARGO SECUNDÁRIO */}
+                                                                        <div className="flex flex-col">
+                                                                            <span className="text-[10px] text-slate-500 mb-1">Secundário</span>
+                                                                            <select 
+                                                                                className="bg-slate-800 border border-slate-600 rounded p-1 text-white text-xs outline-none focus:border-cyan-500"
+                                                                                value={localSecLeaderRoleConfig[configKey] || ""}
+                                                                                onChange={(e) => setLocalSecLeaderRoleConfig({...localSecLeaderRoleConfig, [configKey]: e.target.value})}
+                                                                            >
+                                                                                <option value="">-- Selecione --</option>
+                                                                                {discordRoles.map(r => <option key={r.id} value={r.id} style={{color: r.color}}>{r.name}</option>)}
+                                                                            </select>
+                                                                        </div>
+                                                                    </div>
                                                                 </div>
                                                             );
                                                         })}
                                                     </div>
                                                 )}
                                                 <p className="text-[10px] text-slate-500 mt-2 italic">
-                                                    * Esta organização usa mapeamento específico. Cada função interna corresponde a um cargo diferente no Discord.
+                                                    * Esta organização usa mapeamento específico.
                                                 </p>
                                             </div>
                                         ) : (
-                                            // LÓGICA PADRÃO (Organizações com hierarquia simples)
+                                            // LÓGICA PADRÃO
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                 <div className="flex flex-col gap-1">
                                                     <label className="text-xs text-slate-400">Cargo de Membro</label>
@@ -211,7 +231,6 @@ const SettingsModal = ({
                                         { id: localAccessConfig.councilRoleId, label: 'Conselho (Admin)' },
                                         { id: localAccessConfig.moderatorRoleId, label: 'Moderador' },
                                         ...Object.entries(localRoleConfig).map(([org, id]) => {
-                                            // Melhora a label para cargos mapeados internamente
                                             const orgName = ORG_CONFIG[org] ? ORG_CONFIG[org].name : org;
                                             return { id, label: `${orgName}` };
                                         }),
