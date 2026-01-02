@@ -114,7 +114,6 @@ const App = () => {
             const unsubConfig = onSnapshot(doc(db, "server", "config"), (doc) => { 
                 if (doc.exists()) {
                     const data = doc.data();
-                    // Aqui lemos 'Mapping' que vem do banco
                     setRoleConfig(data.roleMapping || {});
                     setLeaderRoleConfig(data.leaderRoleMapping || {});
                     setSecLeaderRoleConfig(data.secLeaderRoleMapping || {});
@@ -418,11 +417,6 @@ const App = () => {
         return Object.values(memberMap).filter(u => u.orgs.length > 1);
     }, [members]);
 
-    // ------------------------------------------------------------
-    // FUNÇÕES DE AÇÃO ATUALIZADAS
-    // ------------------------------------------------------------
-
-    // Atualizado para aceitar defaults
     const openCreateModal = (defaults = null) => { 
         setIsCreating(true); 
         setSelectedMember(defaults); 
@@ -443,23 +437,18 @@ const App = () => {
             
             if (!formData.name || !formData.discordId || !formData.ninRole) return showNotification('Campos obrigatórios!', 'error');
             
-            // Verifica limites apenas para orgs normais
             if (isCreating && ORG_CONFIG[orgId].limit !== null && ORG_CONFIG[orgId].limit > 0) {
                 if (members.filter(m => m.org === orgId).length >= ORG_CONFIG[orgId].limit) return showNotification('Limite atingido!', 'error');
             }
 
-            // --- LÓGICA DE SUBSTITUIÇÃO PARA LÍDERES DE CLÃ ---
-            // Se estamos adicionando um Líder de Clã, garantimos que não haja outro com o mesmo cargo
             if (isCreating && orgId === 'lideres-clas') {
                 const existingLeader = members.find(m => m.org === orgId && m.ninRole === formData.ninRole);
                 if (existingLeader) {
                     await deleteDoc(doc(db, "membros", existingLeader.id));
                     console.log(`Substituindo líder antigo de ${formData.ninRole}: ${existingLeader.name}`);
                 }
-                // Força isLeader true para clãs
                 formData.isLeader = true;
             }
-            // ----------------------------------------------------
 
             let finalRoleId = formData.specificRoleId || roleConfig[orgId];
             let finalRoleName = "Membro";
@@ -472,7 +461,6 @@ const App = () => {
             if (isCreating) {
                 detailsLog = `Criado: ${formData.rpName || formData.name} (${formData.ninRole})`;
             } else {
-                // Log simplificado de edição
                 detailsLog = `Editado: ${formData.name}`;
             }
 
@@ -480,22 +468,35 @@ const App = () => {
                 const currentLeader = members.find(m => m.org === orgId && m.isLeader === true && m.discordId !== formData.discordId);
                 if (currentLeader) {
                     let newRole = currentLeader.ninRole; 
+                    let newSpecificRoleId = currentLeader.specificRoleId;
+
                     if (orgId === 'unidade-medica' && currentLeader.ninRole === 'Diretor Médico') newRole = 'Residente Chefe';
                     else if (orgId === 'divisao-especial' && currentLeader.ninRole === 'Líder') newRole = 'Vice-Líder';
                     else if (orgId === 'forca-policial' && currentLeader.ninRole === 'Chefe') newRole = 'Subchefe';
-                    await updateDoc(doc(db, "membros", currentLeader.id), { isLeader: false, ninRole: newRole });
+                    
+                    // REBAIXAMENTO: Garante que o cargo do Discord também mude para o base
+                    newSpecificRoleId = roleConfig[orgId]; 
+
+                    await updateDoc(doc(db, "membros", currentLeader.id), { isLeader: false, ninRole: newRole, specificRoleId: newSpecificRoleId });
                 }
             }
             
             let finalNinRole = formData.ninRole;
+            let finalSpecificRoleId = finalRoleId;
+
             if (formData.isLeader) {
+                // SE FOR PROMOVIDO A LÍDER, USA O CARGO DE LÍDER NO DISCORD
+                if (leaderRoleConfig[orgId]) {
+                    finalSpecificRoleId = leaderRoleConfig[orgId];
+                }
+
                 if (orgId === 'unidade-medica') finalNinRole = 'Diretor Médico';
                 else if (orgId === 'divisao-especial') finalNinRole = 'Líder';
                 else if (orgId === 'forca-policial') finalNinRole = 'Chefe';
             }
 
             const payload = {
-                ...formData, org: orgId, role: finalRoleName, specificRoleId: finalRoleId, ninRole: finalNinRole,
+                ...formData, org: orgId, role: finalRoleName, specificRoleId: finalSpecificRoleId, ninRole: finalNinRole,
                 status: 'Ativo', updatedAt: new Date().toISOString(), statsUpdatedAt: new Date().toISOString()
             };
 
@@ -532,36 +533,32 @@ const App = () => {
         } catch (e) { showNotification(`Erro: ${e.message}`, 'error'); setDeleteConfirmation(null); }
     };
 
-    // --- CORREÇÃO AQUI ---
+    // --- CORREÇÃO AQUI NA TROCA DE LÍDER ---
     const handleToggleLeader = async (member) => {
         if (simulation) { showNotification('Simulação: Ação simulada.', 'success'); return; }
         if (!checkPermission('EDIT_MEMBER', member.org)) return showNotification('Sem permissão.', 'error');
         try {
-            const orgId = member.org; const newStatus = !member.isLeader;
+            const orgId = member.org; 
+            const newStatus = !member.isLeader;
             
             let demotionRole = member.ninRole; 
             
-            // Lógica de rebaixamento
             if (orgId === 'unidade-medica') demotionRole = 'Residente Chefe';
             else if (orgId === 'divisao-especial') demotionRole = 'Vice-Líder';
             else if (orgId === 'forca-policial') demotionRole = 'Subchefe';
-            // Para 'lideres-clas', não mudamos o cargo aqui, pois isso implicaria remover a pessoa da org.
-            // Para clãs, a remoção da coroa deve significar APENAS visual ou status off-site,
-            // mas o cargo "Líder Yagyu" continua.
 
             if (newStatus) {
-                // SE ESTÁ VIRANDO LÍDER
+                // PROMOVENDO PARA LÍDER
                 const currentLeader = members.find(m => m.org === orgId && m.isLeader === true);
                 if (currentLeader && currentLeader.id !== member.id) {
                     let oldLeaderDemotion = currentLeader.ninRole;
-                    // Aplica rebaixamento apenas se não for líder de clã (onde os cargos são fixos por vaga)
-                    if (orgId !== 'lideres-clas') {
-                        if (orgId === 'unidade-medica' && currentLeader.ninRole === 'Diretor Médico') oldLeaderDemotion = 'Residente Chefe';
-                        else if (orgId === 'divisao-especial') oldLeaderDemotion = 'Vice-Líder';
-                        else if (orgId === 'forca-policial') oldLeaderDemotion = 'Subchefe';
-                    }
+                    if (orgId === 'unidade-medica' && currentLeader.ninRole === 'Diretor Médico') oldLeaderDemotion = 'Residente Chefe';
+                    else if (orgId === 'divisao-especial') oldLeaderDemotion = 'Vice-Líder';
+                    else if (orgId === 'forca-policial') oldLeaderDemotion = 'Subchefe';
                     
-                    await updateDoc(doc(db, "membros", currentLeader.id), { isLeader: false, ninRole: oldLeaderDemotion });
+                    // Rebaixa o antigo líder para o cargo base da org
+                    const baseRoleId = roleConfig[orgId];
+                    await updateDoc(doc(db, "membros", currentLeader.id), { isLeader: false, ninRole: oldLeaderDemotion, specificRoleId: baseRoleId });
                 }
                 
                 let newRoleL = member.ninRole; 
@@ -569,21 +566,24 @@ const App = () => {
                 else if (orgId === 'divisao-especial') newRoleL = 'Líder';
                 else if (orgId === 'forca-policial') newRoleL = 'Chefe';
                 
-                await updateDoc(doc(db, "membros", member.id), { isLeader: true, ninRole: newRoleL });
+                // Promove o novo líder e atribui o cargo de líder do Discord
+                const leaderDiscordRole = leaderRoleConfig[orgId];
+                await updateDoc(doc(db, "membros", member.id), { isLeader: true, ninRole: newRoleL, specificRoleId: leaderDiscordRole });
             } else { 
-                // SE ESTÁ DEIXANDO DE SER LÍDER
-                // Se for líder de clã, NÃO muda o cargo (mantém Líder Yagyu), apenas tira a coroa
+                // REBAIXANDO DE LÍDER
                 let finalDemotion = demotionRole;
-                if (orgId === 'lideres-clas') {
-                    finalDemotion = member.ninRole;
-                }
-                await updateDoc(doc(db, "membros", member.id), { isLeader: false, ninRole: finalDemotion }); 
+                if (orgId === 'lideres-clas') finalDemotion = member.ninRole;
+                
+                // Retorna para o cargo base
+                const baseRoleId = roleConfig[orgId];
+                await updateDoc(doc(db, "membros", member.id), { isLeader: false, ninRole: finalDemotion, specificRoleId: baseRoleId }); 
             }
             showNotification('Liderança alterada.', 'success');
             logAction("Alterar Liderança", member.name, newStatus ? "Promovido a Líder" : "Removido da Liderança", orgId);
         } catch (e) { showNotification('Erro.', 'error'); }
     };
 
+    // ... (handleSaveConfig e Render mantidos iguais) ...
     const handleSaveConfig = async (receivedConfig) => {
         if (simulation) { showNotification('Simulação: Ação bloqueada.', 'error'); return; }
         if (!canManageSettings) return showNotification('Apenas Admins.', 'error');
@@ -605,7 +605,6 @@ const App = () => {
         }
     };
 
-    // --- RENDER ---
     if (!user) return <ErrorBoundary><LoginScreen onLogin={handleLogin} /></ErrorBoundary>;
 
     const SimulationBanner = simulation ? (
