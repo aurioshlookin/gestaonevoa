@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
-import { collection, onSnapshot, doc, setDoc, addDoc, deleteDoc, updateDoc } from "firebase/firestore";
+import { collection, onSnapshot, doc, setDoc, addDoc, deleteDoc, updateDoc, writeBatch, getDocs, query, where } from "firebase/firestore";
 import { AlertTriangle, ShieldCheck, Eye, EyeOff, HelpCircle } from 'lucide-react';
 
 // --- IMPORTAÇÕES LOCAIS ---
@@ -498,6 +498,8 @@ const App = () => {
                 detailsLog = `Editado: ${formData.name}`;
             }
 
+            // --- LÓGICA DE PROMOÇÃO/REBAIXAMENTO DE LÍDER ---
+            // (Esta parte trata a remoção do status de líder de um membro ANTIGO se um novo for promovido no mesmo cargo)
             if (formData.isLeader && orgId !== 'lideres-clas') {
                 const currentLeader = members.find(m => m.org === orgId && m.isLeader === true && m.discordId !== formData.discordId);
                 if (currentLeader) {
@@ -536,12 +538,43 @@ const App = () => {
 
             const docId = isCreating ? `${formData.discordId}_${orgId}` : selectedMember.id;
             
-            if (isCreating) await setDoc(doc(db, "membros", docId), payload);
-            else await updateDoc(doc(db, "membros", docId), payload);
+            const batch = writeBatch(db);
+
+            // 1. Salva o membro principal (Criando ou Atualizando)
+            const mainDocRef = doc(db, "membros", docId);
+            batch.set(mainDocRef, payload, { merge: true });
+
+            // 2. SINCRONIZAÇÃO EM CASCATA (NOVO)
+            // Procura todos os outros documentos deste mesmo discordId em outras organizações
+            const q = query(collection(db, "membros"), where("discordId", "==", formData.discordId));
+            const querySnapshot = await getDocs(q);
+
+            if (!querySnapshot.empty) {
+                querySnapshot.forEach((otherDoc) => {
+                    // Evita atualizar o próprio documento que já estamos salvando (embora não quebre, é redundante)
+                    if (otherDoc.id !== docId) {
+                        const otherRef = doc(db, "membros", otherDoc.id);
+                        // Atualiza apenas os campos globais/compartilhados
+                        batch.update(otherRef, {
+                            rpName: formData.rpName,
+                            stats: formData.stats,
+                            masteries: formData.masteries,
+                            level: formData.level,
+                            guildBonus: formData.guildBonus,
+                            codinome: formData.codinome, // Codinome pode ser específico da ANBU, mas se quiser global, deixe aqui. Se for específico, remova.
+                            updatedAt: new Date().toISOString()
+                        });
+                        console.log(`Sincronizando dados para: ${otherDoc.id}`);
+                    }
+                });
+            }
+
+            // Commit do Batch (Executa todas as operações juntas)
+            await batch.commit();
             
             setSelectedMember(null); 
             setIsCreating(false);
-            showNotification('Salvo com sucesso!', 'success');
+            showNotification('Salvo com sucesso e sincronizado!', 'success');
 
             logAction(isCreating ? "Adicionar Membro" : "Editar Membro", formData.name, detailsLog, orgId);
             
