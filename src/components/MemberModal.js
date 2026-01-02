@@ -7,12 +7,12 @@ const MemberModal = ({
     member, orgId, isCreating, discordRoster, discordRoles, 
     onClose, onSave, canManage, isReadOnly,
     roleConfig, leaderRoleConfig, secLeaderRoleConfig,
-    allMembers = [] // NOVO: Recebe todos os membros para unificação de dados
+    allMembers = [] 
 }) => {
     // Inicializa o estado com os dados do membro ou valores padrão
     const orgDef = ORG_CONFIG[orgId];
     const isPromotions = orgId === 'promocoes';
-    const isClanLeaders = orgId === 'lideres-clas'; // NOVO: Identifica Clã
+    const isClanLeaders = orgId === 'lideres-clas'; 
     const isInternalMapping = orgDef?.useInternalRoleMapping;
 
     const [form, setForm] = useState({
@@ -21,16 +21,18 @@ const MemberModal = ({
         codinome: member?.codinome || '',
         discordId: member?.discordId || '',
         org: orgId,
-        // Se for Líder de Clã criando, usa o cargo passado (Definir Líder), senão padrão
         ninRole: member?.ninRole || orgDef?.internalRoles?.[0] || 'Membro',
         specificRoleId: member?.specificRoleId || '',
-        // Se for Clã, força true. Se já vier no member (edição), usa o do member.
         isLeader: isClanLeaders ? true : (member?.isLeader || false),
         level: member?.level || 1,
         guildBonus: member?.guildBonus || false,
         masteries: member?.masteries || [],
         stats: member?.stats || { Força: 5, Fortitude: 5, Intelecto: 5, Agilidade: 5, Chakra: 5 },
-        joinDate: member?.joinDate || new Date().toISOString().split('T')[0]
+        joinDate: member?.joinDate || new Date().toISOString().split('T')[0],
+        // Campos de Histórico (Invisíveis no formulário, mas preservados)
+        dailyMessages: member?.dailyMessages || {},
+        dailyVoice: member?.dailyVoice || {},
+        activityStats: member?.activityStats || {}
     });
 
     const [searchTerm, setSearchTerm] = useState("");
@@ -68,25 +70,32 @@ const MemberModal = ({
         (u.displayName || u.username || "").toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    // --- NOVO: UNIFICAÇÃO DE DADOS AO SELECIONAR USUÁRIO ---
+    // --- UNIFICAÇÃO DE DADOS AO SELECIONAR USUÁRIO ---
     const handleSelectUser = (user) => {
         if (isReadOnly) return;
         
-        // Tenta encontrar este usuário em outras organizações (se allMembers for passado)
+        // Tenta encontrar este usuário em outras organizações
         const existingData = allMembers.find(m => m.discordId === user.id);
 
         setForm(prev => ({ 
             ...prev, 
             name: user.displayName || user.username, 
             discordId: user.id,
+            
             // Prioriza dados existentes se houver
             rpName: existingData?.rpName || prev.rpName || user.displayName || user.username,
+            
             // Unifica Status, Maestrias, Nível e Bônus
             stats: existingData?.stats || prev.stats,
             masteries: existingData?.masteries || prev.masteries,
             level: existingData?.level || prev.level,
             guildBonus: existingData?.guildBonus !== undefined ? existingData.guildBonus : prev.guildBonus,
-            codinome: existingData?.codinome || prev.codinome
+            codinome: existingData?.codinome || prev.codinome,
+
+            // --- NOVO: Copia o histórico de atividade ---
+            dailyMessages: existingData?.dailyMessages || prev.dailyMessages || {},
+            dailyVoice: existingData?.dailyVoice || prev.dailyVoice || {},
+            activityStats: existingData?.activityStats || prev.activityStats || {}
         }));
 
         setSearchTerm(user.displayName || user.username);
@@ -139,7 +148,6 @@ const MemberModal = ({
         if (current.includes(masteryId)) {
             setForm({ ...form, masteries: current.filter(m => m !== masteryId) });
         } else {
-            // NOVO: Limite alterado para 2
             if (current.length >= 2) return; 
             setForm({ ...form, masteries: [...current, masteryId] });
         }
@@ -308,7 +316,7 @@ const MemberModal = ({
                                 </select>
                             </div>
 
-                            {/* NOVO: Esconde checkbox de líder se for Clã */}
+                            {/* Checkbox de líder (Escondido se for Clã) */}
                             {!isPromotions && !isClanLeaders && (
                                 <div className="flex items-center gap-3 bg-slate-800 p-3 rounded border border-slate-600">
                                     <input type="checkbox" id="leaderCheck" checked={form.isLeader} onChange={(e) => setForm({...form, isLeader: e.target.checked})} disabled={isReadOnly} className={`w-4 h-4 text-cyan-600 rounded bg-gray-700 border-gray-600 ${isReadOnly ? 'opacity-50' : ''}`}/>
