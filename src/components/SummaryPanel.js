@@ -537,7 +537,7 @@ const SummaryPanel = ({ members }) => {
                                                         { label: 'Agilidade', icon: Wind, color: 'text-cyan-400', barColor: 'bg-cyan-500', key: 'Agilidade' },
                                                         { label: 'Fortitude', icon: ShieldCheck, color: 'text-green-400', barColor: 'bg-green-500', key: 'Fortitude' },
                                                         { label: 'Intelecto', icon: Brain, color: 'text-purple-400', barColor: 'bg-purple-500', key: 'Intelecto' },
-                                                        { label: 'Controle', icon: Zap, color: 'text-yellow-400', barColor: 'bg-yellow-500', key: 'Chakra' }
+                                                        { label: 'Chakra', icon: Zap, color: 'text-yellow-400', barColor: 'bg-yellow-500', key: 'Chakra' }
                                                     ].map(stat => {
                                                         const value = stats.combat.avgStats[stat.key];
                                                         const maxForThisStat = Math.max(stats.combat.maxValues[stat.key], 1);
