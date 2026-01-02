@@ -76,7 +76,8 @@ const MemberModal = ({
             if (current.includes(masteryId)) {
                 return { ...prev, masteries: current.filter(m => m !== masteryId) };
             } else {
-                if (current.length >= 3) return prev; 
+                // Alterado de 3 para 2
+                if (current.length >= 2) return prev; 
                 return { ...prev, masteries: [...current, masteryId] };
             }
         });
@@ -269,7 +270,7 @@ const MemberModal = ({
 
                         {/* SEÇÃO 3: MAESTRIAS */}
                         <div className="space-y-2">
-                            <label className="text-xs uppercase font-bold text-slate-500">Elementos & Maestrias (Máx 3)</label>
+                            <label className="text-xs uppercase font-bold text-slate-500">Elementos & Maestrias (Máx 2)</label>
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                 {MASTERIES.map(m => {
                                     const isSelected = formData.masteries.includes(m.id);
