@@ -33,44 +33,97 @@ export const MASTERIES = [
 ];
 
 export const ORG_CONFIG = {
-    'lideres-clas': { 
-        id: 'lideres-clas', 
-        name: 'Líderes de Clã', 
+    // --- CLÃS INDIVIDUAIS ---
+    'cla-yagyu': { 
+        id: 'cla-yagyu', 
+        name: 'Clã Yagyu', 
         icon: 'Crown', 
         color: 'text-amber-400', 
         bgColor: 'bg-amber-900/20', 
         border: 'border-amber-500/30', 
-        limit: 5, 
-        internalRoles: [
-            'Líder Yagyu', 
-            'Líder Murasame', 
-            'Líder Hoshi', 
-            'Líder Kazuki', 
-            'Líder Sakame'
-        ],
+        limit: 1, 
+        internalRoles: ['Líder Yagyu'],
         roleDetails: [
-            { 
-                name: 'Líder Yagyu', 
-                desc: 'Sobreviventes de guerra que se tornaram senhores feudais com riqueza para treinar ninjas poderosos rapidamente.' 
-            },
-            { 
-                name: 'Líder Murasame', 
-                desc: 'Família de ferreiros forçada à guerra que superou a ocasião e encontrou sua verdadeira vocação ninja.' 
-            },
-            { 
-                name: 'Líder Hoshi', 
-                desc: 'Antiga família cujas habilidades sugerem serem descendentes de seres que habitam as estrelas.' 
-            },
-            { 
-                name: 'Líder Kazuki', 
-                desc: 'Leais e tradicionais, seguem as regras rigidamente, mesmo que isso signifique derramamento de sangue.' 
-            },
-            { 
-                name: 'Líder Sakame', 
-                desc: 'Famosos por treinar ninjas desde uma idade extremamente jovem, prática questionada por outros.' 
-            }
+            { name: 'Líder Yagyu', desc: 'Sobreviventes de guerra que se tornaram senhores feudais com riqueza para treinar ninjas poderosos rapidamente.' }
         ]
     },
+    'cla-murasame': { 
+        id: 'cla-murasame', 
+        name: 'Clã Murasame', 
+        icon: 'Crown', 
+        color: 'text-slate-400', 
+        bgColor: 'bg-slate-800/20', 
+        border: 'border-slate-500/30', 
+        limit: 1, 
+        internalRoles: ['Líder Murasame'],
+        roleDetails: [
+            { name: 'Líder Murasame', desc: 'Família de ferreiros forçada à guerra que superou a ocasião e encontrou sua verdadeira vocação ninja.' }
+        ]
+    },
+    'cla-hoshi': { 
+        id: 'cla-hoshi', 
+        name: 'Clã Hoshi', 
+        icon: 'Star', 
+        color: 'text-yellow-400', 
+        bgColor: 'bg-yellow-900/20', 
+        border: 'border-yellow-500/30', 
+        limit: 1, 
+        internalRoles: ['Líder Hoshi'],
+        roleDetails: [
+            { name: 'Líder Hoshi', desc: 'Antiga família cujas habilidades sugerem serem descendentes de seres que habitam as estrelas.' }
+        ]
+    },
+    'cla-kazuki': { 
+        id: 'cla-kazuki', 
+        name: 'Clã Kazuki', 
+        icon: 'Shield', 
+        color: 'text-emerald-400', 
+        bgColor: 'bg-emerald-900/20', 
+        border: 'border-emerald-500/30', 
+        limit: 1, 
+        internalRoles: ['Líder Kazuki'],
+        roleDetails: [
+            { name: 'Líder Kazuki', desc: 'Leais e tradicionais, seguem as regras rigidamente, mesmo que isso signifique derramamento de sangue.' }
+        ]
+    },
+    'cla-sakame': { 
+        id: 'cla-sakame', 
+        name: 'Clã Sakame', 
+        icon: 'Target', 
+        color: 'text-red-400', 
+        bgColor: 'bg-red-900/20', 
+        border: 'border-red-500/30', 
+        limit: 1, 
+        internalRoles: ['Líder Sakame'],
+        roleDetails: [
+            { name: 'Líder Sakame', desc: 'Famosos por treinar ninjas desde uma idade extremamente jovem, prática questionada por outros.' }
+        ]
+    },
+
+    // --- PROMOÇÕES ---
+    'promocoes': { 
+        id: 'promocoes', 
+        name: 'Promoções & Patentes', 
+        icon: 'Medal', 
+        color: 'text-pink-400', 
+        bgColor: 'bg-pink-900/20', 
+        border: 'border-pink-500/30', 
+        limit: 50, 
+        internalRoles: [
+            'Genin', 
+            'Chunin', 
+            'Tokubetsu Jonin', // Jonin Special
+            'Jonin'
+        ],
+        roleDetails: [
+            { name: 'Jonin', desc: 'Elite ninja de nível superior.' },
+            { name: 'Tokubetsu Jonin', desc: 'Jonin Especial com habilidades táticas específicas.' },
+            { name: 'Chunin', desc: 'Líder de esquadrão qualificado.' },
+            { name: 'Genin', desc: 'Ninja graduado, nível básico.' }
+        ]
+    },
+
+    // --- ORGANIZAÇÕES PADRÃO ---
     'sete-laminas': { 
         id: 'sete-laminas', 
         name: 'Sete Lâminas', 
@@ -111,29 +164,6 @@ export const ORG_CONFIG = {
             { name: 'Líder', desc: 'Comandante supremo das operações especiais.' },
             { name: 'Vice-Líder', desc: 'Segundo em comando, auxilia na coordenação.' },
             { name: 'Membro', desc: 'Agente operacional da ANBU.' }
-        ]
-    },
-    'promocoes': { 
-        id: 'promocoes', 
-        name: 'Promoções & Patentes', 
-        icon: 'Star', 
-        color: 'text-pink-400', 
-        bgColor: 'bg-pink-900/20', 
-        border: 'border-pink-500/30', 
-        limit: 50, 
-        internalRoles: [
-            'Aspirante a Chunin',
-            'Chunin', 
-            'Aspirante a Tokubetsu',
-            'Tokubetsu Jonin', 
-            'Aspirante a Jonin',
-            'Jonin'
-        ],
-        roleDetails: [
-            { name: 'Jonin', desc: 'Ninja de Elite de nível alto.' },
-            { name: 'Tokubetsu Jonin', desc: 'Jonin com especialização tática.' },
-            { name: 'Chunin', desc: 'Líder de esquadrão qualificado.' },
-            { name: 'Aspirante', desc: 'Ninja em avaliação para promoção.' }
         ]
     },
     'forca-policial': { 
