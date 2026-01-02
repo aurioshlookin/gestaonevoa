@@ -4,7 +4,18 @@ import { ORG_CONFIG, Icons } from '../config/constants.js';
 import { getActivityStats } from '../utils/helpers.js';
 import SummaryPanel from './SummaryPanel.js';
 
-const DashboardTab = ({ members, roleConfig, multiOrgUsers, onTabChange }) => {
+// Helper para renderizar ícone de cargo pequeno
+const RoleIcon = ({ roleId, discordRoles }) => {
+    if (!roleId || !discordRoles) return null;
+    const role = discordRoles.find(r => r.id === roleId);
+    if (!role) return null;
+
+    if (role.icon) return <img src={role.icon} alt="" className="w-4 h-4 object-contain inline-block mr-1" />;
+    if (role.unicodeEmoji) return <span className="mr-1 text-sm">{role.unicodeEmoji}</span>;
+    return null;
+};
+
+const DashboardTab = ({ members, roleConfig, multiOrgUsers, onTabChange, discordRoles }) => {
     const [expandedOrg, setExpandedOrg] = useState(null);
 
     // Filtra conflitos reais: Apenas usuários com mais de 1 organização PRINCIPAL (não-overlay)
@@ -139,7 +150,10 @@ const DashboardTab = ({ members, roleConfig, multiOrgUsers, onTabChange }) => {
                                                         </div>
                                                         <div>
                                                             <p className="text-base font-bold text-white">{leader.rpName || leader.name}</p>
-                                                            <p className="text-xs text-slate-400 bg-slate-800 px-2 py-0.5 rounded inline-block mt-0.5">{leader.ninRole}</p>
+                                                            <div className="text-xs text-slate-400 bg-slate-800 px-2 py-0.5 rounded inline-flex items-center mt-0.5">
+                                                                <RoleIcon roleId={leader.specificRoleId} discordRoles={discordRoles} />
+                                                                <span>{leader.ninRole}</span>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 ) : (
