@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
     BookOpen, ChevronUp, ChevronDown, UserPlus, ArrowUp, ArrowDown, ArrowUpDown, 
-    AlertCircle, Crown, Trash2, ArrowLeft, RotateCcw, VenetianMask, RefreshCw, UserCog 
+    AlertCircle, Crown, Trash2, ArrowLeft, RotateCcw, VenetianMask, RefreshCw 
 } from 'lucide-react';
 import { ORG_CONFIG, MASTERIES, Icons } from '../config/constants.js';
 import { getActivityStats, formatDate, getMemberOrgsInfo } from '../utils/helpers.js';
@@ -103,20 +103,30 @@ const OrganizationTab = ({
 
                                         {canManage && (
                                             <td className="p-4 text-right">
-                                                <button 
-                                                    onClick={() => onOpenCreate({ ninRole: roleName })}
-                                                    className={`px-4 py-2 rounded-lg font-bold text-xs flex items-center justify-center gap-2 transition-all ml-auto ${
-                                                        isVacant 
-                                                        ? 'bg-cyan-600 hover:bg-cyan-500 text-white shadow-lg shadow-cyan-500/20' 
-                                                        : 'bg-slate-800 hover:bg-yellow-900/40 text-slate-300 hover:text-yellow-400 border border-slate-600 hover:border-yellow-500/50'
-                                                    }`}
-                                                >
-                                                    {isVacant ? (
-                                                        <><UserPlus size={14}/> Definir Líder</>
-                                                    ) : (
-                                                        <><RefreshCw size={14}/> Trocar Líder</>
+                                                <div className="flex justify-end gap-2">
+                                                    <button 
+                                                        onClick={() => onOpenCreate({ ninRole: roleName })}
+                                                        className={`px-3 py-1.5 rounded-lg font-bold text-xs flex items-center justify-center gap-2 transition-all ${
+                                                            isVacant 
+                                                            ? 'bg-cyan-600 hover:bg-cyan-500 text-white shadow-lg shadow-cyan-500/20' 
+                                                            : 'bg-slate-800 hover:bg-yellow-900/40 text-slate-300 hover:text-yellow-400 border border-slate-600 hover:border-yellow-500/50'
+                                                        }`}
+                                                        title={isVacant ? "Definir Líder" : "Trocar Líder"}
+                                                    >
+                                                        {isVacant ? <UserPlus size={14}/> : <RefreshCw size={14}/>}
+                                                        {isVacant ? "Definir" : "Trocar"}
+                                                    </button>
+                                                    
+                                                    {currentLeader && (
+                                                        <button 
+                                                            onClick={() => onDeleteMember(currentLeader.id)}
+                                                            className="p-1.5 bg-red-600/10 hover:bg-red-600 text-red-500 hover:text-white rounded-lg transition-colors border border-red-500/30"
+                                                            title="Excluir Membro e Cargos"
+                                                        >
+                                                            <Trash2 size={14} />
+                                                        </button>
                                                     )}
-                                                </button>
+                                                </div>
                                             </td>
                                         )}
                                     </tr>
