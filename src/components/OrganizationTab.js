@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
     BookOpen, ChevronUp, ChevronDown, UserPlus, ArrowUp, ArrowDown, ArrowUpDown, 
-    AlertCircle, Crown, Trash2, ArrowLeft, RotateCcw, VenetianMask 
+    AlertCircle, Crown, Trash2, ArrowLeft, RotateCcw, VenetianMask, RefreshCw, UserCog 
 } from 'lucide-react';
 import { ORG_CONFIG, MASTERIES, Icons } from '../config/constants.js';
 import { getActivityStats, formatDate, getMemberOrgsInfo } from '../utils/helpers.js';
@@ -19,8 +19,117 @@ const OrganizationTab = ({
     const orgMembers = safeMembers.filter(m => m.org === orgId);
     
     const isAnbu = orgId === 'divisao-especial';
-    // Lógica adicionada: Ocultar coluna de líder para Promoções
-    const showLeaderColumn = orgId !== 'promocoes';
+    const isClanLeaders = orgId === 'lideres-clas';
+    const showLeaderColumn = orgId !== 'promocoes' && !isClanLeaders;
+
+    // --- LÓGICA ESPECÍFICA PARA LÍDERES DE CLÃ ---
+    if (isClanLeaders) {
+        return (
+            <div className="animate-fade-in">
+                {/* Header Simplificado para Clãs */}
+                <div className="flex items-center justify-between mb-8">
+                    <div className="flex items-center gap-4">
+                        <button 
+                            onClick={onBack} 
+                            className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors shadow-sm group"
+                        >
+                            <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform"/>
+                            <span>Voltar</span>
+                        </button>
+                        
+                        <div className={`p-3 rounded-lg ${orgConfig.bgColor} ${orgConfig.color}`}>
+                            {React.createElement(Icons[orgConfig.icon] || Icons.Crown)}
+                        </div>
+                        <h2 className="text-3xl font-bold mist-title text-white">{orgConfig.name}</h2>
+                    </div>
+                </div>
+
+                {/* Tabela de Clãs (Baseada nos Cargos e não nos Membros) */}
+                <div className="glass-panel rounded-xl overflow-hidden border border-slate-700">
+                    <table className="w-full text-left">
+                        <thead className="bg-slate-800/50 text-slate-400 text-xs uppercase">
+                            <tr>
+                                <th className="p-4">Clã / Cargo</th>
+                                <th className="p-4">Representante Atual</th>
+                                <th className="p-4 text-center">Status</th>
+                                {canManage && <th className="p-4 text-right">Ações</th>}
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-700">
+                            {orgConfig.internalRoles.map((roleName) => {
+                                const currentLeader = orgMembers.find(m => m.ninRole === roleName);
+                                const isVacant = !currentLeader;
+
+                                return (
+                                    <tr key={roleName} className={`hover:bg-slate-800/30 transition-colors ${!isVacant ? 'bg-slate-900/20' : ''}`}>
+                                        <td className="p-4">
+                                            <div className="flex flex-col">
+                                                <span className="font-bold text-white text-lg">{roleName}</span>
+                                                <span className="text-xs text-slate-500">
+                                                    {orgConfig.roleDetails?.find(r => r.name === roleName)?.desc || "Clã da Névoa"}
+                                                </span>
+                                            </div>
+                                        </td>
+                                        
+                                        <td className="p-4">
+                                            {currentLeader ? (
+                                                <div className="flex items-center gap-3 cursor-pointer" onClick={() => onEditMember(currentLeader)}>
+                                                    <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center font-bold text-white border border-slate-600">
+                                                        {currentLeader.name.charAt(0)}
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-bold text-white text-sm">{currentLeader.rpName || currentLeader.name}</p>
+                                                        <p className="text-[10px] text-slate-500">Discord: {currentLeader.name}</p>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <span className="text-slate-600 italic flex items-center gap-2">
+                                                    <AlertCircle size={14}/> Cargo Vago
+                                                </span>
+                                            )}
+                                        </td>
+
+                                        <td className="p-4 text-center">
+                                            {currentLeader ? (
+                                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-900/30 text-emerald-400 text-xs border border-emerald-500/30">
+                                                    <Crown size={12}/> Ocupado
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-slate-800 text-slate-500 text-xs border border-slate-600">
+                                                    Disponível
+                                                </span>
+                                            )}
+                                        </td>
+
+                                        {canManage && (
+                                            <td className="p-4 text-right">
+                                                <button 
+                                                    onClick={() => onOpenCreate({ ninRole: roleName })}
+                                                    className={`px-4 py-2 rounded-lg font-bold text-xs flex items-center justify-center gap-2 transition-all ml-auto ${
+                                                        isVacant 
+                                                        ? 'bg-cyan-600 hover:bg-cyan-500 text-white shadow-lg shadow-cyan-500/20' 
+                                                        : 'bg-slate-800 hover:bg-yellow-900/40 text-slate-300 hover:text-yellow-400 border border-slate-600 hover:border-yellow-500/50'
+                                                    }`}
+                                                >
+                                                    {isVacant ? (
+                                                        <><UserPlus size={14}/> Definir Líder</>
+                                                    ) : (
+                                                        <><RefreshCw size={14}/> Trocar Líder</>
+                                                    )}
+                                                </button>
+                                            </td>
+                                        )}
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        );
+    }
+
+    // --- LÓGICA PADRÃO PARA OUTRAS ORGS ---
 
     const getRoleRank = (member) => { const roles = orgConfig.internalRoles || []; return roles.indexOf(member.ninRole); };
     
@@ -113,7 +222,7 @@ const OrganizationTab = ({
 
     return (
         <div className="animate-fade-in">
-            {/* Header com Botão de Voltar Destacado */}
+            {/* Header Padrão */}
             <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-4">
                     <button 
@@ -129,7 +238,6 @@ const OrganizationTab = ({
                     </div>
                     <h2 className="text-3xl font-bold mist-title text-white">{orgConfig.name}</h2>
                 </div>
-                {/* Exibe contador apenas se limite for maior que 0 */}
                 {orgConfig.limit > 0 && (
                     <span className={`text-2xl font-bold ${orgMembers.length >= orgConfig.limit ? 'text-red-400' : 'text-emerald-400'}`}>
                         {orgMembers.length} / {orgConfig.limit}
@@ -150,7 +258,7 @@ const OrganizationTab = ({
                 </div>
 
                 {canManage && (
-                    <button onClick={onOpenCreate} className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 shadow-lg shadow-cyan-500/20 transition-all hover:scale-105 text-sm">
+                    <button onClick={() => onOpenCreate()} className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 shadow-lg shadow-cyan-500/20 transition-all hover:scale-105 text-sm">
                         <UserPlus size={18} /> Adicionar Membro
                     </button>
                 )}
@@ -184,7 +292,6 @@ const OrganizationTab = ({
                             <th className="p-4 cursor-pointer hover:text-white" onClick={() => requestSort('joinDate')}>Entrada <SortIcon k="joinDate"/></th>
                             <th className="p-4 cursor-pointer hover:text-white" onClick={() => requestSort('activity')}>Atividade <SortIcon k="activity"/></th>
                             
-                            {/* Coluna Líder condicional */}
                             {showLeaderColumn && (
                                 <th className="p-4 text-center cursor-pointer hover:text-white" onClick={() => requestSort('isLeader')}>Líder <SortIcon k="isLeader"/></th>
                             )}
@@ -230,9 +337,7 @@ const OrganizationTab = ({
                                                 {memberMasteries.map(m => {
                                                     const mData = MASTERIES.find(mastery => mastery.id === m);
                                                     if (!mData) return null;
-                                                    const IconM = (typeof mData.icon === 'object') 
-                                                        ? mData.icon 
-                                                        : ((Icons && Icons[mData.icon]) ? Icons[mData.icon] : Icons.Activity);
+                                                    const IconM = (typeof mData.icon === 'object') ? mData.icon : ((Icons && Icons[mData.icon]) ? Icons[mData.icon] : Icons.Activity);
                                                     
                                                     return (
                                                         <div key={m} className={`flex items-center gap-1 ${mData.color} bg-slate-800/50 px-1.5 py-0.5 rounded text-[10px] font-bold border border-${mData.color.split('-')[1]}-500/20`}>
@@ -271,7 +376,6 @@ const OrganizationTab = ({
                                         </div>
                                     </td>
                                     
-                                    {/* Célula Líder Condicional */}
                                     {showLeaderColumn && (
                                         <td className="p-4 text-center">
                                             {canManage ? (
