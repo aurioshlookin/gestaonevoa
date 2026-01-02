@@ -418,7 +418,17 @@ const App = () => {
         return Object.values(memberMap).filter(u => u.orgs.length > 1);
     }, [members]);
 
-    const openCreateModal = () => { setIsCreating(true); setSelectedMember(null); setEditingOrgId(activeTab); };
+    // ------------------------------------------------------------
+    // FUNÇÕES DE AÇÃO ATUALIZADAS
+    // ------------------------------------------------------------
+
+    // Atualizado para aceitar defaults
+    const openCreateModal = (defaults = null) => { 
+        setIsCreating(true); 
+        setSelectedMember(defaults); 
+        setEditingOrgId(activeTab); 
+    };
+    
     const openEditModal = (member) => { setIsCreating(false); setSelectedMember(member); setEditingOrgId(member.org); };
 
     const handleSaveMember = async (formData) => {
@@ -432,7 +442,24 @@ const App = () => {
             if (!checkPermission(isCreating ? 'ADD_MEMBER' : 'EDIT_MEMBER', orgId)) return showNotification('Sem permissão.', 'error');
             
             if (!formData.name || !formData.discordId || !formData.ninRole) return showNotification('Campos obrigatórios!', 'error');
-            if (isCreating && members.filter(m => m.org === orgId).length >= ORG_CONFIG[orgId].limit) return showNotification('Limite atingido!', 'error');
+            
+            // Verifica limites apenas para orgs normais
+            if (isCreating && ORG_CONFIG[orgId].limit !== null && ORG_CONFIG[orgId].limit > 0) {
+                if (members.filter(m => m.org === orgId).length >= ORG_CONFIG[orgId].limit) return showNotification('Limite atingido!', 'error');
+            }
+
+            // --- LÓGICA DE SUBSTITUIÇÃO PARA LÍDERES DE CLÃ ---
+            // Se estamos adicionando um Líder de Clã, garantimos que não haja outro com o mesmo cargo
+            if (isCreating && orgId === 'lideres-clas') {
+                const existingLeader = members.find(m => m.org === orgId && m.ninRole === formData.ninRole);
+                if (existingLeader) {
+                    await deleteDoc(doc(db, "membros", existingLeader.id));
+                    console.log(`Substituindo líder antigo de ${formData.ninRole}: ${existingLeader.name}`);
+                }
+                // Força isLeader true para clãs
+                formData.isLeader = true;
+            }
+            // ----------------------------------------------------
 
             let finalRoleId = formData.specificRoleId || roleConfig[orgId];
             let finalRoleName = "Membro";
@@ -445,39 +472,17 @@ const App = () => {
             if (isCreating) {
                 detailsLog = `Criado: ${formData.rpName || formData.name} (${formData.ninRole})`;
             } else {
-                const changes = [];
-                const safeVal = (v) => v || '';
-                if (safeVal(selectedMember.name) !== safeVal(formData.name)) changes.push(`Discord: ${selectedMember.name}->${formData.name}`);
-                if (safeVal(selectedMember.rpName) !== safeVal(formData.rpName)) changes.push(`Nome RP: ${selectedMember.rpName || '(vazio)'}->${formData.rpName}`);
-                if (safeVal(selectedMember.codinome) !== safeVal(formData.codinome)) changes.push(`Codinome: ${selectedMember.codinome || '(vazio)'}->${formData.codinome}`);
-                if (selectedMember.level != formData.level) changes.push(`Nível: ${selectedMember.level}->${formData.level}`);
-                if (selectedMember.ninRole !== formData.ninRole) changes.push(`Cargo: ${selectedMember.ninRole}->${formData.ninRole}`);
-                if (selectedMember.isLeader !== formData.isLeader) changes.push(`Líder: ${selectedMember.isLeader ? 'S' : 'N'}->${formData.isLeader ? 'S' : 'N'}`);
-                
-                const oldStats = selectedMember.stats || { Força: 5, Fortitude: 5, Intelecto: 5, Agilidade: 5, Chakra: 5 };
-                const newStats = formData.stats || { Força: 5, Fortitude: 5, Intelecto: 5, Agilidade: 5, Chakra: 5 };
-
-                const statsChanged = STATS.filter(s => oldStats[s] != newStats[s]);
-                if (statsChanged.length > 0) {
-                    const statsDiff = statsChanged.map(s => `${s}: ${oldStats[s]}->${newStats[s]}`).join(', ');
-                    changes.push(`Stats [${statsDiff}]`);
-                }
-
-                const oldMasteries = (selectedMember.masteries || []).sort().join(',');
-                const newMasteries = (formData.masteries || []).sort().join(',');
-                if (oldMasteries !== newMasteries) changes.push(`Maestrias alteradas`);
-
-                detailsLog = changes.length > 0 ? changes.join(' | ') : "Edição sem alterações";
+                // Log simplificado de edição
+                detailsLog = `Editado: ${formData.name}`;
             }
 
-            if (formData.isLeader) {
+            if (formData.isLeader && orgId !== 'lideres-clas') {
                 const currentLeader = members.find(m => m.org === orgId && m.isLeader === true && m.discordId !== formData.discordId);
                 if (currentLeader) {
-                    let newRole = 'Sem Cargo';
+                    let newRole = currentLeader.ninRole; 
                     if (orgId === 'unidade-medica' && currentLeader.ninRole === 'Diretor Médico') newRole = 'Residente Chefe';
-                    else if (orgId === 'divisao-especial') newRole = 'Vice-Líder';
-                    else if (orgId === 'forca-policial') newRole = 'Subchefe';
-                    
+                    else if (orgId === 'divisao-especial' && currentLeader.ninRole === 'Líder') newRole = 'Vice-Líder';
+                    else if (orgId === 'forca-policial' && currentLeader.ninRole === 'Chefe') newRole = 'Subchefe';
                     await updateDoc(doc(db, "membros", currentLeader.id), { isLeader: false, ninRole: newRole });
                 }
             }
@@ -527,21 +532,36 @@ const App = () => {
         } catch (e) { showNotification(`Erro: ${e.message}`, 'error'); setDeleteConfirmation(null); }
     };
 
+    // --- CORREÇÃO AQUI ---
     const handleToggleLeader = async (member) => {
         if (simulation) { showNotification('Simulação: Ação simulada.', 'success'); return; }
         if (!checkPermission('EDIT_MEMBER', member.org)) return showNotification('Sem permissão.', 'error');
         try {
             const orgId = member.org; const newStatus = !member.isLeader;
             
-            let demotionRole = 'Sem Cargo';
+            let demotionRole = member.ninRole; 
+            
+            // Lógica de rebaixamento
             if (orgId === 'unidade-medica') demotionRole = 'Residente Chefe';
             else if (orgId === 'divisao-especial') demotionRole = 'Vice-Líder';
             else if (orgId === 'forca-policial') demotionRole = 'Subchefe';
+            // Para 'lideres-clas', não mudamos o cargo aqui, pois isso implicaria remover a pessoa da org.
+            // Para clãs, a remoção da coroa deve significar APENAS visual ou status off-site,
+            // mas o cargo "Líder Yagyu" continua.
 
             if (newStatus) {
+                // SE ESTÁ VIRANDO LÍDER
                 const currentLeader = members.find(m => m.org === orgId && m.isLeader === true);
                 if (currentLeader && currentLeader.id !== member.id) {
-                    await updateDoc(doc(db, "membros", currentLeader.id), { isLeader: false, ninRole: demotionRole });
+                    let oldLeaderDemotion = currentLeader.ninRole;
+                    // Aplica rebaixamento apenas se não for líder de clã (onde os cargos são fixos por vaga)
+                    if (orgId !== 'lideres-clas') {
+                        if (orgId === 'unidade-medica' && currentLeader.ninRole === 'Diretor Médico') oldLeaderDemotion = 'Residente Chefe';
+                        else if (orgId === 'divisao-especial') oldLeaderDemotion = 'Vice-Líder';
+                        else if (orgId === 'forca-policial') oldLeaderDemotion = 'Subchefe';
+                    }
+                    
+                    await updateDoc(doc(db, "membros", currentLeader.id), { isLeader: false, ninRole: oldLeaderDemotion });
                 }
                 
                 let newRoleL = member.ninRole; 
@@ -551,19 +571,23 @@ const App = () => {
                 
                 await updateDoc(doc(db, "membros", member.id), { isLeader: true, ninRole: newRoleL });
             } else { 
-                await updateDoc(doc(db, "membros", member.id), { isLeader: false, ninRole: demotionRole }); 
+                // SE ESTÁ DEIXANDO DE SER LÍDER
+                // Se for líder de clã, NÃO muda o cargo (mantém Líder Yagyu), apenas tira a coroa
+                let finalDemotion = demotionRole;
+                if (orgId === 'lideres-clas') {
+                    finalDemotion = member.ninRole;
+                }
+                await updateDoc(doc(db, "membros", member.id), { isLeader: false, ninRole: finalDemotion }); 
             }
             showNotification('Liderança alterada.', 'success');
             logAction("Alterar Liderança", member.name, newStatus ? "Promovido a Líder" : "Removido da Liderança", orgId);
         } catch (e) { showNotification('Erro.', 'error'); }
     };
 
-    // CORREÇÃO CRÍTICA AQUI: Mapear 'Config' para 'Mapping'
     const handleSaveConfig = async (receivedConfig) => {
         if (simulation) { showNotification('Simulação: Ação bloqueada.', 'error'); return; }
         if (!canManageSettings) return showNotification('Apenas Admins.', 'error');
         try {
-            // O modal envia 'roleConfig', mas o banco e o bot esperam 'roleMapping'
             const dbConfig = {
                 roleMapping: receivedConfig.roleConfig,
                 leaderRoleMapping: receivedConfig.leaderRoleConfig,
@@ -586,13 +610,8 @@ const App = () => {
 
     const SimulationBanner = simulation ? (
         <div className="bg-orange-600 text-white text-center py-2 px-4 font-bold sticky top-0 z-[60] flex justify-center items-center gap-4 shadow-md">
-            <div className="flex items-center gap-2">
-                <Eye size={20}/>
-                <span>Modo Simulação: Visualizando como <u>{simulation.name}</u></span>
-            </div>
-            <button onClick={handleLogout} className="bg-white text-orange-600 px-3 py-1 rounded text-xs uppercase font-bold hover:bg-orange-50 transition-colors">
-                Sair da Simulação
-            </button>
+            <div className="flex items-center gap-2"><Eye size={20}/><span>Modo Simulação: Visualizando como <u>{simulation.name}</u></span></div>
+            <button onClick={handleLogout} className="bg-white text-orange-600 px-3 py-1 rounded text-xs uppercase font-bold hover:bg-orange-50 transition-colors">Sair da Simulação</button>
         </div>
     ) : null;
 
@@ -604,14 +623,7 @@ const App = () => {
                     <ShieldCheck size={48} className="mx-auto text-red-500 mb-6" />
                     <h1 className="text-2xl font-bold text-white mb-2">Acesso Negado</h1>
                     <p className="text-slate-400 mb-6">Esta conta não possui permissão de acesso.</p>
-                    {simulation ? (
-                        <p className="text-orange-400 text-xs mb-4">Você está simulando um usuário sem permissão.</p>
-                    ) : (
-                        <>
-                            <button onClick={() => {alert("Seus Cargos ID: " + user.roles.join("\n")); console.log("Cargos:", user.roles);}} className="text-xs text-slate-500 hover:text-slate-300 underline mb-4 block mx-auto">Ver meus IDs de Cargo</button>
-                            <button onClick={handleLogout} className="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-6 rounded transition-colors">Voltar / Logout</button>
-                        </>
-                    )}
+                    {simulation ? ( <p className="text-orange-400 text-xs mb-4">Você está simulando um usuário sem permissão.</p> ) : ( <> <button onClick={() => {alert("Seus Cargos ID: " + user.roles.join("\n")); console.log("Cargos:", user.roles);}} className="text-xs text-slate-500 hover:text-slate-300 underline mb-4 block mx-auto">Ver meus IDs de Cargo</button> <button onClick={handleLogout} className="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-6 rounded transition-colors">Voltar / Logout</button> </> )}
                 </div>
             </div>
         </ErrorBoundary>
@@ -622,13 +634,7 @@ const App = () => {
     return (
         <ErrorBoundary>
             {SimulationBanner}
-            
-            {tutorialContent && isTutorialEnabled && (
-                <TutorialOverlay 
-                    content={tutorialContent} 
-                    onClose={() => setTutorialContent(null)} 
-                />
-            )}
+            {tutorialContent && isTutorialEnabled && ( <TutorialOverlay content={tutorialContent} onClose={() => setTutorialContent(null)} /> )}
 
             <div className="min-h-screen bg-slate-900 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] text-slate-200 font-mono">
                 {notification && <div className={`fixed bottom-4 right-4 p-4 rounded shadow-lg text-white z-50 animate-bounce-in ${notification.type === 'error' ? 'bg-red-600' : 'bg-emerald-600'}`}>{notification.msg}</div>}
@@ -644,7 +650,6 @@ const App = () => {
                         onSave={handleSaveMember}
                         canManage={hasManagePermission} 
                         isReadOnly={!hasManagePermission} 
-                        // NOVAS PROPS para filtragem
                         roleConfig={roleConfig}
                         leaderRoleConfig={leaderRoleConfig}
                         secLeaderRoleConfig={secLeaderRoleConfig}
@@ -695,13 +700,8 @@ const App = () => {
                 />
 
                 <main className="container mx-auto px-6 py-8">
-                    {/* Botão de Ajuda flutuante */}
                     {isTutorialEnabled && (
-                        <button 
-                            onClick={() => startTutorial(true)}
-                            className="fixed bottom-4 left-4 p-3 bg-cyan-600 hover:bg-cyan-500 text-white rounded-full shadow-lg z-50 transition-transform hover:scale-110"
-                            title="Ajuda"
-                        >
+                        <button onClick={() => startTutorial(true)} className="fixed bottom-4 left-4 p-3 bg-cyan-600 hover:bg-cyan-500 text-white rounded-full shadow-lg z-50 transition-transform hover:scale-110" title="Ajuda">
                             <HelpCircle size={24} />
                         </button>
                     )}
