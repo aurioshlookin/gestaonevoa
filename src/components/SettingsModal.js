@@ -1,16 +1,19 @@
 import React, { useState } from 'react';
-import { Settings, ShieldCheck, UserCog, Star, Trash2, Eye } from 'lucide-react';
+import { Settings, ShieldCheck, UserCog, Star, Trash2, Eye, ChevronDown, ChevronUp } from 'lucide-react';
 import { ORG_CONFIG, Icons } from '../config/constants.js';
 
 const SettingsModal = ({ 
     roleConfig, leaderRoleConfig, secLeaderRoleConfig, accessConfig, 
     discordRoles, discordRoster, onClose, onSave, canManageSettings, onSimulate 
 }) => {
-    const [localRoleConfig, setLocalRoleConfig] = useState(roleConfig);
-    const [localLeaderRoleConfig, setLocalLeaderRoleConfig] = useState(leaderRoleConfig);
-    const [localSecLeaderRoleConfig, setLocalSecLeaderRoleConfig] = useState(secLeaderRoleConfig);
-    const [localAccessConfig, setLocalAccessConfig] = useState(accessConfig);
+    const [localRoleConfig, setLocalRoleConfig] = useState(roleConfig || {});
+    const [localLeaderRoleConfig, setLocalLeaderRoleConfig] = useState(leaderRoleConfig || {});
+    const [localSecLeaderRoleConfig, setLocalSecLeaderRoleConfig] = useState(secLeaderRoleConfig || {});
+    const [localAccessConfig, setLocalAccessConfig] = useState(accessConfig || {});
     
+    // Estado para controlar expansão de organizações com mapeamento complexo
+    const [expandedOrgs, setExpandedOrgs] = useState({});
+
     const [activeTab, setActiveTab] = useState('roles');
     const [vipSelection, setVipSelection] = useState("");
 
@@ -24,6 +27,10 @@ const SettingsModal = ({
     const handleRemoveVip = (id) => {
         const newVipIds = (localAccessConfig.vipIds || []).filter(v => v !== id);
         setLocalAccessConfig({ ...localAccessConfig, vipIds: newVipIds });
+    };
+
+    const toggleOrgExpansion = (orgId) => {
+        setExpandedOrgs(prev => ({...prev, [orgId]: !prev[orgId]}));
     };
 
     const handleSave = () => {
@@ -56,36 +63,78 @@ const SettingsModal = ({
                         <div className="space-y-6">
                             {Object.values(ORG_CONFIG).map(org => {
                                 const IconComp = (Icons && org.icon && Icons[org.icon]) ? Icons[org.icon] : (Icons?.Shield);
+                                const isExpanded = expandedOrgs[org.id];
+
                                 return (
                                     <div key={org.id} className="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
                                         <h3 className={`text-sm uppercase font-bold ${org.color} mb-3 flex items-center gap-2`}>
                                             {React.createElement(IconComp || 'span', {size: 16})} {org.name}
                                         </h3>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div className="flex flex-col gap-1">
-                                                <label className="text-xs text-slate-400">Cargo de Membro</label>
-                                                <select className="bg-slate-800 border border-slate-600 rounded p-2 text-white text-sm outline-none" value={localRoleConfig[org.id] || ""} onChange={(e) => setLocalRoleConfig({...localRoleConfig, [org.id]: e.target.value})}>
-                                                    <option value="">Selecione...</option>
-                                                    {discordRoles.map(r => <option key={r.id} value={r.id} style={{color: r.color}}>{r.name}</option>)}
-                                                </select>
+                                        
+                                        {org.useInternalRoleMapping ? (
+                                            // LÓGICA PARA MAPEAMENTO POR FUNÇÃO INTERNA (Clãs e Promoções)
+                                            <div>
+                                                <div 
+                                                    className="flex justify-between items-center cursor-pointer bg-slate-800 p-2 rounded border border-slate-600 mb-2"
+                                                    onClick={() => toggleOrgExpansion(org.id)}
+                                                >
+                                                    <span className="text-xs text-slate-300">Configurar {org.internalRoles.length} Cargos Individuais</span>
+                                                    {isExpanded ? <ChevronUp size={14}/> : <ChevronDown size={14}/>}
+                                                </div>
+                                                
+                                                {isExpanded && (
+                                                    <div className="grid grid-cols-1 gap-3 mt-3 pl-2 border-l-2 border-slate-700 animate-fade-in">
+                                                        {org.internalRoles.map(internalRole => {
+                                                            // A chave no banco será "orgId_internalRole" (ex: lideres-clas_Líder Yagyu)
+                                                            const configKey = `${org.id}_${internalRole}`;
+                                                            return (
+                                                                <div key={configKey} className="flex flex-col gap-1">
+                                                                    <label className="text-xs text-cyan-400 font-bold">{internalRole}</label>
+                                                                    <select 
+                                                                        className="bg-slate-800 border border-slate-600 rounded p-2 text-white text-xs outline-none focus:border-cyan-500"
+                                                                        value={localRoleConfig[configKey] || ""}
+                                                                        onChange={(e) => setLocalRoleConfig({...localRoleConfig, [configKey]: e.target.value})}
+                                                                    >
+                                                                        <option value="">-- Selecione Cargo do Discord --</option>
+                                                                        {discordRoles.map(r => <option key={r.id} value={r.id} style={{color: r.color}}>{r.name}</option>)}
+                                                                    </select>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                )}
+                                                <p className="text-[10px] text-slate-500 mt-2 italic">
+                                                    * Esta organização usa mapeamento específico. Cada função interna corresponde a um cargo diferente no Discord.
+                                                </p>
                                             </div>
-                                            <div className="grid grid-cols-2 gap-4">
+                                        ) : (
+                                            // LÓGICA PADRÃO (Organizações com hierarquia simples)
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                 <div className="flex flex-col gap-1">
-                                                    <label className="text-xs text-yellow-400">Líder</label>
-                                                    <select className="bg-slate-800 border border-slate-600 rounded p-2 text-white text-sm outline-none" value={localLeaderRoleConfig[org.id] || ""} onChange={(e) => setLocalLeaderRoleConfig({...localLeaderRoleConfig, [org.id]: e.target.value})}>
+                                                    <label className="text-xs text-slate-400">Cargo de Membro</label>
+                                                    <select className="bg-slate-800 border border-slate-600 rounded p-2 text-white text-sm outline-none" value={localRoleConfig[org.id] || ""} onChange={(e) => setLocalRoleConfig({...localRoleConfig, [org.id]: e.target.value})}>
                                                         <option value="">Selecione...</option>
                                                         {discordRoles.map(r => <option key={r.id} value={r.id} style={{color: r.color}}>{r.name}</option>)}
                                                     </select>
                                                 </div>
-                                                <div className="flex flex-col gap-1">
-                                                    <label className="text-xs text-blue-400">Secundário</label>
-                                                    <select className="bg-slate-800 border border-slate-600 rounded p-2 text-white text-sm outline-none" value={localSecLeaderRoleConfig[org.id] || ""} onChange={(e) => setLocalSecLeaderRoleConfig({...localSecLeaderRoleConfig, [org.id]: e.target.value})}>
-                                                        <option value="">Selecione...</option>
-                                                        {discordRoles.map(r => <option key={r.id} value={r.id} style={{color: r.color}}>{r.name}</option>)}
-                                                    </select>
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <div className="flex flex-col gap-1">
+                                                        <label className="text-xs text-yellow-400">Líder</label>
+                                                        <select className="bg-slate-800 border border-slate-600 rounded p-2 text-white text-sm outline-none" value={localLeaderRoleConfig[org.id] || ""} onChange={(e) => setLocalLeaderRoleConfig({...localLeaderRoleConfig, [org.id]: e.target.value})}>
+                                                            <option value="">Selecione...</option>
+                                                            {discordRoles.map(r => <option key={r.id} value={r.id} style={{color: r.color}}>{r.name}</option>)}
+                                                        </select>
+                                                    </div>
+                                                    <div className="flex flex-col gap-1">
+                                                        <label className="text-xs text-blue-400">Secundário</label>
+                                                        <select className="bg-slate-800 border border-slate-600 rounded p-2 text-white text-sm outline-none" value={localSecLeaderRoleConfig[org.id] || ""} onChange={(e) => setLocalSecLeaderRoleConfig({...localSecLeaderRoleConfig, [org.id]: e.target.value})}>
+                                                            <option value="">Selecione...</option>
+                                                            {discordRoles.map(r => <option key={r.id} value={r.id} style={{color: r.color}}>{r.name}</option>)}
+                                                        </select>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
+                                        )}
                                     </div>
                                 );
                             })}
@@ -161,7 +210,11 @@ const SettingsModal = ({
                                         { id: localAccessConfig.kamiRoleId, label: 'Mizukami (Admin)' },
                                         { id: localAccessConfig.councilRoleId, label: 'Conselho (Admin)' },
                                         { id: localAccessConfig.moderatorRoleId, label: 'Moderador' },
-                                        ...Object.entries(localRoleConfig).map(([org, id]) => ({ id, label: `Membro ${ORG_CONFIG[org]?.name}` })),
+                                        ...Object.entries(localRoleConfig).map(([org, id]) => {
+                                            // Melhora a label para cargos mapeados internamente
+                                            const orgName = ORG_CONFIG[org] ? ORG_CONFIG[org].name : org;
+                                            return { id, label: `${orgName}` };
+                                        }),
                                         ...Object.entries(localLeaderRoleConfig).map(([org, id]) => ({ id, label: `Líder ${ORG_CONFIG[org]?.name}` }))
                                     ].filter(r => r.id).map((role, idx) => (
                                         <button 
