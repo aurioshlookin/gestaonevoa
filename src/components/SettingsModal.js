@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { Settings, ShieldCheck, UserCog, Star, Trash2, Eye, ChevronDown, ChevronUp, Database, RefreshCw, Activity, CheckCircle, Circle } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Settings, ShieldCheck, UserCog, Star, Trash2, Eye, ChevronDown, ChevronUp, Database, RefreshCw, Activity, CheckCircle, Circle, X } from 'lucide-react';
 import { ORG_CONFIG, Icons } from '../config/constants.js';
 
 const SettingsModal = ({ 
@@ -21,6 +21,24 @@ const SettingsModal = ({
 
     const [activeTab, setActiveTab] = useState('roles');
     const [vipSelection, setVipSelection] = useState("");
+
+    // --- NOVA LÓGICA: IDENTIFICAR CARGOS CONFIGURADOS ---
+    // Cria um Set com todos os IDs de cargos que são usados em alguma configuração
+    const configuredRoleIds = useMemo(() => {
+        const ids = new Set();
+        
+        // Adiciona cargos de Organizações (Membros, Líderes, Secundários)
+        Object.values(localRoleConfig).forEach(id => id && ids.add(id));
+        Object.values(localLeaderRoleConfig).forEach(id => id && ids.add(id));
+        Object.values(localSecLeaderRoleConfig).forEach(id => id && ids.add(id));
+
+        // Adiciona cargos de Permissões (Mizukami, Conselho, Moderador)
+        if (localAccessConfig.kamiRoleId) ids.add(localAccessConfig.kamiRoleId);
+        if (localAccessConfig.councilRoleId) ids.add(localAccessConfig.councilRoleId);
+        if (localAccessConfig.moderatorRoleId) ids.add(localAccessConfig.moderatorRoleId);
+
+        return ids;
+    }, [localRoleConfig, localLeaderRoleConfig, localSecLeaderRoleConfig, localAccessConfig]);
 
     const handleAddVip = () => {
         if (!vipSelection) return;
@@ -64,9 +82,17 @@ const SettingsModal = ({
         });
     };
 
+    const handleStopSimulation = () => {
+        onSimulate(null); // Envia null para parar a simulação
+        // Não fechamos o modal para permitir nova escolha, mas o App.js pode recarregar
+    };
+
+    // FILTRO DE CARGOS PARA SIMULAÇÃO (APENAS CONFIGURADOS)
     const filteredSimRoles = useMemo(() => {
-        return discordRoles.filter(r => r.name.toLowerCase().includes(simSearchTerm.toLowerCase()));
-    }, [discordRoles, simSearchTerm]);
+        return discordRoles
+            .filter(r => configuredRoleIds.has(r.id)) // <--- FILTRO PRINCIPAL
+            .filter(r => r.name.toLowerCase().includes(simSearchTerm.toLowerCase()));
+    }, [discordRoles, simSearchTerm, configuredRoleIds]);
 
     const handleSave = () => {
         onSave({
@@ -239,7 +265,8 @@ const SettingsModal = ({
                                 </h4>
                                 <p className="text-xs text-slate-400 mb-4">
                                     Selecione abaixo os cargos que deseja "possuir" durante a simulação. 
-                                    Isso permite testar exatamente o que um usuário com esses cargos veria.
+                                    <br/>
+                                    <span className="text-cyan-300">Nota:</span> Apenas cargos configurados no painel aparecem aqui.
                                 </p>
                                 
                                 <div className="mb-4">
@@ -268,19 +295,35 @@ const SettingsModal = ({
                                             </div>
                                         );
                                     })}
-                                    {filteredSimRoles.length === 0 && <p className="text-xs text-slate-500 p-2 text-center col-span-2">Nenhum cargo encontrado.</p>}
+                                    {filteredSimRoles.length === 0 && <p className="text-xs text-slate-500 p-2 text-center col-span-2">Nenhum cargo configurado encontrado.</p>}
                                 </div>
 
                                 <div className="flex justify-between items-center mt-4 pt-4 border-t border-slate-700/50">
-                                    <span className="text-xs text-slate-400">
-                                        {simSelectedRoles.length} cargos selecionados
-                                    </span>
-                                    <button 
-                                        onClick={handleStartSimulation}
-                                        className="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded text-sm font-bold flex items-center gap-2"
-                                    >
-                                        <Eye size={14}/> Iniciar Simulação
-                                    </button>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs text-slate-400">
+                                            {simSelectedRoles.length} selecionados
+                                        </span>
+                                        {simSelectedRoles.length > 0 && (
+                                            <button onClick={() => setSimSelectedRoles([])} className="text-[10px] text-red-400 hover:underline">
+                                                (Limpar)
+                                            </button>
+                                        )}
+                                    </div>
+                                    
+                                    <div className="flex gap-2">
+                                        <button 
+                                            onClick={handleStopSimulation}
+                                            className="bg-slate-700 hover:bg-slate-600 text-slate-300 px-3 py-2 rounded text-xs font-bold"
+                                        >
+                                            Parar
+                                        </button>
+                                        <button 
+                                            onClick={handleStartSimulation}
+                                            className="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded text-sm font-bold flex items-center gap-2"
+                                        >
+                                            <Eye size={14}/> Iniciar
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
 
