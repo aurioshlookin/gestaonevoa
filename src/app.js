@@ -826,7 +826,13 @@ const App = () => {
                     )}
 
                     {activeTab === 'dashboard' ? (
-                        <DashboardTab members={members} roleConfig={roleConfig} multiOrgUsers={multiOrgUsers} onTabChange={setActiveTab} />
+                        <DashboardTab 
+                            members={members} 
+                            roleConfig={roleConfig} 
+                            multiOrgUsers={multiOrgUsers} 
+                            onTabChange={setActiveTab} 
+                            discordRoles={discordRoles} // ADICIONADO: Passando roles para o dashboard
+                        />
                     ) : activeTab === 'access' ? (
                         <MonitoringTab onBack={() => setActiveTab('dashboard')} />
                     ) : (
