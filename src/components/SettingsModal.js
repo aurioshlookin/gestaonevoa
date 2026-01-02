@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
-import { Settings, ShieldCheck, UserCog, Star, Trash2, Eye, ChevronDown, ChevronUp, Database, RefreshCw, Activity } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Settings, ShieldCheck, UserCog, Star, Trash2, Eye, ChevronDown, ChevronUp, Database, RefreshCw, Activity, CheckCircle, Circle } from 'lucide-react';
 import { ORG_CONFIG, Icons } from '../config/constants.js';
 
 const SettingsModal = ({ 
     roleConfig, leaderRoleConfig, secLeaderRoleConfig, accessConfig, 
     discordRoles, discordRoster, onClose, onSave, canManageSettings, onSimulate,
-    onSyncHistory // NOVA PROP ADICIONADA
+    onSyncHistory 
 }) => {
     const [localRoleConfig, setLocalRoleConfig] = useState(roleConfig || {});
     const [localLeaderRoleConfig, setLocalLeaderRoleConfig] = useState(leaderRoleConfig || {});
@@ -14,6 +14,10 @@ const SettingsModal = ({
     
     // Estado para controlar expansão de organizações com mapeamento complexo
     const [expandedOrgs, setExpandedOrgs] = useState({});
+
+    // ESTADOS DE SIMULAÇÃO
+    const [simSelectedRoles, setSimSelectedRoles] = useState([]);
+    const [simSearchTerm, setSimSearchTerm] = useState("");
 
     const [activeTab, setActiveTab] = useState('roles');
     const [vipSelection, setVipSelection] = useState("");
@@ -34,6 +38,36 @@ const SettingsModal = ({
         setExpandedOrgs(prev => ({...prev, [orgId]: !prev[orgId]}));
     };
 
+    // LÓGICA DE SIMULAÇÃO
+    const toggleSimRole = (roleId) => {
+        setSimSelectedRoles(prev => 
+            prev.includes(roleId) ? prev.filter(id => id !== roleId) : [...prev, roleId]
+        );
+    };
+
+    const handleStartSimulation = () => {
+        // Cria um nome descritivo baseado nos cargos selecionados
+        let simName = "Visitante Simulado";
+        if (simSelectedRoles.length > 0) {
+            const roleNames = simSelectedRoles
+                .map(rid => discordRoles.find(r => r.id === rid)?.name)
+                .filter(Boolean)
+                .slice(0, 2); // Pega os 2 primeiros para não ficar gigante
+            
+            simName = roleNames.join(" & ") + (simSelectedRoles.length > 2 ? "..." : "");
+        }
+
+        onSimulate({ 
+            id: 'simulated-user', 
+            name: simName, 
+            roles: simSelectedRoles 
+        });
+    };
+
+    const filteredSimRoles = useMemo(() => {
+        return discordRoles.filter(r => r.name.toLowerCase().includes(simSearchTerm.toLowerCase()));
+    }, [discordRoles, simSearchTerm]);
+
     const handleSave = () => {
         onSave({
             roleConfig: localRoleConfig,
@@ -53,14 +87,13 @@ const SettingsModal = ({
                     <button onClick={() => setActiveTab('permissions')} className={`flex-1 p-4 font-bold text-sm ${activeTab === 'permissions' ? 'text-emerald-400 border-b-2 border-emerald-400 bg-slate-800' : 'text-slate-400 hover:text-white bg-slate-900/50'}`}>
                         <ShieldCheck size={16} className="inline mr-2"/> Acesso
                     </button>
-                    {/* ALTERADO: De 'simulation' para 'system' para incluir a manutenção */}
                     <button onClick={() => setActiveTab('system')} className={`flex-1 p-4 font-bold text-sm ${activeTab === 'system' ? 'text-orange-400 border-b-2 border-orange-400 bg-slate-800' : 'text-slate-400 hover:text-white bg-slate-900/50'}`}>
                         <Activity size={16} className="inline mr-2"/> Sistema
                     </button>
                 </div>
 
                 <div className="p-6 overflow-y-auto scroll-custom">
-                    {/* ABA ROLES (Código Original Preservado) */}
+                    {/* ABA ROLES (Preservada) */}
                     {activeTab === 'roles' && (
                         <div className="space-y-6">
                             {Object.values(ORG_CONFIG).map(org => {
@@ -74,7 +107,6 @@ const SettingsModal = ({
                                         </h3>
                                         
                                         {org.useInternalRoleMapping ? (
-                                            // LÓGICA PARA MAPEAMENTO POR FUNÇÃO INTERNA (Clãs e Promoções)
                                             <div>
                                                 <div 
                                                     className="flex justify-between items-center cursor-pointer bg-slate-800 p-2 rounded border border-slate-600 mb-2"
@@ -93,7 +125,6 @@ const SettingsModal = ({
                                                                     <label className="text-xs text-cyan-400 font-bold block mb-2">{internalRole}</label>
                                                                     
                                                                     <div className={`grid ${org.allowSecondaryRole ? 'grid-cols-2' : 'grid-cols-1'} gap-2`}>
-                                                                        {/* CARGO PRINCIPAL */}
                                                                         <div className="flex flex-col">
                                                                             <span className="text-[10px] text-slate-500 mb-1">Principal</span>
                                                                             <select 
@@ -105,8 +136,6 @@ const SettingsModal = ({
                                                                                 {discordRoles.map(r => <option key={r.id} value={r.id} style={{color: r.color}}>{r.name}</option>)}
                                                                             </select>
                                                                         </div>
-
-                                                                        {/* CARGO SECUNDÁRIO (Condicional) */}
                                                                         {org.allowSecondaryRole && (
                                                                             <div className="flex flex-col">
                                                                                 <span className="text-[10px] text-slate-500 mb-1">Secundário</span>
@@ -126,12 +155,8 @@ const SettingsModal = ({
                                                         })}
                                                     </div>
                                                 )}
-                                                <p className="text-[10px] text-slate-500 mt-2 italic">
-                                                    * Esta organização usa mapeamento específico de cargos.
-                                                </p>
                                             </div>
                                         ) : (
-                                            // LÓGICA PADRÃO
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                 <div className="flex flex-col gap-1">
                                                     <label className="text-xs text-slate-400">Cargo de Membro</label>
@@ -164,7 +189,7 @@ const SettingsModal = ({
                         </div>
                     )}
 
-                    {/* ABA PERMISSIONS (Código Original Preservado) */}
+                    {/* ABA PERMISSIONS (Preservada) */}
                     {activeTab === 'permissions' && (
                         <div className="space-y-6">
                             <div className="bg-yellow-900/10 border border-yellow-600/30 p-4 rounded-lg mb-6">
@@ -204,30 +229,62 @@ const SettingsModal = ({
                         </div>
                     )}
 
-                    {/* ABA SYSTEM (Combinando Simulação + Manutenção) */}
+                    {/* ABA SYSTEM (Modificada para Seleção de Cargos) */}
                     {activeTab === 'system' && (
                         <div className="space-y-6">
-                            {/* SIMULAÇÃO */}
+                            {/* SIMULAÇÃO REFORMULADA */}
                             <div className="bg-slate-800 p-4 rounded-lg border border-slate-600">
                                 <h4 className="text-white font-bold flex items-center gap-2 mb-2">
-                                    <Eye size={18} className="text-cyan-400"/> Simulação de Usuário
+                                    <Eye size={18} className="text-cyan-400"/> Simulação de Cargos
                                 </h4>
                                 <p className="text-xs text-slate-400 mb-4">
-                                    Visualize o painel como se você tivesse outros cargos. 
-                                    <br/><span className="text-red-400 font-bold">Nota:</span> Enquanto simula, você não poderá editar nada.
+                                    Selecione abaixo os cargos que deseja "possuir" durante a simulação. 
+                                    Isso permite testar exatamente o que um usuário com esses cargos veria.
                                 </p>
-                                <select onChange={(e) => {
-                                    const user = discordRoster.find(u => u.id === e.target.value);
-                                    if(user) onSimulate({ id: user.id, name: user.username, roles: [] }); // Simulação básica
-                                }} className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white outline-none">
-                                    <option value="">Selecione um usuário para simular...</option>
-                                    {discordRoster.map(u => (
-                                        <option key={u.id} value={u.id}>{u.username} ({u.displayName})</option>
-                                    ))}
-                                </select>
+                                
+                                <div className="mb-4">
+                                    <input 
+                                        type="text" 
+                                        placeholder="Filtrar cargos..." 
+                                        className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white text-sm outline-none focus:border-cyan-500"
+                                        value={simSearchTerm}
+                                        onChange={(e) => setSimSearchTerm(e.target.value)}
+                                    />
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-60 overflow-y-auto scroll-custom p-2 bg-slate-900/50 rounded border border-slate-700">
+                                    {filteredSimRoles.map(role => {
+                                        const isSelected = simSelectedRoles.includes(role.id);
+                                        return (
+                                            <div 
+                                                key={role.id}
+                                                onClick={() => toggleSimRole(role.id)}
+                                                className={`flex items-center gap-2 p-2 rounded cursor-pointer transition-colors border ${isSelected ? 'bg-cyan-900/30 border-cyan-500/50' : 'bg-slate-800 border-slate-700 hover:bg-slate-700'}`}
+                                            >
+                                                {isSelected ? <CheckCircle size={16} className="text-cyan-400 shrink-0"/> : <Circle size={16} className="text-slate-600 shrink-0"/>}
+                                                <span className="text-xs font-bold truncate" style={{color: role.color !== '#000000' ? role.color : '#e2e8f0'}}>
+                                                    {role.name}
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
+                                    {filteredSimRoles.length === 0 && <p className="text-xs text-slate-500 p-2 text-center col-span-2">Nenhum cargo encontrado.</p>}
+                                </div>
+
+                                <div className="flex justify-between items-center mt-4 pt-4 border-t border-slate-700/50">
+                                    <span className="text-xs text-slate-400">
+                                        {simSelectedRoles.length} cargos selecionados
+                                    </span>
+                                    <button 
+                                        onClick={handleStartSimulation}
+                                        className="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded text-sm font-bold flex items-center gap-2"
+                                    >
+                                        <Eye size={14}/> Iniciar Simulação
+                                    </button>
+                                </div>
                             </div>
 
-                            {/* MANUTENÇÃO (NOVO) */}
+                            {/* MANUTENÇÃO (Preservada) */}
                             <div className="bg-slate-800 p-4 rounded-lg border border-slate-600">
                                 <h4 className="text-white font-bold flex items-center gap-2 mb-2">
                                     <Database size={18} className="text-orange-400"/> Manutenção de Dados
