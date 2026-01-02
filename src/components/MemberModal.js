@@ -15,13 +15,16 @@ const MemberModal = ({
     const isClanLeaders = orgId === 'lideres-clas'; 
     const isInternalMapping = orgDef?.useInternalRoleMapping;
 
+    // Determina o cargo inicial
+    const initialNinRole = member?.ninRole || (orgDef?.internalRoles && orgDef.internalRoles.length > 0 ? orgDef.internalRoles[0] : 'Membro');
+
     const [form, setForm] = useState({
         name: member?.name || '',
         rpName: member?.rpName || '',
         codinome: member?.codinome || '',
         discordId: member?.discordId || '',
         org: orgId,
-        ninRole: member?.ninRole || orgDef?.internalRoles?.[0] || 'Membro',
+        ninRole: initialNinRole,
         specificRoleId: member?.specificRoleId || '',
         isLeader: isClanLeaders ? true : (member?.isLeader || false),
         level: member?.level || 1,
@@ -37,6 +40,17 @@ const MemberModal = ({
 
     const [searchTerm, setSearchTerm] = useState("");
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+    // EFEITO DE INICIALIZAÇÃO: Sincroniza o cargo do Discord com o cargo interno inicial se estiver criando
+    useEffect(() => {
+        if (isCreating && isInternalMapping && !form.specificRoleId) {
+            const configKey = `${orgId}_${form.ninRole}`;
+            const mappedRole = roleConfig?.[configKey];
+            if (mappedRole) {
+                setForm(prev => ({ ...prev, specificRoleId: mappedRole }));
+            }
+        }
+    }, []); // Executa apenas na montagem
 
     const maxPoints = calculateMaxPoints(form.level);
     const usedPoints = STATS.reduce((acc, stat) => acc + ((form.stats[stat] || 5) - 5), 0);
@@ -109,8 +123,15 @@ const MemberModal = ({
         if (isInternalMapping) {
             const configKey = `${orgId}_${newRole}`;
             const mappedRole = roleConfig?.[configKey];
+            
+            // ATUALIZAÇÃO: Sempre tenta atualizar o cargo do Discord se houver um mapeamento para o novo cargo interno
             if (mappedRole) {
                 newSpecificRoleId = mappedRole;
+            } else {
+                // Se não houver mapeamento específico, e for Promoções, talvez queira limpar ou manter o anterior?
+                // Vamos manter o comportamento de tentar achar, se não, mantém o que estava ou limpa se for crítico.
+                // Para promoções, geralmente queremos forçar o cargo correto.
+                if (orgId === 'promocoes') newSpecificRoleId = ''; 
             }
         }
 
@@ -290,6 +311,21 @@ const MemberModal = ({
                             {!isPromotions && (
                                 <div className="mb-4">
                                     <label className="text-xs text-slate-400 mb-1 block">Cargo Nin Online / Patente</label>
+                                    <select 
+                                        className={`w-full bg-slate-800 border border-slate-600 rounded p-2 text-white outline-none ${isReadOnly ? 'opacity-50' : ''}`} 
+                                        value={form.ninRole} 
+                                        onChange={handleInternalRoleChange} 
+                                        disabled={isReadOnly}
+                                    >
+                                        {orgDef?.internalRoles.map(r => <option key={r} value={r}>{r}</option>)}
+                                    </select>
+                                </div>
+                            )}
+
+                            {/* Campo de Seleção de Cargo NinRole para Promoções (que estava oculto antes) */}
+                            {isPromotions && (
+                                <div className="mb-4">
+                                    <label className="text-xs text-slate-400 mb-1 block">Patente Ninja</label>
                                     <select 
                                         className={`w-full bg-slate-800 border border-slate-600 rounded p-2 text-white outline-none ${isReadOnly ? 'opacity-50' : ''}`} 
                                         value={form.ninRole} 
