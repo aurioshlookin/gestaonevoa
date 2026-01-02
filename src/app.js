@@ -473,14 +473,21 @@ const App = () => {
             if (formData.isLeader) {
                 const currentLeader = members.find(m => m.org === orgId && m.isLeader === true && m.discordId !== formData.discordId);
                 if (currentLeader) {
-                    let newRole = currentLeader.ninRole;
+                    let newRole = 'Sem Cargo';
                     if (orgId === 'unidade-medica' && currentLeader.ninRole === 'Diretor Médico') newRole = 'Residente Chefe';
+                    else if (orgId === 'divisao-especial') newRole = 'Vice-Líder';
+                    else if (orgId === 'forca-policial') newRole = 'Subchefe';
+                    
                     await updateDoc(doc(db, "membros", currentLeader.id), { isLeader: false, ninRole: newRole });
                 }
             }
             
             let finalNinRole = formData.ninRole;
-            if (formData.isLeader && orgId === 'unidade-medica') finalNinRole = 'Diretor Médico';
+            if (formData.isLeader) {
+                if (orgId === 'unidade-medica') finalNinRole = 'Diretor Médico';
+                else if (orgId === 'divisao-especial') finalNinRole = 'Líder';
+                else if (orgId === 'forca-policial') finalNinRole = 'Chefe';
+            }
 
             const payload = {
                 ...formData, org: orgId, role: finalRoleName, specificRoleId: finalRoleId, ninRole: finalNinRole,
@@ -525,16 +532,27 @@ const App = () => {
         if (!checkPermission('EDIT_MEMBER', member.org)) return showNotification('Sem permissão.', 'error');
         try {
             const orgId = member.org; const newStatus = !member.isLeader;
+            
+            let demotionRole = 'Sem Cargo';
+            if (orgId === 'unidade-medica') demotionRole = 'Residente Chefe';
+            else if (orgId === 'divisao-especial') demotionRole = 'Vice-Líder';
+            else if (orgId === 'forca-policial') demotionRole = 'Subchefe';
+
             if (newStatus) {
                 const currentLeader = members.find(m => m.org === orgId && m.isLeader === true);
                 if (currentLeader && currentLeader.id !== member.id) {
-                    let newRole = currentLeader.ninRole;
-                    if (orgId === 'unidade-medica' && currentLeader.ninRole === 'Diretor Médico') newRole = 'Residente Chefe';
-                    await updateDoc(doc(db, "membros", currentLeader.id), { isLeader: false, ninRole: newRole });
+                    await updateDoc(doc(db, "membros", currentLeader.id), { isLeader: false, ninRole: demotionRole });
                 }
-                let newRoleL = member.ninRole; if (orgId === 'unidade-medica') newRoleL = 'Diretor Médico';
+                
+                let newRoleL = member.ninRole; 
+                if (orgId === 'unidade-medica') newRoleL = 'Diretor Médico';
+                else if (orgId === 'divisao-especial') newRoleL = 'Líder';
+                else if (orgId === 'forca-policial') newRoleL = 'Chefe';
+                
                 await updateDoc(doc(db, "membros", member.id), { isLeader: true, ninRole: newRoleL });
-            } else { await updateDoc(doc(db, "membros", member.id), { isLeader: false }); }
+            } else { 
+                await updateDoc(doc(db, "membros", member.id), { isLeader: false, ninRole: demotionRole }); 
+            }
             showNotification('Liderança alterada.', 'success');
             logAction("Alterar Liderança", member.name, newStatus ? "Promovido a Líder" : "Removido da Liderança", orgId);
         } catch (e) { showNotification('Erro.', 'error'); }
