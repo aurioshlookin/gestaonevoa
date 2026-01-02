@@ -114,6 +114,7 @@ const App = () => {
             const unsubConfig = onSnapshot(doc(db, "server", "config"), (doc) => { 
                 if (doc.exists()) {
                     const data = doc.data();
+                    // Aqui lemos 'Mapping' que vem do banco
                     setRoleConfig(data.roleMapping || {});
                     setLeaderRoleConfig(data.leaderRoleMapping || {});
                     setSecLeaderRoleConfig(data.secLeaderRoleMapping || {});
@@ -243,14 +244,12 @@ const App = () => {
             }
         }
         
-        // Retorna o objeto de conteúdo e a org encontrada (se houver)
         return { content: TUTORIALS[tutorialKey] || TUTORIALS['visitor'], foundOrg, tutorialKey };
     };
 
     const startTutorial = (force = false) => {
         if (!effectiveUser || (!isTutorialEnabled && !force)) return;
         
-        // Se não for forçado (clique no botão), verifica se o usuário suprimiu o tutorial
         if (!force) {
             const isSuppressed = localStorage.getItem('nevoa_tutorial_suppressed') === 'true';
             if (isSuppressed) return;
@@ -260,21 +259,16 @@ const App = () => {
 
         console.log("Iniciando tutorial:", tutorialKey);
 
-        // 1. Navega
         if (foundOrg) {
             setActiveTab(foundOrg);
         } else if (tutorialKey === 'mizukami' || tutorialKey === 'council') {
             setActiveTab('dashboard'); 
         }
 
-        // 2. Abre Modal
         setTutorialContent(content);
     };
 
-    // Trigger automático ao carregar
     useEffect(() => {
-        // Verifica sessionStorage (para não mostrar toda vez que recarrega a aba na mesma sessão, se não estiver suprimido)
-        // E verifica localStorage (persistente "não mostrar novamente")
         const sessionSeen = sessionStorage.getItem('tutorial_seen');
         const permanentSuppressed = localStorage.getItem('nevoa_tutorial_suppressed') === 'true';
 
@@ -546,15 +540,27 @@ const App = () => {
         } catch (e) { showNotification('Erro.', 'error'); }
     };
 
-    const handleSaveConfig = async (newConfig) => {
+    // CORREÇÃO CRÍTICA AQUI: Mapear 'Config' para 'Mapping'
+    const handleSaveConfig = async (receivedConfig) => {
         if (simulation) { showNotification('Simulação: Ação bloqueada.', 'error'); return; }
         if (!canManageSettings) return showNotification('Apenas Admins.', 'error');
         try {
-            await setDoc(doc(db, "server", "config"), newConfig, { merge: true });
+            // O modal envia 'roleConfig', mas o banco e o bot esperam 'roleMapping'
+            const dbConfig = {
+                roleMapping: receivedConfig.roleConfig,
+                leaderRoleMapping: receivedConfig.leaderRoleConfig,
+                secLeaderRoleMapping: receivedConfig.secLeaderRoleConfig,
+                accessConfig: receivedConfig.accessConfig
+            };
+
+            await setDoc(doc(db, "server", "config"), dbConfig, { merge: true });
             setShowSettings(false);
-            showNotification('Salvo!', 'success');
-            logAction("Configurações", "Sistema", "Atualizado");
-        } catch (e) { showNotification('Erro ao salvar.', 'error'); }
+            showNotification('Configurações salvas e aplicadas!', 'success');
+            logAction("Configurações", "Sistema", "Mapeamento de cargos atualizado");
+        } catch (e) { 
+            console.error("Erro ao salvar config:", e);
+            showNotification('Erro ao salvar.', 'error'); 
+        }
     };
 
     // --- RENDER ---
