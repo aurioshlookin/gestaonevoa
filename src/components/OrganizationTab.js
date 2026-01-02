@@ -19,127 +19,13 @@ const OrganizationTab = ({
     const orgMembers = safeMembers.filter(m => m.org === orgId);
     
     const isAnbu = orgId === 'divisao-especial';
+    
+    // Configurações visuais específicas
     const isClanLeaders = orgId === 'lideres-clas';
+    // Oculta coluna de líder para Promoções e Líderes de Clã (pois lá a liderança é implícita no cargo)
     const showLeaderColumn = orgId !== 'promocoes' && !isClanLeaders;
 
-    // --- LÓGICA ESPECÍFICA PARA LÍDERES DE CLÃ ---
-    if (isClanLeaders) {
-        return (
-            <div className="animate-fade-in">
-                {/* Header Simplificado para Clãs */}
-                <div className="flex items-center justify-between mb-8">
-                    <div className="flex items-center gap-4">
-                        <button 
-                            onClick={onBack} 
-                            className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors shadow-sm group"
-                        >
-                            <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform"/>
-                            <span>Voltar</span>
-                        </button>
-                        
-                        <div className={`p-3 rounded-lg ${orgConfig.bgColor} ${orgConfig.color}`}>
-                            {React.createElement(Icons[orgConfig.icon] || Icons.Crown)}
-                        </div>
-                        <h2 className="text-3xl font-bold mist-title text-white">{orgConfig.name}</h2>
-                    </div>
-                </div>
-
-                {/* Tabela de Clãs (Baseada nos Cargos e não nos Membros) */}
-                <div className="glass-panel rounded-xl overflow-hidden border border-slate-700">
-                    <table className="w-full text-left">
-                        <thead className="bg-slate-800/50 text-slate-400 text-xs uppercase">
-                            <tr>
-                                <th className="p-4">Clã / Cargo</th>
-                                <th className="p-4">Representante Atual</th>
-                                <th className="p-4 text-center">Status</th>
-                                {canManage && <th className="p-4 text-right">Ações</th>}
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-700">
-                            {orgConfig.internalRoles.map((roleName) => {
-                                const currentLeader = orgMembers.find(m => m.ninRole === roleName);
-                                const isVacant = !currentLeader;
-
-                                return (
-                                    <tr key={roleName} className={`hover:bg-slate-800/30 transition-colors ${!isVacant ? 'bg-slate-900/20' : ''}`}>
-                                        <td className="p-4">
-                                            <div className="flex flex-col">
-                                                <span className="font-bold text-white text-lg">{roleName}</span>
-                                                <span className="text-xs text-slate-500">
-                                                    {orgConfig.roleDetails?.find(r => r.name === roleName)?.desc || "Clã da Névoa"}
-                                                </span>
-                                            </div>
-                                        </td>
-                                        
-                                        <td className="p-4">
-                                            {currentLeader ? (
-                                                <div className="flex items-center gap-3 cursor-pointer" onClick={() => onEditMember(currentLeader)}>
-                                                    <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center font-bold text-white border border-slate-600">
-                                                        {currentLeader.name.charAt(0)}
-                                                    </div>
-                                                    <div>
-                                                        <p className="font-bold text-white text-sm">{currentLeader.rpName || currentLeader.name}</p>
-                                                        <p className="text-[10px] text-slate-500">Discord: {currentLeader.name}</p>
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <span className="text-slate-600 italic flex items-center gap-2">
-                                                    <AlertCircle size={14}/> Cargo Vago
-                                                </span>
-                                            )}
-                                        </td>
-
-                                        <td className="p-4 text-center">
-                                            {currentLeader ? (
-                                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-900/30 text-emerald-400 text-xs border border-emerald-500/30">
-                                                    <Crown size={12}/> Ocupado
-                                                </span>
-                                            ) : (
-                                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-slate-800 text-slate-500 text-xs border border-slate-600">
-                                                    Disponível
-                                                </span>
-                                            )}
-                                        </td>
-
-                                        {canManage && (
-                                            <td className="p-4 text-right">
-                                                <div className="flex justify-end gap-2">
-                                                    <button 
-                                                        onClick={() => onOpenCreate({ ninRole: roleName })}
-                                                        className={`px-3 py-1.5 rounded-lg font-bold text-xs flex items-center justify-center gap-2 transition-all ${
-                                                            isVacant 
-                                                            ? 'bg-cyan-600 hover:bg-cyan-500 text-white shadow-lg shadow-cyan-500/20' 
-                                                            : 'bg-slate-800 hover:bg-yellow-900/40 text-slate-300 hover:text-yellow-400 border border-slate-600 hover:border-yellow-500/50'
-                                                        }`}
-                                                        title={isVacant ? "Definir Líder" : "Trocar Líder"}
-                                                    >
-                                                        {isVacant ? <UserPlus size={14}/> : <RefreshCw size={14}/>}
-                                                        {isVacant ? "Definir" : "Trocar"}
-                                                    </button>
-                                                    
-                                                    {currentLeader && (
-                                                        <button 
-                                                            onClick={() => onDeleteMember(currentLeader.id)}
-                                                            className="p-1.5 bg-red-600/10 hover:bg-red-600 text-red-500 hover:text-white rounded-lg transition-colors border border-red-500/30"
-                                                            title="Excluir Membro e Cargos"
-                                                        >
-                                                            <Trash2 size={14} />
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </td>
-                                        )}
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        );
-    }
-
-    // --- LÓGICA PADRÃO PARA OUTRAS ORGS ---
+    // --- LÓGICA PADRÃO PARA TODAS ORGS ---
 
     const getRoleRank = (member) => { const roles = orgConfig.internalRoles || []; return roles.indexOf(member.ninRole); };
     
