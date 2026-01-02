@@ -35,6 +35,14 @@ export const TUTORIALS = {
     },
 
     // --- LÍDERES ---
+    'leader_lideres-clas': {
+        roleName: "Representante dos Clãs",
+        description: "Gestão dos líderes dos clãs nobres da Névoa.",
+        sections: [
+            { title: "Conselho de Clãs", content: "Gerencie os representantes dos 5 grandes clãs da vila." },
+            { title: "Registros", content: "Mantenha atualizado quem é o líder vigente de cada família." }
+        ]
+    },
     'leader_sete-laminas': {
         roleName: "Líder dos Sete Espadachins",
         description: "Comandante da elite dos Espadachins da Névoa.",
@@ -51,6 +59,14 @@ export const TUTORIALS = {
             { title: "Comandante ANBU", content: "Lidere as operações secretas da vila com eficiência." },
             { title: "Identidades Secretas", content: "Garanta que todos os agentes tenham seus codinomes registrados na tabela." },
             { title: "Novo Agente", content: "Recrute novos membros para a divisão através do botão de adicionar." }
+        ]
+    },
+    'leader_promocoes': {
+        roleName: "Examinador de Patentes",
+        description: "Gestão de promoções e hierarquia ninja.",
+        sections: [
+            { title: "Avaliação", content: "Gerencie os ninjas que estão em processo de promoção para Chunin, Tokubetsu ou Jonin." },
+            { title: "Registro", content: "Mantenha a lista de aprovados e aspirantes sempre atualizada." }
         ]
     },
     'leader_forca-policial': {
@@ -73,6 +89,14 @@ export const TUTORIALS = {
     },
 
     // --- MEMBROS ---
+    'member_lideres-clas': {
+        roleName: "Líder de Clã",
+        description: "Membro da elite política dos clãs.",
+        sections: [
+            { title: "Representação", content: "Você representa os interesses do seu clã junto à vila." },
+            { title: "Status", content: "Verifique se seu registro de liderança está correto." }
+        ]
+    },
     'member_sete-laminas': {
         roleName: "Espadachim da Névoa",
         description: "Membro da elite dos Espadachins da Névoa.",
@@ -87,6 +111,14 @@ export const TUTORIALS = {
         sections: [
             { title: "Agente", content: "Bem-vindo às sombras. Mantenha sua identidade e status atualizados." },
             { title: "Seu Registro", content: "Verifique seu codinome e rank na tabela operacional." }
+        ]
+    },
+    'member_promocoes': {
+        roleName: "Ninja Graduado",
+        description: "Ninja em processo de promoção ou recém promovido.",
+        sections: [
+            { title: "Carreira", content: "Acompanhe seu status de promoção para Chunin ou Jonin." },
+            { title: "Requisitos", content: "Mantenha seus atributos atualizados para garantir sua elegibilidade." }
         ]
     },
     'member_forca-policial': {
