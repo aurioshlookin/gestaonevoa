@@ -7,6 +7,17 @@ import SummaryPanel from './SummaryPanel.js';
 const DashboardTab = ({ members, roleConfig, multiOrgUsers, onTabChange }) => {
     const [expandedOrg, setExpandedOrg] = useState(null);
 
+    // Filtra conflitos reais: Apenas usuários com mais de 1 organização PRINCIPAL (não-overlay)
+    // Isso evita alertas para quem é "Líder de Clã" ou tem "Patente" junto com uma org normal.
+    const realConflicts = multiOrgUsers.filter(u => {
+        const primaryOrgsCount = u.orgs.filter(orgName => {
+            const orgDef = Object.values(ORG_CONFIG).find(o => o.name === orgName);
+            // Se não achar a org ou ela não for overlay, conta como principal
+            return orgDef && !orgDef.isOverlayOrg;
+        }).length;
+        return primaryOrgsCount > 1;
+    });
+
     const activityColors = {
         'Lendário': 'bg-purple-500',
         'Ativo': 'bg-emerald-500',
@@ -23,17 +34,17 @@ const DashboardTab = ({ members, roleConfig, multiOrgUsers, onTabChange }) => {
                 <SummaryPanel members={members} />
             </div>
 
-            {/* 2. ALERTAS (Multi-Org) */}
-            {multiOrgUsers.length > 0 && (
+            {/* 2. ALERTAS (Multi-Org) - Usando lista filtrada */}
+            {realConflicts.length > 0 && (
                 <div className="w-full bg-yellow-900/20 border border-yellow-600/30 rounded-xl p-4 shadow-lg animate-pulse flex flex-col md:flex-row items-start md:items-center gap-4">
                     <div className="flex items-center gap-3 text-yellow-400 font-bold min-w-fit">
                         <AlertTriangle size={24} /> 
-                        <span>Ninjas em Múltiplas Funções</span>
+                        <span>Conflito de Organizações</span>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                        {multiOrgUsers.map((u, idx) => (
+                        {realConflicts.map((u, idx) => (
                             <div key={idx} className="bg-slate-900/80 px-3 py-1 rounded border border-yellow-700/50 text-xs flex items-center gap-2">
-                                <span className="font-bold text-white">{u.name}</span>
+                                <span className="font-bold text-white">{u.name}:</span>
                                 <div className="flex gap-1">
                                     {u.orgs.map((o, i) => (
                                         <span key={i} className="text-[10px] bg-yellow-500/20 text-yellow-200 px-1 rounded border border-yellow-500/30">
@@ -103,7 +114,9 @@ const DashboardTab = ({ members, roleConfig, multiOrgUsers, onTabChange }) => {
                                                         <div className={`h-full ${org.color.replace('text', 'bg')}`} style={{ width: `${Math.min(percentage, 100)}%` }}></div>
                                                     </div>
                                                 )}
-                                                <span className="text-sm text-slate-400 font-mono">{count}/{displayLimit}</span>
+                                                <span className="text-sm text-slate-400 font-mono">
+                                                    {count}{limit !== null ? `/${displayLimit}` : ' membros'}
+                                                </span>
                                             </div>
                                         </div>
                                     </div>
