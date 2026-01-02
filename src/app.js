@@ -438,22 +438,39 @@ const App = () => {
             
             if (!formData.name || !formData.discordId || !formData.ninRole) return showNotification('Campos obrigatórios!', 'error');
             
-            // Verifica limites apenas para orgs normais
-            if (isCreating && ORG_CONFIG[orgId].limit !== null && ORG_CONFIG[orgId].limit > 0) {
-                if (members.filter(m => m.org === orgId).length >= ORG_CONFIG[orgId].limit) return showNotification('Limite atingido!', 'error');
-            }
-
-            // --- LÓGICA DE SUBSTITUIÇÃO PARA LÍDERES DE CLÃ ---
-            // Se estamos adicionando um Líder de Clã, garantimos que não haja outro com o mesmo cargo
+            // --- CORREÇÃO DE LIMITE E SUBSTITUIÇÃO DE CLÃ ---
+            
+            // Lógica de Clãs: Verifica se já existe um líder com esse cargo (Líder Yagyu, etc.)
+            // e deleta ANTES de checar o limite, para liberar espaço se for uma substituição.
             if (isCreating && orgId === 'lideres-clas') {
                 const existingLeader = members.find(m => m.org === orgId && m.ninRole === formData.ninRole);
                 if (existingLeader) {
                     await deleteDoc(doc(db, "membros", existingLeader.id));
                     console.log(`Substituindo líder antigo de ${formData.ninRole}: ${existingLeader.name}`);
+                    // Força isLeader true para clãs
+                    formData.isLeader = true;
                 }
-                // Força isLeader true para clãs
-                formData.isLeader = true;
             }
+
+            // Verifica limites apenas para orgs normais e se NÃO foi uma substituição de clã bem-sucedida
+            // (Se substituímos, a contagem de membros no banco vai cair em breve, mas o state 'members' local
+            // pode ainda ter o antigo, então precisamos ter cuidado)
+            // Solução: Se for lideres-clas e fizemos substituição, ignoramos o check de limite.
+            // Se for lideres-clas novo (vaga vazia), checamos.
+            
+            if (isCreating && ORG_CONFIG[orgId].limit !== null && ORG_CONFIG[orgId].limit > 0) {
+                // Se for lideres-clas, checamos quantos JÁ existem no state
+                const currentCount = members.filter(m => m.org === orgId).length;
+                
+                // Se for Clã, e já deletamos um acima (existingLeader), então "virtualmente" temos space.
+                // Mas se NÃO tinha existingLeader e já tem 5, aí bloqueia.
+                const isClanSubstitution = (orgId === 'lideres-clas') && members.some(m => m.org === orgId && m.ninRole === formData.ninRole);
+                
+                if (!isClanSubstitution && currentCount >= ORG_CONFIG[orgId].limit) {
+                    return showNotification('Limite atingido!', 'error');
+                }
+            }
+
             // ----------------------------------------------------
 
             let finalRoleId = formData.specificRoleId || roleConfig[orgId];
