@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Settings, ShieldCheck, UserCog, Star, Trash2, Eye, ChevronDown, ChevronUp } from 'lucide-react';
+import { Settings, ShieldCheck, UserCog, Star, Trash2, Eye, ChevronDown, ChevronUp, Database, RefreshCw, Activity } from 'lucide-react';
 import { ORG_CONFIG, Icons } from '../config/constants.js';
 
 const SettingsModal = ({ 
     roleConfig, leaderRoleConfig, secLeaderRoleConfig, accessConfig, 
-    discordRoles, discordRoster, onClose, onSave, canManageSettings, onSimulate 
+    discordRoles, discordRoster, onClose, onSave, canManageSettings, onSimulate,
+    onSyncHistory // NOVA PROP ADICIONADA
 }) => {
     const [localRoleConfig, setLocalRoleConfig] = useState(roleConfig || {});
     const [localLeaderRoleConfig, setLocalLeaderRoleConfig] = useState(leaderRoleConfig || {});
@@ -52,13 +53,14 @@ const SettingsModal = ({
                     <button onClick={() => setActiveTab('permissions')} className={`flex-1 p-4 font-bold text-sm ${activeTab === 'permissions' ? 'text-emerald-400 border-b-2 border-emerald-400 bg-slate-800' : 'text-slate-400 hover:text-white bg-slate-900/50'}`}>
                         <ShieldCheck size={16} className="inline mr-2"/> Acesso
                     </button>
-                    <button onClick={() => setActiveTab('simulation')} className={`flex-1 p-4 font-bold text-sm ${activeTab === 'simulation' ? 'text-orange-400 border-b-2 border-orange-400 bg-slate-800' : 'text-slate-400 hover:text-white bg-slate-900/50'}`}>
-                        <Eye size={16} className="inline mr-2"/> Simulação
+                    {/* ALTERADO: De 'simulation' para 'system' para incluir a manutenção */}
+                    <button onClick={() => setActiveTab('system')} className={`flex-1 p-4 font-bold text-sm ${activeTab === 'system' ? 'text-orange-400 border-b-2 border-orange-400 bg-slate-800' : 'text-slate-400 hover:text-white bg-slate-900/50'}`}>
+                        <Activity size={16} className="inline mr-2"/> Sistema
                     </button>
                 </div>
 
                 <div className="p-6 overflow-y-auto scroll-custom">
-                    {/* ABA ROLES */}
+                    {/* ABA ROLES (Código Original Preservado) */}
                     {activeTab === 'roles' && (
                         <div className="space-y-6">
                             {Object.values(ORG_CONFIG).map(org => {
@@ -162,7 +164,7 @@ const SettingsModal = ({
                         </div>
                     )}
 
-                    {/* ABA PERMISSIONS */}
+                    {/* ABA PERMISSIONS (Código Original Preservado) */}
                     {activeTab === 'permissions' && (
                         <div className="space-y-6">
                             <div className="bg-yellow-900/10 border border-yellow-600/30 p-4 rounded-lg mb-6">
@@ -202,62 +204,62 @@ const SettingsModal = ({
                         </div>
                     )}
 
-                    {/* ABA SIMULATION */}
-                    {activeTab === 'simulation' && (
-                         <div className="space-y-6">
-                            <div className="bg-orange-900/10 border border-orange-600/30 p-4 rounded-lg mb-6">
-                                <h3 className="text-orange-400 font-bold flex items-center gap-2 mb-2"><Eye size={18}/> Modo Simulação</h3>
-                                <p className="text-xs text-slate-400">
+                    {/* ABA SYSTEM (Combinando Simulação + Manutenção) */}
+                    {activeTab === 'system' && (
+                        <div className="space-y-6">
+                            {/* SIMULAÇÃO */}
+                            <div className="bg-slate-800 p-4 rounded-lg border border-slate-600">
+                                <h4 className="text-white font-bold flex items-center gap-2 mb-2">
+                                    <Eye size={18} className="text-cyan-400"/> Simulação de Usuário
+                                </h4>
+                                <p className="text-xs text-slate-400 mb-4">
                                     Visualize o painel como se você tivesse outros cargos. 
                                     <br/><span className="text-red-400 font-bold">Nota:</span> Enquanto simula, você não poderá editar nada.
                                 </p>
-                            </div>
-
-                            <div className="space-y-2">
-                                <h4 className="text-sm font-bold text-white mb-2">Simular Estado:</h4>
-                                <button 
-                                    onClick={() => onSimulate({ name: 'Visitante (Sem cargos)', roles: [] })}
-                                    className="w-full text-left p-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors flex justify-between items-center"
-                                >
-                                    <span className="text-slate-300">Visitante (Acesso Negado)</span>
-                                    <Eye size={16} className="text-slate-500"/>
-                                </button>
-                            </div>
-
-                            <div className="space-y-2 mt-4">
-                                <h4 className="text-sm font-bold text-white mb-2">Simular Cargo Específico:</h4>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                    {[
-                                        { id: localAccessConfig.kamiRoleId, label: 'Mizukami (Admin)' },
-                                        { id: localAccessConfig.councilRoleId, label: 'Conselho (Admin)' },
-                                        { id: localAccessConfig.moderatorRoleId, label: 'Moderador' },
-                                        ...Object.entries(localRoleConfig).map(([org, id]) => {
-                                            const orgName = ORG_CONFIG[org] ? ORG_CONFIG[org].name : org;
-                                            return { id, label: `${orgName}` };
-                                        }),
-                                        ...Object.entries(localLeaderRoleConfig).map(([org, id]) => ({ id, label: `Líder ${ORG_CONFIG[org]?.name}` }))
-                                    ].filter(r => r.id).map((role, idx) => (
-                                        <button 
-                                            key={idx}
-                                            onClick={() => onSimulate({ name: role.label, roles: [role.id] })}
-                                            className="text-left p-2 bg-slate-900/50 hover:bg-slate-800 border border-slate-700 rounded transition-colors text-xs text-slate-300 hover:text-white truncate"
-                                        >
-                                            {role.label}
-                                        </button>
+                                <select onChange={(e) => {
+                                    const user = discordRoster.find(u => u.id === e.target.value);
+                                    if(user) onSimulate({ id: user.id, name: user.username, roles: [] }); // Simulação básica
+                                }} className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white outline-none">
+                                    <option value="">Selecione um usuário para simular...</option>
+                                    {discordRoster.map(u => (
+                                        <option key={u.id} value={u.id}>{u.username} ({u.displayName})</option>
                                     ))}
+                                </select>
+                            </div>
+
+                            {/* MANUTENÇÃO (NOVO) */}
+                            <div className="bg-slate-800 p-4 rounded-lg border border-slate-600">
+                                <h4 className="text-white font-bold flex items-center gap-2 mb-2">
+                                    <Database size={18} className="text-orange-400"/> Manutenção de Dados
+                                </h4>
+                                <p className="text-xs text-slate-400 mb-4">
+                                    Ferramentas para forçar atualização de dados caso o Bot tenha ficado offline.
+                                </p>
+                                
+                                <div className="flex items-center justify-between bg-slate-900 p-3 rounded border border-slate-700">
+                                    <div>
+                                        <span className="text-sm font-bold text-white block">Sincronizar Histórico (Texto)</span>
+                                        <span className="text-[10px] text-slate-500">Lê as últimas 2 semanas de todos os canais. (Lento)</span>
+                                    </div>
+                                    <button 
+                                        onClick={onSyncHistory}
+                                        className="bg-orange-600 hover:bg-orange-500 text-white px-3 py-1.5 rounded text-xs font-bold flex items-center gap-2 transition-colors"
+                                    >
+                                        <RefreshCw size={14} /> Forçar Sync
+                                    </button>
                                 </div>
                             </div>
-                         </div>
+                        </div>
                     )}
                 </div>
 
                 <div className="p-6 border-t border-slate-700 bg-slate-900/50 rounded-b-xl flex justify-between items-center">
                     <span className="text-xs text-slate-500">
-                        {activeTab === 'simulation' ? 'A simulação ativa uma visualização somente leitura.' : 'Alterações salvam ao clicar.'}
+                        {activeTab === 'system' ? 'Ações de sistema têm efeito imediato ou visual.' : 'Alterações salvam ao clicar.'}
                     </span>
                     <div className="flex gap-3">
                         <button onClick={onClose} className="px-4 py-2 text-slate-400 hover:text-white">Fechar</button>
-                        {activeTab !== 'simulation' && canManageSettings && (
+                        {activeTab !== 'system' && canManageSettings && (
                             <button onClick={handleSave} className="bg-cyan-600 hover:bg-cyan-500 text-white px-6 py-2 rounded font-bold">Salvar Configuração</button>
                         )}
                     </div>
