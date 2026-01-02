@@ -802,6 +802,7 @@ const App = () => {
                             members={members}
                             discordRoles={discordRoles}
                             leaderRoleConfig={leaderRoleConfig}
+                            roleConfig={roleConfig} // ADICIONADO AQUI
                             canManage={canManageOrg(activeTab)} 
                             onOpenCreate={openCreateModal}
                             onEditMember={openEditModal} 
