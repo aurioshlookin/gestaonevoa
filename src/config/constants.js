@@ -33,69 +33,29 @@ export const MASTERIES = [
 ];
 
 export const ORG_CONFIG = {
-    // --- CLÃS INDIVIDUAIS ---
-    'cla-yagyu': { 
-        id: 'cla-yagyu', 
-        name: 'Clã Yagyu', 
+    // --- CLÃS UNIFICADOS ---
+    'lideres-clas': { 
+        id: 'lideres-clas', 
+        name: 'Líderes de Clã', 
         icon: 'Crown', 
         color: 'text-amber-400', 
         bgColor: 'bg-amber-900/20', 
         border: 'border-amber-500/30', 
-        limit: 1, 
-        internalRoles: ['Líder Yagyu'],
+        limit: 5, 
+        // Indica que esta org deve ter mapeamento de cargos por função interna e não global
+        useInternalRoleMapping: true, 
+        internalRoles: [
+            'Líder Yagyu', 
+            'Líder Murasame', 
+            'Líder Hoshi', 
+            'Líder Kazuki', 
+            'Líder Sakame'
+        ],
         roleDetails: [
-            { name: 'Líder Yagyu', desc: 'Sobreviventes de guerra que se tornaram senhores feudais com riqueza para treinar ninjas poderosos rapidamente.' }
-        ]
-    },
-    'cla-murasame': { 
-        id: 'cla-murasame', 
-        name: 'Clã Murasame', 
-        icon: 'Crown', 
-        color: 'text-slate-400', 
-        bgColor: 'bg-slate-800/20', 
-        border: 'border-slate-500/30', 
-        limit: 1, 
-        internalRoles: ['Líder Murasame'],
-        roleDetails: [
-            { name: 'Líder Murasame', desc: 'Família de ferreiros forçada à guerra que superou a ocasião e encontrou sua verdadeira vocação ninja.' }
-        ]
-    },
-    'cla-hoshi': { 
-        id: 'cla-hoshi', 
-        name: 'Clã Hoshi', 
-        icon: 'Star', 
-        color: 'text-yellow-400', 
-        bgColor: 'bg-yellow-900/20', 
-        border: 'border-yellow-500/30', 
-        limit: 1, 
-        internalRoles: ['Líder Hoshi'],
-        roleDetails: [
-            { name: 'Líder Hoshi', desc: 'Antiga família cujas habilidades sugerem serem descendentes de seres que habitam as estrelas.' }
-        ]
-    },
-    'cla-kazuki': { 
-        id: 'cla-kazuki', 
-        name: 'Clã Kazuki', 
-        icon: 'Shield', 
-        color: 'text-emerald-400', 
-        bgColor: 'bg-emerald-900/20', 
-        border: 'border-emerald-500/30', 
-        limit: 1, 
-        internalRoles: ['Líder Kazuki'],
-        roleDetails: [
-            { name: 'Líder Kazuki', desc: 'Leais e tradicionais, seguem as regras rigidamente, mesmo que isso signifique derramamento de sangue.' }
-        ]
-    },
-    'cla-sakame': { 
-        id: 'cla-sakame', 
-        name: 'Clã Sakame', 
-        icon: 'Target', 
-        color: 'text-red-400', 
-        bgColor: 'bg-red-900/20', 
-        border: 'border-red-500/30', 
-        limit: 1, 
-        internalRoles: ['Líder Sakame'],
-        roleDetails: [
+            { name: 'Líder Yagyu', desc: 'Sobreviventes de guerra que se tornaram senhores feudais com riqueza para treinar ninjas poderosos rapidamente.' },
+            { name: 'Líder Murasame', desc: 'Família de ferreiros forçada à guerra que superou a ocasião e encontrou sua verdadeira vocação ninja.' },
+            { name: 'Líder Hoshi', desc: 'Antiga família cujas habilidades sugerem serem descendentes de seres que habitam as estrelas.' },
+            { name: 'Líder Kazuki', desc: 'Leais e tradicionais, seguem as regras rigidamente, mesmo que isso signifique derramamento de sangue.' },
             { name: 'Líder Sakame', desc: 'Famosos por treinar ninjas desde uma idade extremamente jovem, prática questionada por outros.' }
         ]
     },
@@ -108,11 +68,13 @@ export const ORG_CONFIG = {
         color: 'text-pink-400', 
         bgColor: 'bg-pink-900/20', 
         border: 'border-pink-500/30', 
-        limit: 50, 
+        limit: 50,
+        // Promoções geralmente usam cargos diferentes para cada patente, então ativamos também
+        useInternalRoleMapping: true, 
         internalRoles: [
             'Genin', 
             'Chunin', 
-            'Tokubetsu Jonin', // Jonin Special
+            'Tokubetsu Jonin', 
             'Jonin'
         ],
         roleDetails: [
