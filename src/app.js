@@ -471,6 +471,7 @@ const App = () => {
             }
 
             // Verifica limites apenas para orgs normais e se NÃO foi uma substituição de clã bem-sucedida
+            // ADICIONADO: Verificação explícita para ignorar limites se for null (como em promocoes)
             if (isCreating && ORG_CONFIG[orgId].limit !== null && ORG_CONFIG[orgId].limit > 0) {
                 // Se for lideres-clas, checamos quantos JÁ existem no state
                 const currentCount = members.filter(m => m.org === orgId).length;
@@ -485,8 +486,15 @@ const App = () => {
 
             // ----------------------------------------------------
 
-            let finalRoleId = formData.specificRoleId || roleConfig[orgId];
+            // CORREÇÃO: Garante que nunca seja undefined. Se não tiver valor, usa string vazia.
+            let finalRoleId = formData.specificRoleId || roleConfig[orgId] || ""; 
             let finalRoleName = "Membro";
+            
+            // CORREÇÃO: Para promoções/clãs, tenta pegar o cargo específico do mapeamento interno se não vier do form
+            if (!finalRoleId && (orgId === 'promocoes' || orgId === 'lideres-clas')) {
+                 finalRoleId = roleConfig[`${orgId}_${formData.ninRole}`] || "";
+            }
+
             if (finalRoleId) {
                 const r = discordRoles.find(role => role.id === finalRoleId);
                 if (r) finalRoleName = r.name;
@@ -512,14 +520,14 @@ const App = () => {
                     else if (orgId === 'forca-policial' && currentLeader.ninRole === 'Chefe') newRole = 'Subchefe';
                     
                     // REBAIXAMENTO: Garante que o cargo do Discord também mude para o base
-                    newSpecificRoleId = roleConfig[orgId]; 
+                    newSpecificRoleId = roleConfig[orgId] || ""; 
 
                     await updateDoc(doc(db, "membros", currentLeader.id), { isLeader: false, ninRole: newRole, specificRoleId: newSpecificRoleId });
                 }
             }
             
             let finalNinRole = formData.ninRole;
-            let finalSpecificRoleId = finalRoleId;
+            let finalSpecificRoleId = finalRoleId || ""; // GARANTIA FINAL CONTRA UNDEFINED
 
             if (formData.isLeader) {
                 // SE FOR PROMOVIDO A LÍDER, USA O CARGO DE LÍDER NO DISCORD
@@ -532,10 +540,22 @@ const App = () => {
                 else if (orgId === 'forca-policial') finalNinRole = 'Chefe';
             }
 
+            // Garante que nenhum campo crítico seja undefined
             const payload = {
-                ...formData, org: orgId, role: finalRoleName, specificRoleId: finalSpecificRoleId, ninRole: finalNinRole,
-                status: 'Ativo', updatedAt: new Date().toISOString(), statsUpdatedAt: new Date().toISOString()
+                ...formData, 
+                org: orgId, 
+                role: finalRoleName, 
+                specificRoleId: finalSpecificRoleId, 
+                ninRole: finalNinRole,
+                status: 'Ativo', 
+                updatedAt: new Date().toISOString(), 
+                statsUpdatedAt: new Date().toISOString()
             };
+
+            // Remove campos que podem vir como undefined do formData se necessário, 
+            // mas o spread acima já deve cobrir se o formulário estiver limpo. 
+            // Uma precaução extra:
+            if (payload.specificRoleId === undefined) payload.specificRoleId = "";
 
             const docId = isCreating ? `${formData.discordId}_${orgId}` : selectedMember.id;
             
