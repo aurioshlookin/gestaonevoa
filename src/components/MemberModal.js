@@ -98,6 +98,28 @@ const MemberModal = ({
         setForm({ ...form, ninRole: newRole, specificRoleId: newSpecificRoleId });
     };
 
+    // NOVO: Atualiza o ninRole quando o cargo do Discord é alterado diretamente
+    const handleSpecificRoleChange = (e) => {
+        const newRoleId = e.target.value;
+        let updatedForm = { ...form, specificRoleId: newRoleId };
+
+        if (isInternalMapping) {
+            // Tenta encontrar qual 'internalRole' corresponde a este ID de cargo do Discord
+            const matchingInternalRole = orgDef?.internalRoles.find(
+                roleName => roleConfig?.[`${orgId}_${roleName}`] === newRoleId
+            );
+
+            if (matchingInternalRole) {
+                updatedForm.ninRole = matchingInternalRole;
+            } else {
+                // Se não achar no mapeamento, usa o nome do cargo do Discord como fallback
+                const roleObj = discordRoles.find(r => r.id === newRoleId);
+                if (roleObj) updatedForm.ninRole = roleObj.name;
+            }
+        }
+        setForm(updatedForm);
+    };
+
     const updateStat = (stat, value) => {
         if (isReadOnly) return;
         const val = Math.max(0, parseInt(value) || 0);
@@ -247,29 +269,38 @@ const MemberModal = ({
                     <div className="space-y-4">
                         <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700">
                             <h3 className="text-white font-bold mb-3">Cargos & Função</h3>
+                            
+                            {/* Campo Nin Role: Oculto para Promoções */}
+                            {!isPromotions && (
+                                <div className="mb-4">
+                                    <label className="text-xs text-slate-400 mb-1 block">Cargo Nin Online / Patente</label>
+                                    <select 
+                                        className={`w-full bg-slate-800 border border-slate-600 rounded p-2 text-white outline-none ${isReadOnly ? 'opacity-50' : ''}`} 
+                                        value={form.ninRole} 
+                                        onChange={handleInternalRoleChange} 
+                                        disabled={isReadOnly}
+                                    >
+                                        {orgDef?.internalRoles.map(r => <option key={r} value={r}>{r}</option>)}
+                                    </select>
+                                </div>
+                            )}
+
                             <div className="mb-4">
-                                <label className="text-xs text-slate-400 mb-1 block">Cargo Nin Online / Patente</label>
-                                <select 
-                                    className={`w-full bg-slate-800 border border-slate-600 rounded p-2 text-white outline-none ${isReadOnly ? 'opacity-50' : ''}`} 
-                                    value={form.ninRole} 
-                                    onChange={handleInternalRoleChange} 
-                                    disabled={isReadOnly}
-                                >
-                                    {orgDef?.internalRoles.map(r => <option key={r} value={r}>{r}</option>)}
-                                </select>
-                            </div>
-                            <div className="mb-4">
-                                <label className="text-xs text-slate-400 mb-1 block">Cargo Específico Discord (Opcional)</label>
+                                <label className="text-xs text-slate-400 mb-1 block">
+                                    Cargo Específico Discord {isPromotions ? '' : '(Opcional)'}
+                                </label>
                                 <select 
                                     className={`w-full bg-slate-800 border border-slate-600 rounded p-2 text-white outline-none text-sm ${isReadOnly ? 'opacity-50' : ''}`} 
                                     value={form.specificRoleId} 
-                                    onChange={(e) => setForm({...form, specificRoleId: e.target.value})} 
+                                    onChange={handleSpecificRoleChange} 
                                     disabled={isReadOnly}
                                 >
-                                    <option value="">Padrão da Organização</option>
+                                    {/* Opção Padrão: Removida para Promoções */}
+                                    {!isPromotions && <option value="">Padrão da Organização</option>}
                                     {filteredRoles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                                 </select>
                             </div>
+
                             {!isPromotions && (
                                 <div className="flex items-center gap-3 bg-slate-800 p-3 rounded border border-slate-600">
                                     <input type="checkbox" id="leaderCheck" checked={form.isLeader} onChange={(e) => setForm({...form, isLeader: e.target.checked})} disabled={isReadOnly} className={`w-4 h-4 text-cyan-600 rounded bg-gray-700 border-gray-600 ${isReadOnly ? 'opacity-50' : ''}`}/>
