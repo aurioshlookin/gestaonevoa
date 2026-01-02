@@ -42,7 +42,9 @@ export const ORG_CONFIG = {
         bgColor: 'bg-amber-900/20', 
         border: 'border-amber-500/30', 
         limit: 5, 
-        useInternalRoleMapping: true, 
+        useInternalRoleMapping: true,
+        allowSecondaryRole: true, // Líderes têm cargo secundário
+        isOverlayOrg: true, // Indica que não conflita com orgs principais
         internalRoles: [
             'Líder Yagyu', 
             'Líder Murasame', 
@@ -51,11 +53,11 @@ export const ORG_CONFIG = {
             'Líder Sakame'
         ],
         roleDetails: [
-            { name: 'Líder Yagyu', desc: 'Sobreviventes de guerra que se tornaram senhores feudais com riqueza para treinar ninjas poderosos rapidamente.' },
-            { name: 'Líder Murasame', desc: 'Família de ferreiros forçada à guerra que superou a ocasião e encontrou sua verdadeira vocação ninja.' },
-            { name: 'Líder Hoshi', desc: 'Antiga família cujas habilidades sugerem serem descendentes de seres que habitam as estrelas.' },
-            { name: 'Líder Kazuki', desc: 'Leais e tradicionais, seguem as regras rigidamente, mesmo que isso signifique derramamento de sangue.' },
-            { name: 'Líder Sakame', desc: 'Famosos por treinar ninjas desde uma idade extremamente jovem, prática questionada por outros.' }
+            { name: 'Líder Yagyu', desc: 'Sobreviventes de guerra que se tornaram senhores feudais.' },
+            { name: 'Líder Murasame', desc: 'Família de ferreiros que encontrou sua vocação ninja.' },
+            { name: 'Líder Hoshi', desc: 'Habilidades que sugerem descendência estelar.' },
+            { name: 'Líder Kazuki', desc: 'Leais e tradicionais, seguem as regras rigidamente.' },
+            { name: 'Líder Sakame', desc: 'Famosos por treinar ninjas desde muito jovens.' }
         ]
     },
 
@@ -67,19 +69,19 @@ export const ORG_CONFIG = {
         color: 'text-pink-400', 
         bgColor: 'bg-pink-900/20', 
         border: 'border-pink-500/30', 
-        limit: 0, // 0 significa Sem Limite
+        limit: null, // Null para não mostrar contador de limite
         useInternalRoleMapping: true, 
+        allowSecondaryRole: false, // Promoções NÃO têm cargo secundário
+        isOverlayOrg: true, // Indica que não conflita com orgs principais
         internalRoles: [
-            'Genin', 
-            'Tokubetsu Jonin', // Alterado: Vem antes de Chunin
+            'Special Jonin', // Alterado de Tokubetsu Jonin e movido para antes de Chunin? Você disse "Special Jonin vem antes de Chunin". Normalmente é Genin -> Chunin -> Special -> Jonin. Mas vou seguir sua ordem: Special -> Chunin
             'Chunin', 
             'Jonin'
         ],
         roleDetails: [
             { name: 'Jonin', desc: 'Elite ninja de nível superior.' },
             { name: 'Chunin', desc: 'Líder de esquadrão qualificado.' },
-            { name: 'Tokubetsu Jonin', desc: 'Jonin Especial com habilidades táticas específicas.' },
-            { name: 'Genin', desc: 'Ninja graduado, nível básico.' }
+            { name: 'Special Jonin', desc: 'Jonin Especial com habilidades táticas específicas.' }
         ]
     },
 
