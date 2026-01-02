@@ -579,14 +579,7 @@ const App = () => {
                 // Se já existe um líder, rebaixa ele
                 if (currentLeader && currentLeader.id !== member.id) {
                     let oldLeaderDemotion = currentLeader.ninRole;
-                    // Só aplica regra de rebaixamento de nome se NÃO for clã (Clãs podem ter múltiplos líderes se forem de clãs diferentes, 
-                    // mas aqui assumimos que a "coroa" é única ou controlada. Se 'lideres-clas' permite vários membros, 
-                    // mas handleToggleLeader é chamado, ele troca. 
-                    // CORREÇÃO: Para 'lideres-clas', não rebaixamos o 'currentLeader' se ele for de OUTRO clã.
-                    // Mas como a lista é unificada, vamos permitir múltiplos 'isLeader' se forem de roles diferentes?
-                    // Não, a lógica aqui é 'toggle'. Se clicou na coroa, vira líder.
-                    // Para evitar confusão, vamos manter: 1 líder por vez? NÃO. Clãs são 5.
-                    
+                    // Só aplica regra de rebaixamento de nome se NÃO for clã
                     if (orgId !== 'lideres-clas') {
                         if (orgId === 'unidade-medica') oldLeaderDemotion = 'Residente Chefe';
                         else if (orgId === 'divisao-especial') oldLeaderDemotion = 'Vice-Líder';
@@ -599,8 +592,6 @@ const App = () => {
                             specificRoleId: baseRoleId
                         });
                     }
-                    // Se for lideres-clas, NÃO rebaixamos o outro líder automaticamente aqui, 
-                    // pois são clãs diferentes. Deixamos coexistir.
                 }
                 
                 // Promove o novo
@@ -734,6 +725,8 @@ const App = () => {
                         roleConfig={roleConfig}
                         leaderRoleConfig={leaderRoleConfig}
                         secLeaderRoleConfig={secLeaderRoleConfig}
+                        // ADICIONADO: Lista completa para unificação de dados
+                        allMembers={members}
                     />
                 )}
 
@@ -802,7 +795,7 @@ const App = () => {
                             members={members}
                             discordRoles={discordRoles}
                             leaderRoleConfig={leaderRoleConfig}
-                            roleConfig={roleConfig} // ADICIONADO AQUI
+                            roleConfig={roleConfig} // GARANTIA: roleConfig passado para OrgTab
                             canManage={canManageOrg(activeTab)} 
                             onOpenCreate={openCreateModal}
                             onEditMember={openEditModal} 
