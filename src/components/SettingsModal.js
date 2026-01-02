@@ -288,7 +288,14 @@ const SettingsModal = ({
                                                 onClick={() => toggleSimRole(role.id)}
                                                 className={`flex items-center gap-2 p-2 rounded cursor-pointer transition-colors border ${isSelected ? 'bg-cyan-900/30 border-cyan-500/50' : 'bg-slate-800 border-slate-700 hover:bg-slate-700'}`}
                                             >
-                                                {isSelected ? <CheckCircle size={16} className="text-cyan-400 shrink-0"/> : <Circle size={16} className="text-slate-600 shrink-0"/>}
+                                                {role.icon ? (
+                                                    <img src={role.icon} alt="" className="w-4 h-4 object-contain" />
+                                                ) : role.unicodeEmoji ? (
+                                                    <span className="text-sm">{role.unicodeEmoji}</span>
+                                                ) : (
+                                                    // Fallback atual (círculo colorido)
+                                                    isSelected ? <CheckCircle size={16} className="text-cyan-400 shrink-0"/> : <Circle size={16} className="text-slate-600 shrink-0"/>
+                                                )}
                                                 <span className="text-xs font-bold truncate" style={{color: role.color !== '#000000' ? role.color : '#e2e8f0'}}>
                                                     {role.name}
                                                 </span>
