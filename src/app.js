@@ -400,7 +400,83 @@ const App = () => {
         return userRoles.some(roleId => allowedRoles.has(roleId));
     }, [effectiveUser, accessConfig, roleConfig, leaderRoleConfig, secLeaderRoleConfig]);
 
+    // CORRIGIDO: Retornada a lógica original do getUserRoleLabel
     const getUserRoleLabel = useMemo(() => {
+        if (!effectiveUser) return "";
+        let roles = [];
+        if (effectiveUser.id === accessConfig.creatorId) roles.push("Criador");
+        if (accessConfig.vipIds && accessConfig.vipIds.includes(effectiveUser.id)) roles.push("VIP");
+        if (effectiveUser.roles.includes(accessConfig.kamiRoleId)) roles.push("Mizukami");
+        if (effectiveUser.roles.includes(accessConfig.councilRoleId)) roles.push("Conselho");
+        if (effectiveUser.roles.includes(accessConfig.moderatorRoleId)) roles.push("Moderador");
+        
+        Object.entries(leaderRoleConfig).forEach(([orgId, roleId]) => { 
+            if (effectiveUser.roles.includes(roleId)) roles.push(`Líder ${ORG_CONFIG[orgId]?.name || ''}`); 
+        });
+        
+        Object.entries(roleConfig).forEach(([orgId, roleId]) => {
+            const isLeader = leaderRoleConfig[orgId] && effectiveUser.roles.includes(leaderRoleConfig[orgId]);
+            if (effectiveUser.roles.includes(roleId) && !isLeader) {
+                roles.push(`Membro ${ORG_CONFIG[orgId]?.name || ''}`);
+            }
+        });
+
+        if (roles.length === 0) return "Visitante";
+        return roles.join(" & ");
+    }, [effectiveUser, accessConfig, leaderRoleConfig, roleConfig]);
+
+    const showNotification = (msg, type) => { setNotification({ msg, type }); setTimeout(() => setNotification(null), 3000); };
+    
+    const multiOrgUsers = useMemo(() => {
+        const memberMap = {};
+        members.forEach(m => {
+            if (!memberMap[m.discordId]) memberMap[m.discordId] = { name: m.name, orgs: [] };
+            const orgName = ORG_CONFIG[m.org]?.name || m.org;
+            if (!memberMap[m.discordId].orgs.includes(orgName)) memberMap[m.discordId].orgs.push(orgName);
+        });
+        return Object.values(memberMap).filter(u => u.orgs.length > 1);
+    }, [members]);
+
+    const openCreateModal = (defaults = null) => { 
+        setIsCreating(true); 
+        setSelectedMember(defaults); 
+        setEditingOrgId(activeTab); 
+    };
+    
+    const openEditModal = (member) => { setIsCreating(false); setSelectedMember(member); setEditingOrgId(member.org); };
+
+    // CORRIGIDO: handleSaveMember restaurada e separada, com async
+    const handleSaveMember = async (formData) => {
+        if (simulation) {
+            showNotification('Simulação: Ação bloqueada.', 'error');
+            return;
+        }
+
+        try {
+            const orgId = isCreating ? editingOrgId : selectedMember.org;
+            if (!checkPermission(isCreating ? 'ADD_MEMBER' : 'EDIT_MEMBER', orgId)) return showNotification('Sem permissão.', 'error');
+            
+            if (!formData.name || !formData.discordId || !formData.ninRole) return showNotification('Campos obrigatórios!', 'error');
+            
+            if (isCreating && orgId === 'lideres-clas') {
+                const existingLeader = members.find(m => m.org === orgId && m.ninRole === formData.ninRole);
+                if (existingLeader) {
+                    await deleteDoc(doc(db, "membros", existingLeader.id));
+                    // Força isLeader true para clãs
+                    formData.isLeader = true;
+                }
+            }
+
+            if (isCreating && ORG_CONFIG[orgId].limit !== null && ORG_CONFIG[orgId].limit > 0) {
+                const currentCount = members.filter(m => m.org === orgId).length;
+                const isClanSubstitution = (orgId === 'lideres-clas') && members.some(m => m.org === orgId && m.ninRole === formData.ninRole);
+                
+                if (!isClanSubstitution && currentCount >= ORG_CONFIG[orgId].limit) {
+                    return showNotification('Limite atingido!', 'error');
+                }
+            }
+
+            // CORREÇÃO: Garante que nunca seja undefined
             let finalRoleId = formData.specificRoleId || roleConfig[orgId] || ""; 
             let finalRoleName = "Membro";
             
@@ -432,19 +508,16 @@ const App = () => {
                     else if (orgId === 'divisao-especial' && currentLeader.ninRole === 'Líder') newRole = 'Vice-Líder';
                     else if (orgId === 'forca-policial' && currentLeader.ninRole === 'Chefe') newRole = 'Subchefe';
                     
-                    // REBAIXAMENTO: Garante que o cargo do Discord também mude para o base
                     newSpecificRoleId = roleConfig[orgId] || ""; 
 
                     await updateDoc(doc(db, "membros", currentLeader.id), { isLeader: false, ninRole: newRole, specificRoleId: newSpecificRoleId });
                 }
             }
             
-            // CORREÇÃO CRÍTICA: Respeita o ninRole que veio do formulário (o que o usuário escolheu na tela)
-            // Não tenta recalcular isso baseado em isLeader para Orgs como Promoções, onde a liderança não muda o cargo base.
+            // CORREÇÃO CRÍTICA: Respeita o ninRole que veio do formulário
             let finalNinRole = formData.ninRole;
             let finalSpecificRoleId = finalRoleId || ""; 
 
-            // Apenas para Orgs de Hierarquia (onde o cargo É a função de líder), forçamos a mudança
             if (formData.isLeader) {
                 if (leaderRoleConfig[orgId]) {
                     finalSpecificRoleId = leaderRoleConfig[orgId];
@@ -453,35 +526,28 @@ const App = () => {
                 if (orgId === 'unidade-medica') finalNinRole = 'Diretor Médico';
                 else if (orgId === 'divisao-especial') finalNinRole = 'Líder';
                 else if (orgId === 'forca-policial') finalNinRole = 'Chefe';
-                // Para Promoções e Clãs, mantemos o finalNinRole original (o que foi selecionado)
             }
 
-            // Garante que nenhum campo crítico seja undefined
             const payload = {
                 ...formData, 
                 org: orgId, 
                 role: finalRoleName, 
                 specificRoleId: finalSpecificRoleId, 
-                ninRole: finalNinRole, // Usa o valor corrigido/mantido
+                ninRole: finalNinRole,
                 status: 'Ativo', 
                 updatedAt: new Date().toISOString(), 
                 statsUpdatedAt: new Date().toISOString()
             };
 
-            // Remove campos undefined
             if (payload.specificRoleId === undefined) payload.specificRoleId = "";
 
             // --- CORREÇÃO: PREENCHER DADOS FALTANTES SE FOR CRIAÇÃO ---
-            // Se estamos criando e os stats estão vazios/padrão, tentamos buscar de outra ficha do usuário
-            // Isso cobre o caso de adicionar via site onde o modal pode não ter puxado dados
             if (isCreating) {
                 const totalPoints = Object.values(payload.stats || {}).reduce((a, b) => a + parseInt(b||0), 0);
-                // Se os pontos são <= 25 (padrão 5*5), assume que não foi preenchido
                 if (totalPoints <= 25) {
                     const existingQ = query(collection(db, "membros"), where("discordId", "==", payload.discordId));
                     const existingSnap = await getDocs(existingQ);
                     if (!existingSnap.empty) {
-                        // Pega o primeiro que tiver dados reais
                         const sourceDoc = existingSnap.docs.find(d => {
                             const dData = d.data();
                             const pts = Object.values(dData.stats || {}).reduce((a, b) => a + parseInt(b||0), 0);
@@ -496,21 +562,18 @@ const App = () => {
                             payload.rpName = sourceData.rpName || payload.rpName;
                             payload.codinome = sourceData.codinome || payload.codinome;
                             payload.guildBonus = sourceData.guildBonus;
-                            console.log("Dados herdados automaticamente no salvamento:", sourceData.rpName);
                         }
                     }
                 }
             }
 
             const docId = isCreating ? `${formData.discordId}_${orgId}` : selectedMember.id;
+            
             const batch = writeBatch(db);
 
-            // 1. Salva o membro principal
             const mainDocRef = doc(db, "membros", docId);
             batch.set(mainDocRef, payload, { merge: true });
 
-            // 2. SINCRONIZAÇÃO EM CASCATA
-            // ... (Lógica existente de atualizar outros docs)
             const q = query(collection(db, "membros"), where("discordId", "==", formData.discordId));
             const querySnapshot = await getDocs(q);
 
@@ -519,7 +582,7 @@ const App = () => {
                     if (otherDoc.id !== docId) {
                         const otherRef = doc(db, "membros", otherDoc.id);
                         batch.update(otherRef, {
-                            rpName: payload.rpName, // Usa o payload atualizado (talvez herdado)
+                            rpName: payload.rpName,
                             stats: payload.stats,
                             masteries: payload.masteries,
                             level: payload.level,
@@ -531,66 +594,6 @@ const App = () => {
                 });
             }
 
-            await batch.commit();
-            // ... (Resto da função)
-                }
-
-                if (orgId === 'unidade-medica') finalNinRole = 'Diretor Médico';
-                else if (orgId === 'divisao-especial') finalNinRole = 'Líder';
-                else if (orgId === 'forca-policial') finalNinRole = 'Chefe';
-            }
-
-            // Garante que nenhum campo crítico seja undefined
-            const payload = {
-                ...formData, 
-                org: orgId, 
-                role: finalRoleName, 
-                specificRoleId: finalSpecificRoleId, 
-                ninRole: finalNinRole,
-                status: 'Ativo', 
-                updatedAt: new Date().toISOString(), 
-                statsUpdatedAt: new Date().toISOString()
-            };
-
-            // Remove campos que podem vir como undefined do formData se necessário, 
-            // mas o spread acima já deve cobrir se o formulário estiver limpo. 
-            // Uma precaução extra:
-            if (payload.specificRoleId === undefined) payload.specificRoleId = "";
-
-            const docId = isCreating ? `${formData.discordId}_${orgId}` : selectedMember.id;
-            
-            const batch = writeBatch(db);
-
-            // 1. Salva o membro principal (Criando ou Atualizando)
-            const mainDocRef = doc(db, "membros", docId);
-            batch.set(mainDocRef, payload, { merge: true });
-
-            // 2. SINCRONIZAÇÃO EM CASCATA (NOVO)
-            // Procura todos os outros documentos deste mesmo discordId em outras organizações
-            const q = query(collection(db, "membros"), where("discordId", "==", formData.discordId));
-            const querySnapshot = await getDocs(q);
-
-            if (!querySnapshot.empty) {
-                querySnapshot.forEach((otherDoc) => {
-                    // Evita atualizar o próprio documento que já estamos salvando (embora não quebre, é redundante)
-                    if (otherDoc.id !== docId) {
-                        const otherRef = doc(db, "membros", otherDoc.id);
-                        // Atualiza apenas os campos globais/compartilhados
-                        batch.update(otherRef, {
-                            rpName: formData.rpName,
-                            stats: formData.stats,
-                            masteries: formData.masteries,
-                            level: formData.level,
-                            guildBonus: formData.guildBonus,
-                            codinome: formData.codinome, // Codinome pode ser específico da ANBU, mas se quiser global, deixe aqui. Se for específico, remova.
-                            updatedAt: new Date().toISOString()
-                        });
-                        console.log(`Sincronizando dados para: ${otherDoc.id}`);
-                    }
-                });
-            }
-
-            // Commit do Batch (Executa todas as operações juntas)
             await batch.commit();
             
             setSelectedMember(null); 
@@ -628,22 +631,17 @@ const App = () => {
             const orgId = member.org; 
             const newStatus = !member.isLeader;
             
-            // Cargo de rebaixamento padrão: Mantém o atual
             let demotionRole = member.ninRole; 
             
-            // Regras Específicas para Orgs de Hierarquia (Médica, Policia, Anbu)
             if (orgId === 'unidade-medica') demotionRole = 'Residente Chefe';
             else if (orgId === 'divisao-especial') demotionRole = 'Vice-Líder';
             else if (orgId === 'forca-policial') demotionRole = 'Subchefe';
 
             if (newStatus) {
-                // PROMOVENDO PARA LÍDER (COROA)
                 const currentLeader = members.find(m => m.org === orgId && m.isLeader === true);
                 
-                // Se já existe um líder, rebaixa ele
                 if (currentLeader && currentLeader.id !== member.id) {
                     let oldLeaderDemotion = currentLeader.ninRole;
-                    // Só aplica regra de rebaixamento de nome se NÃO for clã
                     if (orgId !== 'lideres-clas') {
                         if (orgId === 'unidade-medica') oldLeaderDemotion = 'Residente Chefe';
                         else if (orgId === 'divisao-especial') oldLeaderDemotion = 'Vice-Líder';
@@ -658,13 +656,11 @@ const App = () => {
                     }
                 }
                 
-                // Promove o novo
                 let newRoleL = member.ninRole; 
                 if (orgId === 'unidade-medica') newRoleL = 'Diretor Médico';
                 else if (orgId === 'divisao-especial') newRoleL = 'Líder';
                 else if (orgId === 'forca-policial') newRoleL = 'Chefe';
                 
-                // Define o cargo do Discord
                 let leaderDiscRole = member.specificRoleId;
                 
                 if (leaderRoleConfig[orgId] && orgId !== 'lideres-clas') {
@@ -678,7 +674,6 @@ const App = () => {
                 });
 
             } else { 
-                // REBAIXANDO DE LÍDER
                 let finalDemotion = (orgId === 'lideres-clas') ? member.ninRole : demotionRole;
                 let finalSpecRole = (orgId === 'lideres-clas') ? member.specificRoleId : roleConfig[orgId];
 
