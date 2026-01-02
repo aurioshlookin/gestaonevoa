@@ -401,60 +401,60 @@ const App = () => {
     }, [effectiveUser, accessConfig, roleConfig, leaderRoleConfig, secLeaderRoleConfig]);
 
     const getUserRoleLabel = useMemo(() => {
-        if (!effectiveUser) return "";
-        let roles = [];
-        if (effectiveUser.id === accessConfig.creatorId) roles.push("Criador");
-        if (accessConfig.vipIds && accessConfig.vipIds.includes(effectiveUser.id)) roles.push("VIP");
-        if (effectiveUser.roles.includes(accessConfig.kamiRoleId)) roles.push("Mizukami");
-        if (effectiveUser.roles.includes(accessConfig.councilRoleId)) roles.push("Conselho");
-        if (effectiveUser.roles.includes(accessConfig.moderatorRoleId)) roles.push("Moderador");
-        
-        Object.entries(leaderRoleConfig).forEach(([orgId, roleId]) => { 
-            if (effectiveUser.roles.includes(roleId)) roles.push(`Líder ${ORG_CONFIG[orgId]?.name || ''}`); 
-        });
-        
-        Object.entries(roleConfig).forEach(([orgId, roleId]) => {
-            const isLeader = leaderRoleConfig[orgId] && effectiveUser.roles.includes(leaderRoleConfig[orgId]);
-            if (effectiveUser.roles.includes(roleId) && !isLeader) {
-                roles.push(`Membro ${ORG_CONFIG[orgId]?.name || ''}`);
+            let finalRoleId = formData.specificRoleId || roleConfig[orgId] || ""; 
+            let finalRoleName = "Membro";
+            
+            // CORREÇÃO: Para promoções/clãs, tenta pegar o cargo específico do mapeamento interno se não vier do form
+            if (!finalRoleId && (orgId === 'promocoes' || orgId === 'lideres-clas')) {
+                 finalRoleId = roleConfig[`${orgId}_${formData.ninRole}`] || "";
             }
-        });
 
-        if (roles.length === 0) return "Visitante";
-        return roles.join(" & ");
-    }, [effectiveUser, accessConfig, leaderRoleConfig, roleConfig]);
+            if (finalRoleId) {
+                const r = discordRoles.find(role => role.id === finalRoleId);
+                if (r) finalRoleName = r.name;
+            }
 
-    const showNotification = (msg, type) => { setNotification({ msg, type }); setTimeout(() => setNotification(null), 3000); };
-    
-    const multiOrgUsers = useMemo(() => {
-        const memberMap = {};
-        members.forEach(m => {
-            if (!memberMap[m.discordId]) memberMap[m.discordId] = { name: m.name, orgs: [] };
-            const orgName = ORG_CONFIG[m.org]?.name || m.org;
-            if (!memberMap[m.discordId].orgs.includes(orgName)) memberMap[m.discordId].orgs.push(orgName);
-        });
-        return Object.values(memberMap).filter(u => u.orgs.length > 1);
-    }, [members]);
+            let detailsLog = "";
+            if (isCreating) {
+                detailsLog = `Criado: ${formData.rpName || formData.name} (${formData.ninRole})`;
+            } else {
+                detailsLog = `Editado: ${formData.name}`;
+            }
 
-    const openCreateModal = (defaults = null) => { 
-        setIsCreating(true); 
-        setSelectedMember(defaults); 
-        setEditingOrgId(activeTab); 
-    };
-    
-    const openEditModal = (member) => { setIsCreating(false); setSelectedMember(member); setEditingOrgId(member.org); };
+            // --- LÓGICA DE PROMOÇÃO/REBAIXAMENTO DE LÍDER ---
+            if (formData.isLeader && orgId !== 'lideres-clas') {
+                const currentLeader = members.find(m => m.org === orgId && m.isLeader === true && m.discordId !== formData.discordId);
+                if (currentLeader) {
+                    let newRole = currentLeader.ninRole; 
+                    let newSpecificRoleId = currentLeader.specificRoleId;
 
-    const handleSaveMember = async (formData) => {
-        if (simulation) {
-            showNotification('Simulação: Ação bloqueada.', 'error');
-            return;
-        }
+                    if (orgId === 'unidade-medica' && currentLeader.ninRole === 'Diretor Médico') newRole = 'Residente Chefe';
+                    else if (orgId === 'divisao-especial' && currentLeader.ninRole === 'Líder') newRole = 'Vice-Líder';
+                    else if (orgId === 'forca-policial' && currentLeader.ninRole === 'Chefe') newRole = 'Subchefe';
+                    
+                    // REBAIXAMENTO: Garante que o cargo do Discord também mude para o base
+                    newSpecificRoleId = roleConfig[orgId] || ""; 
 
-        try {
-            const orgId = isCreating ? editingOrgId : selectedMember.org;
-            // ... (Validações existentes)
+                    await updateDoc(doc(db, "membros", currentLeader.id), { isLeader: false, ninRole: newRole, specificRoleId: newSpecificRoleId });
+                }
+            }
+            
+            // CORREÇÃO CRÍTICA: Respeita o ninRole que veio do formulário (o que o usuário escolheu na tela)
+            // Não tenta recalcular isso baseado em isLeader para Orgs como Promoções, onde a liderança não muda o cargo base.
+            let finalNinRole = formData.ninRole;
+            let finalSpecificRoleId = finalRoleId || ""; 
 
-            // ... (Lógica de finalRoleId e finalSpecificRoleId existentes)
+            // Apenas para Orgs de Hierarquia (onde o cargo É a função de líder), forçamos a mudança
+            if (formData.isLeader) {
+                if (leaderRoleConfig[orgId]) {
+                    finalSpecificRoleId = leaderRoleConfig[orgId];
+                }
+
+                if (orgId === 'unidade-medica') finalNinRole = 'Diretor Médico';
+                else if (orgId === 'divisao-especial') finalNinRole = 'Líder';
+                else if (orgId === 'forca-policial') finalNinRole = 'Chefe';
+                // Para Promoções e Clãs, mantemos o finalNinRole original (o que foi selecionado)
+            }
 
             // Garante que nenhum campo crítico seja undefined
             const payload = {
@@ -462,7 +462,7 @@ const App = () => {
                 org: orgId, 
                 role: finalRoleName, 
                 specificRoleId: finalSpecificRoleId, 
-                ninRole: finalNinRole,
+                ninRole: finalNinRole, // Usa o valor corrigido/mantido
                 status: 'Ativo', 
                 updatedAt: new Date().toISOString(), 
                 statsUpdatedAt: new Date().toISOString()
