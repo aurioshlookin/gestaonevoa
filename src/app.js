@@ -114,7 +114,6 @@ const App = () => {
             const unsubConfig = onSnapshot(doc(db, "server", "config"), (doc) => { 
                 if (doc.exists()) {
                     const data = doc.data();
-                    // Aqui lemos 'Mapping' que vem do banco
                     setRoleConfig(data.roleMapping || {});
                     setLeaderRoleConfig(data.leaderRoleMapping || {});
                     setSecLeaderRoleConfig(data.secLeaderRoleMapping || {});
@@ -292,6 +291,24 @@ const App = () => {
         }
     };
 
+    // --- NOVA FUNÇÃO DE SINCRONIA ---
+    const handleSyncHistory = async () => {
+        if (simulation) { showNotification('Simulação: Ação bloqueada.', 'error'); return; }
+        try {
+            await setDoc(doc(db, "server", "commands"), {
+                action: 'scan_history',
+                status: 'pending',
+                requestedBy: user.id,
+                requesterName: user.username || user.displayName,
+                timestamp: new Date().toISOString()
+            });
+            showNotification('📡 Comando enviado! O Bot iniciará o scan em breve.', 'success');
+        } catch (e) {
+            console.error("Erro sync:", e);
+            showNotification('Erro ao enviar comando.', 'error');
+        }
+    };
+
     // --- MONITORAMENTO ---
     useEffect(() => {
         if (!user || loading || simulation) return;
@@ -453,17 +470,11 @@ const App = () => {
             }
 
             // Verifica limites apenas para orgs normais e se NÃO foi uma substituição de clã bem-sucedida
-            // (Se substituímos, a contagem de membros no banco vai cair em breve, mas o state 'members' local
-            // pode ainda ter o antigo, então precisamos ter cuidado)
-            // Solução: Se for lideres-clas e fizemos substituição, ignoramos o check de limite.
-            // Se for lideres-clas novo (vaga vazia), checamos.
-            
             if (isCreating && ORG_CONFIG[orgId].limit !== null && ORG_CONFIG[orgId].limit > 0) {
                 // Se for lideres-clas, checamos quantos JÁ existem no state
                 const currentCount = members.filter(m => m.org === orgId).length;
                 
                 // Se for Clã, e já deletamos um acima (existingLeader), então "virtualmente" temos space.
-                // Mas se NÃO tinha existingLeader e já tem 5, aí bloqueia.
                 const isClanSubstitution = (orgId === 'lideres-clas') && members.some(m => m.org === orgId && m.ninRole === formData.ninRole);
                 
                 if (!isClanSubstitution && currentCount >= ORG_CONFIG[orgId].limit) {
@@ -567,7 +578,6 @@ const App = () => {
             let demotionRole = member.ninRole; 
             
             // Regras Específicas para Orgs de Hierarquia (Médica, Policia, Anbu)
-            // Se for Líder de Clã, NÃO mudamos o cargo aqui (ele continua sendo Líder Yagyu, só perde a coroa)
             if (orgId === 'unidade-medica') demotionRole = 'Residente Chefe';
             else if (orgId === 'divisao-especial') demotionRole = 'Vice-Líder';
             else if (orgId === 'forca-policial') demotionRole = 'Subchefe';
@@ -599,12 +609,10 @@ const App = () => {
                 if (orgId === 'unidade-medica') newRoleL = 'Diretor Médico';
                 else if (orgId === 'divisao-especial') newRoleL = 'Líder';
                 else if (orgId === 'forca-policial') newRoleL = 'Chefe';
-                // Para lideres-clas, newRoleL continua sendo "Líder Yagyu", etc.
                 
                 // Define o cargo do Discord
                 let leaderDiscRole = member.specificRoleId;
                 
-                // Se for org normal, pega do config. Se for clã, mantém o do membro (que já deve ser o do clã).
                 if (leaderRoleConfig[orgId] && orgId !== 'lideres-clas') {
                     leaderDiscRole = leaderRoleConfig[orgId];
                 }
@@ -617,10 +625,7 @@ const App = () => {
 
             } else { 
                 // REBAIXANDO DE LÍDER
-                // Se for clã, mantém o cargo atual (Líder Yagyu). Se for outro, usa demotionRole
                 let finalDemotion = (orgId === 'lideres-clas') ? member.ninRole : demotionRole;
-                
-                // Volta cargo do Discord para o base (se for org normal) ou mantém (se for clã)
                 let finalSpecRole = (orgId === 'lideres-clas') ? member.specificRoleId : roleConfig[orgId];
 
                 await updateDoc(doc(db, "membros", member.id), { 
@@ -742,6 +747,7 @@ const App = () => {
                         onSave={handleSaveConfig}
                         onSimulate={(simData) => { setSimulation(simData); setShowSettings(false); }}
                         canManageSettings={canManageSettings}
+                        onSyncHistory={handleSyncHistory} // NOVA PROP
                     />
                 )}
 
