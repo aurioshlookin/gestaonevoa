@@ -42,7 +42,6 @@ export const ORG_CONFIG = {
         bgColor: 'bg-amber-900/20', 
         border: 'border-amber-500/30', 
         limit: 5, 
-        // Indica que esta org deve ter mapeamento de cargos por função interna e não global
         useInternalRoleMapping: true, 
         internalRoles: [
             'Líder Yagyu', 
@@ -68,19 +67,18 @@ export const ORG_CONFIG = {
         color: 'text-pink-400', 
         bgColor: 'bg-pink-900/20', 
         border: 'border-pink-500/30', 
-        limit: 50,
-        // Promoções geralmente usam cargos diferentes para cada patente, então ativamos também
+        limit: 0, // 0 significa Sem Limite
         useInternalRoleMapping: true, 
         internalRoles: [
             'Genin', 
+            'Tokubetsu Jonin', // Alterado: Vem antes de Chunin
             'Chunin', 
-            'Tokubetsu Jonin', 
             'Jonin'
         ],
         roleDetails: [
             { name: 'Jonin', desc: 'Elite ninja de nível superior.' },
-            { name: 'Tokubetsu Jonin', desc: 'Jonin Especial com habilidades táticas específicas.' },
             { name: 'Chunin', desc: 'Líder de esquadrão qualificado.' },
+            { name: 'Tokubetsu Jonin', desc: 'Jonin Especial com habilidades táticas específicas.' },
             { name: 'Genin', desc: 'Ninja graduado, nível básico.' }
         ]
     },
