@@ -33,6 +33,44 @@ export const MASTERIES = [
 ];
 
 export const ORG_CONFIG = {
+    'lideres-clas': { 
+        id: 'lideres-clas', 
+        name: 'Líderes de Clã', 
+        icon: 'Crown', 
+        color: 'text-amber-400', 
+        bgColor: 'bg-amber-900/20', 
+        border: 'border-amber-500/30', 
+        limit: 5, 
+        internalRoles: [
+            'Líder Yagyu', 
+            'Líder Murasame', 
+            'Líder Hoshi', 
+            'Líder Kazuki', 
+            'Líder Sakame'
+        ],
+        roleDetails: [
+            { 
+                name: 'Líder Yagyu', 
+                desc: 'Sobreviventes de guerra que se tornaram senhores feudais com riqueza para treinar ninjas poderosos rapidamente.' 
+            },
+            { 
+                name: 'Líder Murasame', 
+                desc: 'Família de ferreiros forçada à guerra que superou a ocasião e encontrou sua verdadeira vocação ninja.' 
+            },
+            { 
+                name: 'Líder Hoshi', 
+                desc: 'Antiga família cujas habilidades sugerem serem descendentes de seres que habitam as estrelas.' 
+            },
+            { 
+                name: 'Líder Kazuki', 
+                desc: 'Leais e tradicionais, seguem as regras rigidamente, mesmo que isso signifique derramamento de sangue.' 
+            },
+            { 
+                name: 'Líder Sakame', 
+                desc: 'Famosos por treinar ninjas desde uma idade extremamente jovem, prática questionada por outros.' 
+            }
+        ]
+    },
     'sete-laminas': { 
         id: 'sete-laminas', 
         name: 'Sete Lâminas', 
@@ -68,12 +106,34 @@ export const ORG_CONFIG = {
         bgColor: 'bg-purple-900/20', 
         border: 'border-purple-500/30', 
         limit: 14, 
-        // Ordem do MENOR para o MAIOR rank
         internalRoles: ['Membro', 'Vice-Líder', 'Líder'],
         roleDetails: [
             { name: 'Líder', desc: 'Comandante supremo das operações especiais.' },
             { name: 'Vice-Líder', desc: 'Segundo em comando, auxilia na coordenação.' },
             { name: 'Membro', desc: 'Agente operacional da ANBU.' }
+        ]
+    },
+    'promocoes': { 
+        id: 'promocoes', 
+        name: 'Promoções & Patentes', 
+        icon: 'Star', 
+        color: 'text-pink-400', 
+        bgColor: 'bg-pink-900/20', 
+        border: 'border-pink-500/30', 
+        limit: 50, 
+        internalRoles: [
+            'Aspirante a Chunin',
+            'Chunin', 
+            'Aspirante a Tokubetsu',
+            'Tokubetsu Jonin', 
+            'Aspirante a Jonin',
+            'Jonin'
+        ],
+        roleDetails: [
+            { name: 'Jonin', desc: 'Ninja de Elite de nível alto.' },
+            { name: 'Tokubetsu Jonin', desc: 'Jonin com especialização tática.' },
+            { name: 'Chunin', desc: 'Líder de esquadrão qualificado.' },
+            { name: 'Aspirante', desc: 'Ninja em avaliação para promoção.' }
         ]
     },
     'forca-policial': { 
