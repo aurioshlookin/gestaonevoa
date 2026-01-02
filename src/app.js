@@ -541,67 +541,86 @@ const App = () => {
             const orgId = member.org; 
             const newStatus = !member.isLeader;
             
+            // Define o cargo de rebaixamento PADRÃO (se não for sobrescrito abaixo)
             let demotionRole = member.ninRole; 
             
+            // Lógica de rebaixamento para hierarquias fixas
             if (orgId === 'unidade-medica') demotionRole = 'Residente Chefe';
             else if (orgId === 'divisao-especial') demotionRole = 'Vice-Líder';
             else if (orgId === 'forca-policial') demotionRole = 'Subchefe';
+            
+            // IMPORTANTE: Para 'lideres-clas', o cargo (Ex: Líder Yagyu) é a identidade da pessoa.
+            // Perder a liderança (coroa) não deve mudar o cargo dela, apenas o status visual.
+            // Se a intenção for trocar o Líder Yagyu por outra pessoa, isso é feito na edição do membro, não na coroa.
+            if (orgId === 'lideres-clas') {
+                demotionRole = member.ninRole; // Mantém o cargo atual
+            }
 
             if (newStatus) {
-                // PROMOVENDO PARA LÍDER
+                // PROMOVENDO PARA LÍDER (COROA)
                 const currentLeader = members.find(m => m.org === orgId && m.isLeader === true);
+                
+                // Se já existe um líder, rebaixa ele
                 if (currentLeader && currentLeader.id !== member.id) {
                     let oldLeaderDemotion = currentLeader.ninRole;
-                    if (orgId === 'unidade-medica' && currentLeader.ninRole === 'Diretor Médico') oldLeaderDemotion = 'Residente Chefe';
-                    else if (orgId === 'divisao-especial') oldLeaderDemotion = 'Vice-Líder';
-                    else if (orgId === 'forca-policial') oldLeaderDemotion = 'Subchefe';
                     
-                    // Rebaixa o antigo líder para o cargo base da org
-                    const baseRoleId = roleConfig[orgId];
-                    await updateDoc(doc(db, "membros", currentLeader.id), { isLeader: false, ninRole: oldLeaderDemotion, specificRoleId: baseRoleId });
+                    // Aplica regra de rebaixamento apenas se NÃO for líder de clã
+                    if (orgId !== 'lideres-clas') {
+                        if (orgId === 'unidade-medica' && currentLeader.ninRole === 'Diretor Médico') oldLeaderDemotion = 'Residente Chefe';
+                        else if (orgId === 'divisao-especial') oldLeaderDemotion = 'Vice-Líder';
+                        else if (orgId === 'forca-policial') oldLeaderDemotion = 'Subchefe';
+                    }
+                    
+                    // Atualiza o antigo líder
+                    await updateDoc(doc(db, "membros", currentLeader.id), { 
+                        isLeader: false, 
+                        ninRole: oldLeaderDemotion,
+                        // Se for org normal, volta pro cargo base do Discord. Se for clã, mantém o cargo específico dele.
+                        specificRoleId: (orgId === 'lideres-clas') ? currentLeader.specificRoleId : roleConfig[orgId]
+                    });
                 }
                 
+                // Promove o novo
                 let newRoleL = member.ninRole; 
                 if (orgId === 'unidade-medica') newRoleL = 'Diretor Médico';
                 else if (orgId === 'divisao-especial') newRoleL = 'Líder';
                 else if (orgId === 'forca-policial') newRoleL = 'Chefe';
+                // Para lideres-clas, newRoleL continua sendo "Líder Yagyu", etc.
                 
-                // Promove o novo líder e atribui o cargo de líder do Discord
-                const leaderDiscordRole = leaderRoleConfig[orgId];
-                await updateDoc(doc(db, "membros", member.id), { isLeader: true, ninRole: newRoleL, specificRoleId: leaderDiscordRole });
+                // Define o cargo do Discord
+                let finalDiscordRole = member.specificRoleId;
+                // Se for uma org normal com cargo de líder definido nas configs, usa ele
+                if (leaderRoleConfig[orgId] && orgId !== 'lideres-clas') {
+                    finalDiscordRole = leaderRoleConfig[orgId];
+                }
+                
+                await updateDoc(doc(db, "membros", member.id), { 
+                    isLeader: true, 
+                    ninRole: newRoleL, 
+                    specificRoleId: finalDiscordRole 
+                });
+
             } else { 
-                // REBAIXANDO DE LÍDER
-                let finalDemotion = demotionRole;
-                if (orgId === 'lideres-clas') finalDemotion = member.ninRole;
+                // REBAIXANDO DE LÍDER (TIRANDO A COROA)
+                let finalSpecificRole = member.specificRoleId;
                 
-                // Retorna para o cargo base
-                const baseRoleId = roleConfig[orgId];
-                await updateDoc(doc(db, "membros", member.id), { isLeader: false, ninRole: finalDemotion, specificRoleId: baseRoleId }); 
+                // Se for org normal, volta pro cargo base do Discord
+                if (orgId !== 'lideres-clas' && roleConfig[orgId]) {
+                    finalSpecificRole = roleConfig[orgId];
+                }
+                // Se for clã, mantém o cargo específico (ex: o cargo de Líder Yagyu no Discord)
+
+                await updateDoc(doc(db, "membros", member.id), { 
+                    isLeader: false, 
+                    ninRole: demotionRole, 
+                    specificRoleId: finalSpecificRole 
+                }); 
             }
             showNotification('Liderança alterada.', 'success');
             logAction("Alterar Liderança", member.name, newStatus ? "Promovido a Líder" : "Removido da Liderança", orgId);
-        } catch (e) { showNotification('Erro.', 'error'); }
-    };
-
-    // ... (handleSaveConfig e Render mantidos iguais) ...
-    const handleSaveConfig = async (receivedConfig) => {
-        if (simulation) { showNotification('Simulação: Ação bloqueada.', 'error'); return; }
-        if (!canManageSettings) return showNotification('Apenas Admins.', 'error');
-        try {
-            const dbConfig = {
-                roleMapping: receivedConfig.roleConfig,
-                leaderRoleMapping: receivedConfig.leaderRoleConfig,
-                secLeaderRoleMapping: receivedConfig.secLeaderRoleConfig,
-                accessConfig: receivedConfig.accessConfig
-            };
-
-            await setDoc(doc(db, "server", "config"), dbConfig, { merge: true });
-            setShowSettings(false);
-            showNotification('Configurações salvas e aplicadas!', 'success');
-            logAction("Configurações", "Sistema", "Mapeamento de cargos atualizado");
         } catch (e) { 
-            console.error("Erro ao salvar config:", e);
-            showNotification('Erro ao salvar.', 'error'); 
+            console.error(e);
+            showNotification('Erro ao alterar liderança.', 'error'); 
         }
     };
 
