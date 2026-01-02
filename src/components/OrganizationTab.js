@@ -7,7 +7,8 @@ import { ORG_CONFIG, MASTERIES, Icons } from '../config/constants.js';
 import { getActivityStats, formatDate, getMemberOrgsInfo } from '../utils/helpers.js';
 
 // Helper para renderizar ícone do cargo
-const RoleIcon = ({ roleId, discordRoles, fallbackText }) => {
+// Renomeado para OrgRoleIcon para evitar conflito de nomes no escopo global do loader
+const OrgRoleIcon = ({ roleId, discordRoles, fallbackText }) => {
     if (!discordRoles) return <span className="text-slate-300 text-sm">{fallbackText}</span>;
     
     // Tenta achar o role pelo ID
@@ -306,17 +307,17 @@ const OrganizationTab = ({
                                         <div className="flex flex-col gap-1 items-start">
                                             {isClanLeaders ? (
                                                 // LISTA DE CLÃS: Tenta mostrar ícone do cargo do clã
-                                                <RoleIcon roleId={displayRoleId} discordRoles={discordRoles} fallbackText={member.ninRole} />
+                                                <OrgRoleIcon roleId={displayRoleId} discordRoles={discordRoles} fallbackText={member.ninRole} />
                                             ) : (
                                                 // OUTRAS ORGS:
                                                 <>
                                                     <div className={`px-2 py-1 rounded text-xs font-bold border ${orgConfig.border} ${orgConfig.color} bg-opacity-10 inline-flex items-center gap-1`}>
                                                         {/* Ícone para o cargo de membro comum (se houver roleId configurado na org) */}
-                                                        <RoleIcon roleId={displayRoleId} discordRoles={discordRoles} fallbackText={member.role} />
+                                                        <OrgRoleIcon roleId={displayRoleId} discordRoles={discordRoles} fallbackText={member.role} />
                                                     </div>
                                                     {leaderRoleName && (
                                                         <div className="px-2 py-1 rounded text-xs font-bold border border-yellow-500/50 text-yellow-400 bg-yellow-900/20 inline-flex items-center gap-1 mt-1">
-                                                            <RoleIcon roleId={leaderRoleId} discordRoles={discordRoles} fallbackText={leaderRoleName} />
+                                                            <OrgRoleIcon roleId={leaderRoleId} discordRoles={discordRoles} fallbackText={leaderRoleName} />
                                                         </div>
                                                     )}
                                                 </>
