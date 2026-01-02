@@ -7,7 +7,7 @@ import { ORG_CONFIG, MASTERIES, Icons } from '../config/constants.js';
 import { getActivityStats, formatDate, getMemberOrgsInfo } from '../utils/helpers.js';
 
 const OrganizationTab = ({ 
-    orgId, members, discordRoles, leaderRoleConfig, canManage, 
+    orgId, members, discordRoles, leaderRoleConfig, roleConfig, canManage, 
     onOpenCreate, onEditMember, onDeleteMember, onToggleLeader,
     onBack
 }) => {
@@ -24,6 +24,20 @@ const OrganizationTab = ({
     const isClanLeaders = orgId === 'lideres-clas';
     // Oculta coluna de líder para Promoções e Líderes de Clã (pois lá a liderança é implícita no cargo)
     const showLeaderColumn = orgId !== 'promocoes' && !isClanLeaders;
+
+    // Helper para abrir modal com cargo do Discord correto
+    const handleOpenClanAction = (ninRole) => {
+        // Tenta encontrar o ID do cargo do Discord mapeado para este cargo interno
+        // A chave no roleConfig geralmente é "orgId_ninRole" para mapeamentos internos
+        const mappingKey = `${orgId}_${ninRole}`;
+        const mappedDiscordRoleId = roleConfig && roleConfig[mappingKey];
+        
+        onOpenCreate({ 
+            ninRole: ninRole, 
+            isLeader: true,
+            specificRoleId: mappedDiscordRoleId || "" // Preenche se achar, senão vazio
+        });
+    };
 
     // --- LÓGICA ESPECÍFICA PARA LISTAGEM DE CLÃS (TABELA FIXA) ---
     // Se for Lideres de Clã, usamos a lista de cargos interna para garantir que todos apareçam (mesmo vagos)
@@ -230,7 +244,7 @@ const OrganizationTab = ({
                                         {canManage && (
                                             <td className="p-4 text-right">
                                                 <button 
-                                                    onClick={() => onOpenCreate({ ninRole: member.ninRole, isLeader: true })}
+                                                    onClick={() => handleOpenClanAction(member.ninRole)}
                                                     className="bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1.5 rounded text-xs font-bold flex items-center gap-2 ml-auto shadow-sm"
                                                 >
                                                     <UserPlus size={14}/> Definir Líder
@@ -345,7 +359,7 @@ const OrganizationTab = ({
                                                 {/* BOTÃO TROCAR LÍDER (Apenas para Líderes de Clã) */}
                                                 {isClanLeaders && (
                                                     <button 
-                                                        onClick={() => onOpenCreate({ ninRole: member.ninRole, isLeader: true })} 
+                                                        onClick={() => handleOpenClanAction(member.ninRole)} 
                                                         className="p-2 text-slate-400 hover:text-cyan-400 hover:bg-cyan-900/20 rounded transition-colors"
                                                         title="Trocar Líder"
                                                     >
