@@ -25,6 +25,16 @@ const OrganizationTab = ({
     // Oculta coluna de líder para Promoções e Líderes de Clã (pois lá a liderança é implícita no cargo)
     const showLeaderColumn = orgId !== 'promocoes' && !isClanLeaders;
 
+    // --- LÓGICA ESPECÍFICA PARA LISTAGEM DE CLÃS (TABELA FIXA) ---
+    // Se for Lideres de Clã, usamos a lista de cargos interna para garantir que todos apareçam (mesmo vagos)
+    // Isso permite mostrar o botão "Definir Líder" onde não tem ninguém.
+    const displayList = isClanLeaders 
+        ? orgConfig.internalRoles.map(role => {
+            const member = orgMembers.find(m => m.ninRole === role);
+            return member || { id: `vago-${role}`, ninRole: role, isVacant: true };
+        })
+        : orgMembers; // Para outras orgs, usa a lista normal de membros
+
     // --- LÓGICA PADRÃO PARA TODAS ORGS ---
 
     const getRoleRank = (member) => { const roles = orgConfig.internalRoles || []; return roles.indexOf(member.ninRole); };
@@ -46,7 +56,8 @@ const OrganizationTab = ({
         setSortConfig({ key: 'rank', direction: 'ascending' });
     };
 
-    const sortedMembers = [...orgMembers].sort((a, b) => {
+    // Ordenação (Aplicada apenas se NÃO for ClanLeaders, pois eles seguem a ordem fixa dos cargos)
+    const sortedMembers = isClanLeaders ? displayList : [...displayList].sort((a, b) => {
         const sortByRank = () => {
             if (orgId === 'sete-laminas') {
                 if (a.isLeader !== b.isLeader) return a.isLeader ? -1 : 1;
@@ -153,7 +164,8 @@ const OrganizationTab = ({
                     </button>
                 </div>
 
-                {canManage && (
+                {/* BOTÃO ADICIONAR MEMBRO (Oculto para Líderes de Clã) */}
+                {canManage && !isClanLeaders && (
                     <button onClick={() => onOpenCreate()} className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 shadow-lg shadow-cyan-500/20 transition-all hover:scale-105 text-sm">
                         <UserPlus size={18} /> Adicionar Membro
                     </button>
@@ -175,8 +187,12 @@ const OrganizationTab = ({
                 <table className="w-full text-left">
                     <thead className="bg-slate-800/50 text-slate-400 text-xs uppercase">
                         <tr>
-                            <th className="p-4 cursor-pointer hover:text-white" onClick={() => requestSort('role')}>Cargo <SortIcon k="role"/></th>
-                            <th className="p-4 cursor-pointer hover:text-white" onClick={() => requestSort('name')}>Nome <SortIcon k="name"/></th>
+                            {/* Ajuste de Colunas: Se for Clã, a primeira coluna é fixa "Cargo do Clã" */}
+                            <th className="p-4 cursor-pointer hover:text-white" onClick={() => !isClanLeaders && requestSort('role')}>
+                                {isClanLeaders ? 'Cargo / Clã' : <>Cargo <SortIcon k="role"/></>}
+                            </th>
+
+                            <th className="p-4 cursor-pointer hover:text-white" onClick={() => !isClanLeaders && requestSort('name')}>Nome <SortIcon k="name"/></th>
                             
                             {isAnbu && (
                                 <th className="p-4 cursor-pointer hover:text-white" onClick={() => requestSort('codinome')}>
@@ -184,9 +200,11 @@ const OrganizationTab = ({
                                 </th>
                             )}
 
-                            <th className="p-4 cursor-pointer hover:text-white" onClick={() => requestSort('ninRole')}>Nin <SortIcon k="ninRole"/></th>
-                            <th className="p-4 cursor-pointer hover:text-white" onClick={() => requestSort('joinDate')}>Entrada <SortIcon k="joinDate"/></th>
-                            <th className="p-4 cursor-pointer hover:text-white" onClick={() => requestSort('activity')}>Atividade <SortIcon k="activity"/></th>
+                            {/* Se for Clã, não precisa de coluna NinRole separada pois já é o cargo principal */}
+                            {!isClanLeaders && <th className="p-4 cursor-pointer hover:text-white" onClick={() => requestSort('ninRole')}>Nin <SortIcon k="ninRole"/></th>}
+                            
+                            <th className="p-4 cursor-pointer hover:text-white" onClick={() => !isClanLeaders && requestSort('joinDate')}>Entrada <SortIcon k="joinDate"/></th>
+                            <th className="p-4 cursor-pointer hover:text-white" onClick={() => !isClanLeaders && requestSort('activity')}>Atividade <SortIcon k="activity"/></th>
                             
                             {showLeaderColumn && (
                                 <th className="p-4 text-center cursor-pointer hover:text-white" onClick={() => requestSort('isLeader')}>Líder <SortIcon k="isLeader"/></th>
@@ -197,6 +215,32 @@ const OrganizationTab = ({
                     </thead>
                     <tbody className="divide-y divide-slate-700">
                         {sortedMembers.map((member) => {
+                            // Se for vago (apenas para Clãs)
+                            if (member.isVacant) {
+                                return (
+                                    <tr key={member.id} className="hover:bg-slate-800/30 bg-slate-900/10 border-l-4 border-l-slate-700/50">
+                                        <td className="p-4">
+                                            <span className="font-bold text-slate-500">{member.ninRole}</span>
+                                        </td>
+                                        <td className="p-4" colSpan={isAnbu ? 4 : 3}>
+                                            <span className="text-slate-600 italic flex items-center gap-2">
+                                                <AlertCircle size={14}/> Cargo Vago
+                                            </span>
+                                        </td>
+                                        {canManage && (
+                                            <td className="p-4 text-right">
+                                                <button 
+                                                    onClick={() => onOpenCreate({ ninRole: member.ninRole, isLeader: true })}
+                                                    className="bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1.5 rounded text-xs font-bold flex items-center gap-2 ml-auto shadow-sm"
+                                                >
+                                                    <UserPlus size={14}/> Definir Líder
+                                                </button>
+                                            </td>
+                                        )}
+                                    </tr>
+                                );
+                            }
+
                             const leaderRoleId = leaderRoleConfig[member.org];
                             const leaderRoleName = member.isLeader && leaderRoleId ? discordRoles.find(r => r.id === leaderRoleId)?.name : null;
                             const memberMasteries = member.masteries || [];
@@ -211,8 +255,14 @@ const OrganizationTab = ({
                                 >
                                     <td className="p-4">
                                         <div className="flex flex-col gap-1 items-start">
-                                            <span className={`px-2 py-1 rounded text-xs font-bold border ${orgConfig.border} ${orgConfig.color} bg-opacity-10`}>{member.role}</span>
-                                            {leaderRoleName && <span className="px-2 py-1 rounded text-xs font-bold border border-yellow-500/50 text-yellow-400 bg-yellow-900/20">{leaderRoleName}</span>}
+                                            {isClanLeaders ? (
+                                                <span className="text-sm font-bold text-white">{member.ninRole}</span>
+                                            ) : (
+                                                <>
+                                                    <span className={`px-2 py-1 rounded text-xs font-bold border ${orgConfig.border} ${orgConfig.color} bg-opacity-10`}>{member.role}</span>
+                                                    {leaderRoleName && <span className="px-2 py-1 rounded text-xs font-bold border border-yellow-500/50 text-yellow-400 bg-yellow-900/20">{leaderRoleName}</span>}
+                                                </>
+                                            )}
                                         </div>
                                     </td>
                                     <td className="p-4">
@@ -256,7 +306,8 @@ const OrganizationTab = ({
                                         </td>
                                     )}
 
-                                    <td className="p-4"><span className="text-slate-300 text-sm">{member.ninRole}</span></td>
+                                    {!isClanLeaders && <td className="p-4"><span className="text-slate-300 text-sm">{member.ninRole}</span></td>}
+                                    
                                     <td className="p-4"><span className="text-slate-300 text-sm font-mono">{formatDate(member.joinDate)}</span></td>
                                     <td className="p-4">
                                         <div className="flex items-center gap-2" title={`Últimas 2 semanas: ${activity.details.msgs} msgs / ${activity.details.voice} voz`}>
@@ -290,9 +341,22 @@ const OrganizationTab = ({
 
                                     {canManage && (
                                         <td className="p-4 text-right" onClick={(e) => e.stopPropagation()}>
-                                            <button onClick={() => onDeleteMember(member.id)} className="text-slate-500 hover:text-red-400 p-2">
-                                                <Trash2 size={16} />
-                                            </button>
+                                            <div className="flex justify-end gap-2">
+                                                {/* BOTÃO TROCAR LÍDER (Apenas para Líderes de Clã) */}
+                                                {isClanLeaders && (
+                                                    <button 
+                                                        onClick={() => onOpenCreate({ ninRole: member.ninRole, isLeader: true })} 
+                                                        className="p-2 text-slate-400 hover:text-cyan-400 hover:bg-cyan-900/20 rounded transition-colors"
+                                                        title="Trocar Líder"
+                                                    >
+                                                        <RefreshCw size={16} />
+                                                    </button>
+                                                )}
+
+                                                <button onClick={() => onDeleteMember(member.id)} className="text-slate-500 hover:text-red-400 p-2 hover:bg-red-900/20 rounded transition-colors">
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </div>
                                         </td>
                                     )}
                                 </tr>
