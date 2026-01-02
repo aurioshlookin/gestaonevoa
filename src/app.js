@@ -438,18 +438,23 @@ const App = () => {
             
             if (!formData.name || !formData.discordId || !formData.ninRole) return showNotification('Campos obrigatórios!', 'error');
             
+            // Verifica limites apenas para orgs normais
             if (isCreating && ORG_CONFIG[orgId].limit !== null && ORG_CONFIG[orgId].limit > 0) {
                 if (members.filter(m => m.org === orgId).length >= ORG_CONFIG[orgId].limit) return showNotification('Limite atingido!', 'error');
             }
 
+            // --- LÓGICA DE SUBSTITUIÇÃO PARA LÍDERES DE CLÃ ---
+            // Se estamos adicionando um Líder de Clã, garantimos que não haja outro com o mesmo cargo
             if (isCreating && orgId === 'lideres-clas') {
                 const existingLeader = members.find(m => m.org === orgId && m.ninRole === formData.ninRole);
                 if (existingLeader) {
                     await deleteDoc(doc(db, "membros", existingLeader.id));
                     console.log(`Substituindo líder antigo de ${formData.ninRole}: ${existingLeader.name}`);
                 }
+                // Força isLeader true para clãs
                 formData.isLeader = true;
             }
+            // ----------------------------------------------------
 
             let finalRoleId = formData.specificRoleId || roleConfig[orgId];
             let finalRoleName = "Membro";
@@ -475,6 +480,7 @@ const App = () => {
                     else if (orgId === 'divisao-especial' && currentLeader.ninRole === 'Líder') newRole = 'Vice-Líder';
                     else if (orgId === 'forca-policial' && currentLeader.ninRole === 'Chefe') newRole = 'Subchefe';
                     
+                    // REBAIXAMENTO: Garante que o cargo do Discord também mude para o base
                     newSpecificRoleId = roleConfig[orgId]; 
 
                     await updateDoc(doc(db, "membros", currentLeader.id), { isLeader: false, ninRole: newRole, specificRoleId: newSpecificRoleId });
@@ -485,6 +491,7 @@ const App = () => {
             let finalSpecificRoleId = finalRoleId;
 
             if (formData.isLeader) {
+                // SE FOR PROMOVIDO A LÍDER, USA O CARGO DE LÍDER NO DISCORD
                 if (leaderRoleConfig[orgId]) {
                     finalSpecificRoleId = leaderRoleConfig[orgId];
                 }
@@ -539,17 +546,6 @@ const App = () => {
             const orgId = member.org; 
             const newStatus = !member.isLeader;
             
-            // Define o cargo de rebaixamento PADRÃO (se não for sobrescrito abaixo)
-            let demotionRole = member.ninRole; 
-            
-    // --- FUNÇÃO DE LIDERANÇA AJUSTADA ---
-    const handleToggleLeader = async (member) => {
-        if (simulation) { showNotification('Simulação: Ação simulada.', 'success'); return; }
-        if (!checkPermission('EDIT_MEMBER', member.org)) return showNotification('Sem permissão.', 'error');
-        try {
-            const orgId = member.org; 
-            const newStatus = !member.isLeader;
-            
             // Cargo de rebaixamento padrão: Mantém o atual
             let demotionRole = member.ninRole; 
             
@@ -560,27 +556,34 @@ const App = () => {
             else if (orgId === 'forca-policial') demotionRole = 'Subchefe';
 
             if (newStatus) {
-                // PROMOVENDO
+                // PROMOVENDO PARA LÍDER (COROA)
                 const currentLeader = members.find(m => m.org === orgId && m.isLeader === true);
                 
-                // Rebaixa o antigo
+                // Se já existe um líder, rebaixa ele
                 if (currentLeader && currentLeader.id !== member.id) {
                     let oldLeaderDemotion = currentLeader.ninRole;
-                    // Só aplica regra de rebaixamento de nome se NÃO for clã
+                    // Só aplica regra de rebaixamento de nome se NÃO for clã (Clãs podem ter múltiplos líderes se forem de clãs diferentes, 
+                    // mas aqui assumimos que a "coroa" é única ou controlada. Se 'lideres-clas' permite vários membros, 
+                    // mas handleToggleLeader é chamado, ele troca. 
+                    // CORREÇÃO: Para 'lideres-clas', não rebaixamos o 'currentLeader' se ele for de OUTRO clã.
+                    // Mas como a lista é unificada, vamos permitir múltiplos 'isLeader' se forem de roles diferentes?
+                    // Não, a lógica aqui é 'toggle'. Se clicou na coroa, vira líder.
+                    // Para evitar confusão, vamos manter: 1 líder por vez? NÃO. Clãs são 5.
+                    
                     if (orgId !== 'lideres-clas') {
                         if (orgId === 'unidade-medica') oldLeaderDemotion = 'Residente Chefe';
                         else if (orgId === 'divisao-especial') oldLeaderDemotion = 'Vice-Líder';
                         else if (orgId === 'forca-policial') oldLeaderDemotion = 'Subchefe';
+                        
+                        const baseRoleId = roleConfig[orgId];
+                        await updateDoc(doc(db, "membros", currentLeader.id), { 
+                            isLeader: false, 
+                            ninRole: oldLeaderDemotion,
+                            specificRoleId: baseRoleId
+                        });
                     }
-                    
-                    // Se for org normal, reverte cargo do discord para o base. Se for clã, mantém o dele.
-                    const specificRole = (orgId === 'lideres-clas') ? currentLeader.specificRoleId : roleConfig[orgId];
-
-                    await updateDoc(doc(db, "membros", currentLeader.id), { 
-                        isLeader: false, 
-                        ninRole: oldLeaderDemotion,
-                        specificRoleId: specificRole
-                    });
+                    // Se for lideres-clas, NÃO rebaixamos o outro líder automaticamente aqui, 
+                    // pois são clãs diferentes. Deixamos coexistir.
                 }
                 
                 // Promove o novo
@@ -588,11 +591,16 @@ const App = () => {
                 if (orgId === 'unidade-medica') newRoleL = 'Diretor Médico';
                 else if (orgId === 'divisao-especial') newRoleL = 'Líder';
                 else if (orgId === 'forca-policial') newRoleL = 'Chefe';
+                // Para lideres-clas, newRoleL continua sendo "Líder Yagyu", etc.
                 
-                // Define cargo do Discord
+                // Define o cargo do Discord
                 let leaderDiscRole = member.specificRoleId;
-                if (leaderRoleConfig[orgId]) leaderDiscRole = leaderRoleConfig[orgId];
-
+                
+                // Se for org normal, pega do config. Se for clã, mantém o do membro (que já deve ser o do clã).
+                if (leaderRoleConfig[orgId] && orgId !== 'lideres-clas') {
+                    leaderDiscRole = leaderRoleConfig[orgId];
+                }
+                
                 await updateDoc(doc(db, "membros", member.id), { 
                     isLeader: true, 
                     ninRole: newRoleL, 
@@ -600,7 +608,7 @@ const App = () => {
                 });
 
             } else { 
-                // REBAIXANDO
+                // REBAIXANDO DE LÍDER
                 // Se for clã, mantém o cargo atual (Líder Yagyu). Se for outro, usa demotionRole
                 let finalDemotion = (orgId === 'lideres-clas') ? member.ninRole : demotionRole;
                 
@@ -647,8 +655,13 @@ const App = () => {
 
     const SimulationBanner = simulation ? (
         <div className="bg-orange-600 text-white text-center py-2 px-4 font-bold sticky top-0 z-[60] flex justify-center items-center gap-4 shadow-md">
-            <div className="flex items-center gap-2"><Eye size={20}/><span>Modo Simulação: Visualizando como <u>{simulation.name}</u></span></div>
-            <button onClick={handleLogout} className="bg-white text-orange-600 px-3 py-1 rounded text-xs uppercase font-bold hover:bg-orange-50 transition-colors">Sair da Simulação</button>
+            <div className="flex items-center gap-2">
+                <Eye size={20}/>
+                <span>Modo Simulação: Visualizando como <u>{simulation.name}</u></span>
+            </div>
+            <button onClick={handleLogout} className="bg-white text-orange-600 px-3 py-1 rounded text-xs uppercase font-bold hover:bg-orange-50 transition-colors">
+                Sair da Simulação
+            </button>
         </div>
     ) : null;
 
@@ -660,7 +673,14 @@ const App = () => {
                     <ShieldCheck size={48} className="mx-auto text-red-500 mb-6" />
                     <h1 className="text-2xl font-bold text-white mb-2">Acesso Negado</h1>
                     <p className="text-slate-400 mb-6">Esta conta não possui permissão de acesso.</p>
-                    {simulation ? ( <p className="text-orange-400 text-xs mb-4">Você está simulando um usuário sem permissão.</p> ) : ( <> <button onClick={() => {alert("Seus Cargos ID: " + user.roles.join("\n")); console.log("Cargos:", user.roles);}} className="text-xs text-slate-500 hover:text-slate-300 underline mb-4 block mx-auto">Ver meus IDs de Cargo</button> <button onClick={handleLogout} className="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-6 rounded transition-colors">Voltar / Logout</button> </> )}
+                    {simulation ? (
+                        <p className="text-orange-400 text-xs mb-4">Você está simulando um usuário sem permissão.</p>
+                    ) : (
+                        <>
+                            <button onClick={() => {alert("Seus Cargos ID: " + user.roles.join("\n")); console.log("Cargos:", user.roles);}} className="text-xs text-slate-500 hover:text-slate-300 underline mb-4 block mx-auto">Ver meus IDs de Cargo</button>
+                            <button onClick={handleLogout} className="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-6 rounded transition-colors">Voltar / Logout</button>
+                        </>
+                    )}
                 </div>
             </div>
         </ErrorBoundary>
@@ -671,7 +691,13 @@ const App = () => {
     return (
         <ErrorBoundary>
             {SimulationBanner}
-            {tutorialContent && isTutorialEnabled && ( <TutorialOverlay content={tutorialContent} onClose={() => setTutorialContent(null)} /> )}
+            
+            {tutorialContent && isTutorialEnabled && (
+                <TutorialOverlay 
+                    content={tutorialContent} 
+                    onClose={() => setTutorialContent(null)} 
+                />
+            )}
 
             <div className="min-h-screen bg-slate-900 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] text-slate-200 font-mono">
                 {notification && <div className={`fixed bottom-4 right-4 p-4 rounded shadow-lg text-white z-50 animate-bounce-in ${notification.type === 'error' ? 'bg-red-600' : 'bg-emerald-600'}`}>{notification.msg}</div>}
@@ -687,6 +713,7 @@ const App = () => {
                         onSave={handleSaveMember}
                         canManage={hasManagePermission} 
                         isReadOnly={!hasManagePermission} 
+                        // NOVAS PROPS para filtragem
                         roleConfig={roleConfig}
                         leaderRoleConfig={leaderRoleConfig}
                         secLeaderRoleConfig={secLeaderRoleConfig}
@@ -737,8 +764,13 @@ const App = () => {
                 />
 
                 <main className="container mx-auto px-6 py-8">
+                    {/* Botão de Ajuda flutuante */}
                     {isTutorialEnabled && (
-                        <button onClick={() => startTutorial(true)} className="fixed bottom-4 left-4 p-3 bg-cyan-600 hover:bg-cyan-500 text-white rounded-full shadow-lg z-50 transition-transform hover:scale-110" title="Ajuda">
+                        <button 
+                            onClick={() => startTutorial(true)}
+                            className="fixed bottom-4 left-4 p-3 bg-cyan-600 hover:bg-cyan-500 text-white rounded-full shadow-lg z-50 transition-transform hover:scale-110"
+                            title="Ajuda"
+                        >
                             <HelpCircle size={24} />
                         </button>
                     )}
