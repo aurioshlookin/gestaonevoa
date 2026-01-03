@@ -1,11 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Settings, ShieldCheck, UserCog, Star, Trash2, Eye, ChevronDown, ChevronUp, Database, RefreshCw, Activity, CheckCircle, Circle, X } from 'lucide-react';
+import { Settings, ShieldCheck, UserCog, Star, Trash2, Eye, ChevronDown, ChevronUp, Database, RefreshCw, Activity, CheckCircle, Circle, X, Eraser } from 'lucide-react';
 import { ORG_CONFIG, Icons } from '../config/constants.js';
 
 const SettingsModal = ({ 
     roleConfig, leaderRoleConfig, secLeaderRoleConfig, accessConfig, 
     discordRoles, discordRoster, onClose, onSave, canManageSettings, onSimulate,
-    onSyncHistory 
+    onSyncHistory, onClearAndRescan // NOVA PROP
 }) => {
     const [localRoleConfig, setLocalRoleConfig] = useState(roleConfig || {});
     const [localLeaderRoleConfig, setLocalLeaderRoleConfig] = useState(leaderRoleConfig || {});
@@ -101,6 +101,12 @@ const SettingsModal = ({
             secLeaderRoleConfig: localSecLeaderRoleConfig,
             accessConfig: localAccessConfig
         });
+    };
+
+    const handleConfirmClear = () => {
+        if (window.confirm("⚠️ ATENÇÃO: Isso vai ZERAR o contador de mensagens de TODOS os usuários e refazer o scan dos últimos 14 dias.\n\nO histórico de voz será mantido.\n\nDeseja continuar?")) {
+            onClearAndRescan();
+        }
     };
 
     return (
@@ -334,7 +340,7 @@ const SettingsModal = ({
                                 </div>
                             </div>
 
-                            {/* MANUTENÇÃO (Preservada) */}
+                            {/* MANUTENÇÃO (ATUALIZADA COM BOTÃO DE LIMPEZA) */}
                             <div className="bg-slate-800 p-4 rounded-lg border border-slate-600">
                                 <h4 className="text-white font-bold flex items-center gap-2 mb-2">
                                     <Database size={18} className="text-orange-400"/> Manutenção de Dados
@@ -343,17 +349,32 @@ const SettingsModal = ({
                                     Ferramentas para forçar atualização de dados caso o Bot tenha ficado offline.
                                 </p>
                                 
-                                <div className="flex items-center justify-between bg-slate-900 p-3 rounded border border-slate-700">
-                                    <div>
-                                        <span className="text-sm font-bold text-white block">Sincronizar Histórico (Texto)</span>
-                                        <span className="text-[10px] text-slate-500">Lê as últimas 2 semanas de todos os canais. (Lento)</span>
+                                <div className="flex flex-col gap-3">
+                                    <div className="flex items-center justify-between bg-slate-900 p-3 rounded border border-slate-700">
+                                        <div>
+                                            <span className="text-sm font-bold text-white block">Sincronizar Histórico (Texto)</span>
+                                            <span className="text-[10px] text-slate-500">Lê as últimas 2 semanas. (Mantém dados)</span>
+                                        </div>
+                                        <button 
+                                            onClick={onSyncHistory}
+                                            className="bg-orange-600 hover:bg-orange-500 text-white px-3 py-1.5 rounded text-xs font-bold flex items-center gap-2 transition-colors"
+                                        >
+                                            <RefreshCw size={14} /> Forçar Sync
+                                        </button>
                                     </div>
-                                    <button 
-                                        onClick={onSyncHistory}
-                                        className="bg-orange-600 hover:bg-orange-500 text-white px-3 py-1.5 rounded text-xs font-bold flex items-center gap-2 transition-colors"
-                                    >
-                                        <RefreshCw size={14} /> Forçar Sync
-                                    </button>
+
+                                    <div className="flex items-center justify-between bg-slate-900 p-3 rounded border border-red-500/30">
+                                        <div>
+                                            <span className="text-sm font-bold text-red-400 block">Limpeza e Rescan Completo</span>
+                                            <span className="text-[10px] text-slate-500">Zera mensagens e escaneia 14 dias. (Voz fica)</span>
+                                        </div>
+                                        <button 
+                                            onClick={handleConfirmClear}
+                                            className="bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded text-xs font-bold flex items-center gap-2 transition-colors"
+                                        >
+                                            <Eraser size={14} /> Limpar e Recriar
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
