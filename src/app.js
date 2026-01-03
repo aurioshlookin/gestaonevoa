@@ -310,6 +310,23 @@ const App = () => {
         }
     };
 
+    const handleClearAndRescan = async () => {
+        if (simulation) { showNotification('Simulação: Ação bloqueada.', 'error'); return; }
+        try {
+            await setDoc(doc(db, "server", "commands"), {
+                action: 'clear_and_rescan',
+                status: 'pending',
+                requestedBy: user.id,
+                requesterName: user.username || user.displayName,
+                timestamp: new Date().toISOString()
+            });
+            showNotification('🧹 Comando enviado! Limpando e re-escaneando...', 'success');
+        } catch (e) {
+            console.error("Erro clear sync:", e);
+            showNotification('Erro ao enviar comando.', 'error');
+        }
+    };
+
     // --- MONITORAMENTO ---
     useEffect(() => {
         if (!user || loading || simulation) return;
@@ -727,27 +744,6 @@ const App = () => {
         </div>
     ) : null;
 
-    if (!canAccessPanel) return (
-        <ErrorBoundary>
-            {SimulationBanner}
-            <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 font-mono">
-                <div className="max-w-md w-full bg-slate-800 border border-red-500/30 p-8 rounded-2xl text-center shadow-2xl">
-                    <ShieldCheck size={48} className="mx-auto text-red-500 mb-6" />
-                    <h1 className="text-2xl font-bold text-white mb-2">Acesso Negado</h1>
-                    <p className="text-slate-400 mb-6">Esta conta não possui permissão de acesso.</p>
-                    {simulation ? (
-                        <p className="text-orange-400 text-xs mb-4">Você está simulando um usuário sem permissão.</p>
-                    ) : (
-                        <>
-                            <button onClick={() => {alert("Seus Cargos ID: " + user.roles.join("\n")); console.log("Cargos:", user.roles);}} className="text-xs text-slate-500 hover:text-slate-300 underline mb-4 block mx-auto">Ver meus IDs de Cargo</button>
-                            <button onClick={handleLogout} className="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-6 rounded transition-colors">Voltar / Logout</button>
-                        </>
-                    )}
-                </div>
-            </div>
-        </ErrorBoundary>
-    );
-
     const hasManagePermission = checkPermission('EDIT_MEMBER', editingOrgId || activeTab);
 
     return (
@@ -796,7 +792,8 @@ const App = () => {
                         onSave={handleSaveConfig}
                         onSimulate={(simData) => { setSimulation(simData); setShowSettings(false); }}
                         canManageSettings={canManageSettings}
-                        onSyncHistory={handleSyncHistory} // NOVA PROP
+                        onSyncHistory={handleSyncHistory} 
+                        onClearAndRescan={handleClearAndRescan} // NOVA PROP
                     />
                 )}
 
