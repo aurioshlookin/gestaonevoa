@@ -51,7 +51,7 @@ const SummaryPanel = ({ members }) => {
             ranks: {},
             pendingMastery: 0,
             pendingList: [],
-            totalMembers: members.length,
+            totalMembers: 0, // Será recalculado com base em únicos
             totalLevel: 0,
             level35PlusCount: 0,
             level35PlusTotal: 0,
@@ -76,13 +76,77 @@ const SummaryPanel = ({ members }) => {
         cutoffDate.setDate(cutoffDate.getDate() - 14);
         const cutoffStr = cutoffDate.toISOString().split('T')[0];
 
+        // --- CORREÇÃO DE DUPLICIDADE ---
+        // Usamos um Map para garantir que cada usuário real (discordId) seja processado apenas uma vez nas estatísticas globais
+        // Para orgActivity e orgPendingStats, continuamos processando todos os registros (pois um user pode estar ativo em múltiplas orgs)
+        const uniqueMembersMap = new Map();
+
         members.forEach(m => {
-            // Inicializa contador de org se não existir
+            // Se o membro não tem discordId (legado ou erro), usa o ID do documento
+            const uniqueId = m.discordId || m.id;
+            
+            // Se ainda não processamos esse usuário, adicionamos ao mapa
+            // Ou se o registro atual for "melhor" (tem mais dados preenchidos), substituímos
+            if (!uniqueMembersMap.has(uniqueId)) {
+                uniqueMembersMap.set(uniqueId, m);
+            } else {
+                const existing = uniqueMembersMap.get(uniqueId);
+                // Lógica simples: Se o novo tem stats preenchidos e o antigo não, usa o novo
+                // Ou se o novo tem nível maior, etc.
+                // Aqui vamos priorizar registros que NÃO são de 'lideres-clas' ou 'promocoes' se possível, pois geralmente a org principal tem os dados de combate
+                const isOverlay = (orgId) => orgId === 'lideres-clas' || orgId === 'promocoes';
+                
+                if (isOverlay(existing.org) && !isOverlay(m.org)) {
+                    uniqueMembersMap.set(uniqueId, m);
+                } else if (existing.level < m.level) {
+                     uniqueMembersMap.set(uniqueId, m);
+                }
+            }
+
+            // --- ESTATÍSTICAS POR ORGANIZAÇÃO (Mantém duplicados aqui, pois conta por org) ---
             if (!data.orgPendingStats[m.org]) {
                 data.orgPendingStats[m.org] = { total: 0, pending: 0, name: ORG_CONFIG[m.org]?.name || m.org };
             }
             data.orgPendingStats[m.org].total++;
 
+            // Check pendência na org específica
+            if (!m.masteries || m.masteries.length === 0) {
+                data.orgPendingStats[m.org].pending++;
+            }
+
+            if (!data.orgActivity[m.org]) {
+                data.orgActivity[m.org] = { 
+                    total: 0, 
+                    count: 0, 
+                    name: ORG_CONFIG[m.org]?.name || m.org,
+                    totalMsgs: 0,
+                    totalVoice: 0
+                };
+            }
+            
+            const activityInfoOrg = getActivityStats(m);
+            const scoreOrg = Number(activityInfoOrg.total || 0);
+            const msgsOrg = Number(activityInfoOrg.details?.msgs || 0);
+            
+            let voiceMinsOrg = 0;
+            if (m.dailyVoice) {
+                 voiceMinsOrg = Object.entries(m.dailyVoice).reduce((acc, [date, mins]) => {
+                     if (date >= cutoffStr) return acc + Number(mins || 0);
+                     return acc;
+                 }, 0);
+            }
+
+            data.orgActivity[m.org].total += scoreOrg;
+            data.orgActivity[m.org].totalMsgs += msgsOrg;
+            data.orgActivity[m.org].totalVoice += voiceMinsOrg;
+            data.orgActivity[m.org].count += 1;
+        });
+
+        // Atualiza contagem total baseada em únicos
+        data.totalMembers = uniqueMembersMap.size;
+
+        // --- PROCESSAMENTO DE ESTATÍSTICAS GLOBAIS (APENAS ÚNICOS) ---
+        uniqueMembersMap.forEach(m => {
             // 1. Maestrias & Combos
             if (m.masteries && m.masteries.length > 0) {
                 m.masteries.forEach(mast => {
@@ -92,9 +156,8 @@ const SummaryPanel = ({ members }) => {
                 data.combos[comboKey] = (data.combos[comboKey] || 0) + 1;
             } else {
                 data.masteries['Pendente'] = (data.masteries['Pendente'] || 0) + 1;
-                data.pendingMastery += 1;
+                data.pendingMastery += 1; // Contagem global de pendentes (usuários únicos)
                 data.pendingList.push(m);
-                data.orgPendingStats[m.org].pending++;
             }
 
             // 2. Atividade
@@ -102,11 +165,9 @@ const SummaryPanel = ({ members }) => {
             const tier = activityInfo.tier; 
             data.activity[tier] = (data.activity[tier] || 0) + 1;
             
-            // Garante valores numéricos
             const score = Number(activityInfo.total || 0);
             const msgs = Number(activityInfo.details?.msgs || 0);
             
-            // CORREÇÃO CRÍTICA: Calcular voz bruta somando dailyVoice (filtrando por data recente)
             let voiceMins = 0;
             if (m.dailyVoice) {
                  voiceMins = Object.entries(m.dailyVoice).reduce((acc, [date, mins]) => {
@@ -122,7 +183,7 @@ const SummaryPanel = ({ members }) => {
                 id: m.id,
                 name: m.rpName || m.name,
                 discordName: m.name,
-                org: m.org,
+                org: m.org, // Mostra a org do registro principal escolhido
                 score: score,
                 msgs: msgs,
                 voice: voiceMins,
@@ -133,7 +194,6 @@ const SummaryPanel = ({ members }) => {
             // 3. Patentes e Nível
             const level = parseInt(m.level || 1);
             
-            // Verificação de cadastro completo
             const mStats = m.stats || { Força: 5, Fortitude: 5, Intelecto: 5, Agilidade: 5, Chakra: 5 };
             const totalStatPoints = Object.values(mStats).reduce((a, b) => a + parseInt(b || 0), 0);
             const hasDistributedPoints = totalStatPoints > 25; 
@@ -149,21 +209,6 @@ const SummaryPanel = ({ members }) => {
             data.ranks[rankKey] = (data.ranks[rankKey] || 0) + 1;
             
             if (m.joinDate && new Date(m.joinDate) >= oneWeekAgo) data.newMembers++;
-
-            // 4. Org Activity
-            if (!data.orgActivity[m.org]) {
-                data.orgActivity[m.org] = { 
-                    total: 0, 
-                    count: 0, 
-                    name: ORG_CONFIG[m.org]?.name || m.org,
-                    totalMsgs: 0,
-                    totalVoice: 0
-                };
-            }
-            data.orgActivity[m.org].total += score;
-            data.orgActivity[m.org].totalMsgs += msgs;
-            data.orgActivity[m.org].totalVoice += voiceMins;
-            data.orgActivity[m.org].count += 1;
 
             // 5. Combate
             const derived = calculateStats(mStats, m.guildBonus);
@@ -198,11 +243,13 @@ const SummaryPanel = ({ members }) => {
             });
         }
 
-        // Top Org & Low Org
+        // Top Org & Low Org (Calculado sobre os dados brutos de org, não únicos)
         let bestOrg = { id: null, avg: -1, total: 0, totalMsgs: 0, totalVoice: 0 };
         let worstOrg = { id: null, avg: 999999, total: 0, totalMsgs: 0, totalVoice: 0 };
 
         Object.entries(data.orgActivity).forEach(([orgId, info]) => {
+            // Ignora orgs de overlay (lideres e promocoes) para estatísticas de "Melhor Org", se desejado.
+            // Mas se quiser incluir, pode remover o filtro. Geralmente orgs pequenas distorcem a média.
             if (info.count > 0) {
                 const avg = info.total / info.count;
                 if (avg > bestOrg.avg) bestOrg = { ...info, id: orgId, avg: Math.round(avg) };
