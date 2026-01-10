@@ -50,6 +50,8 @@ const OrganizationTab = ({
     
     // Configurações visuais específicas
     const isClanLeaders = orgId === 'lideres-clas';
+    const isSevenSwords = orgId === 'sete-laminas';
+
     // Oculta coluna de líder para Promoções e Líderes de Clã (pois lá a liderança é implícita no cargo)
     const showLeaderColumn = orgId !== 'promocoes' && !isClanLeaders;
 
@@ -62,7 +64,7 @@ const OrganizationTab = ({
         
         onOpenCreate({ 
             ninRole: ninRole, 
-            isLeader: true,
+            isLeader: isClanLeaders, // Sete Lâminas não vira líder automaticamente, apenas Clãs
             specificRoleId: mappedDiscordRoleId || "" // Preenche se achar, senão vazio
         });
     };
@@ -401,12 +403,12 @@ const OrganizationTab = ({
                                     {canManage && (
                                         <td className="p-4 text-right" onClick={(e) => e.stopPropagation()}>
                                             <div className="flex justify-end gap-2">
-                                                {/* BOTÃO TROCAR LÍDER (Apenas para Líderes de Clã) */}
-                                                {isClanLeaders && (
+                                                {/* BOTÃO TROCAR LÍDER/MEMBRO (Líderes de Clã e Sete Lâminas) */}
+                                                {(isClanLeaders || isSevenSwords) && (
                                                     <button 
                                                         onClick={() => handleOpenClanAction(member.ninRole)} 
                                                         className="p-2 text-slate-400 hover:text-cyan-400 hover:bg-cyan-900/20 rounded transition-colors"
-                                                        title="Trocar Líder"
+                                                        title="Trocar Membro/Líder"
                                                     >
                                                         <RefreshCw size={16} />
                                                     </button>
