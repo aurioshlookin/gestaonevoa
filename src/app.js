@@ -522,7 +522,8 @@ const App = () => {
                     let newSpecificRoleId = currentLeader.specificRoleId;
 
                     if (orgId === 'unidade-medica' && currentLeader.ninRole === 'Diretor Médico') newRole = 'Residente Chefe';
-                    else if (orgId === 'divisao-especial' && currentLeader.ninRole === 'Líder') newRole = 'Vice-Líder';
+                    // ALTERADO: Lógica ANBU
+                    else if (orgId === 'divisao-especial' && currentLeader.ninRole === 'Capitão') newRole = 'Vice Capitão';
                     else if (orgId === 'forca-policial' && currentLeader.ninRole === 'Chefe') newRole = 'Subchefe';
                     
                     newSpecificRoleId = roleConfig[orgId] || ""; 
@@ -541,7 +542,8 @@ const App = () => {
                 }
 
                 if (orgId === 'unidade-medica') finalNinRole = 'Diretor Médico';
-                else if (orgId === 'divisao-especial') finalNinRole = 'Líder';
+                // ALTERADO: Lógica ANBU
+                else if (orgId === 'divisao-especial') finalNinRole = 'Capitão';
                 else if (orgId === 'forca-policial') finalNinRole = 'Chefe';
             }
 
@@ -651,7 +653,8 @@ const App = () => {
             let demotionRole = member.ninRole; 
             
             if (orgId === 'unidade-medica') demotionRole = 'Residente Chefe';
-            else if (orgId === 'divisao-especial') demotionRole = 'Vice-Líder';
+            // ALTERADO: Lógica ANBU
+            else if (orgId === 'divisao-especial') demotionRole = 'Vice Capitão';
             else if (orgId === 'forca-policial') demotionRole = 'Subchefe';
 
             if (newStatus) {
@@ -661,7 +664,8 @@ const App = () => {
                     let oldLeaderDemotion = currentLeader.ninRole;
                     if (orgId !== 'lideres-clas') {
                         if (orgId === 'unidade-medica') oldLeaderDemotion = 'Residente Chefe';
-                        else if (orgId === 'divisao-especial') oldLeaderDemotion = 'Vice-Líder';
+                        // ALTERADO: Lógica ANBU
+                        else if (orgId === 'divisao-especial') oldLeaderDemotion = 'Vice Capitão';
                         else if (orgId === 'forca-policial') oldLeaderDemotion = 'Subchefe';
                         
                         const baseRoleId = roleConfig[orgId];
@@ -675,7 +679,8 @@ const App = () => {
                 
                 let newRoleL = member.ninRole; 
                 if (orgId === 'unidade-medica') newRoleL = 'Diretor Médico';
-                else if (orgId === 'divisao-especial') newRoleL = 'Líder';
+                // ALTERADO: Lógica ANBU
+                else if (orgId === 'divisao-especial') newRoleL = 'Capitão';
                 else if (orgId === 'forca-policial') newRoleL = 'Chefe';
                 
                 let leaderDiscRole = member.specificRoleId;
