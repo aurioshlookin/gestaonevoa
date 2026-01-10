@@ -475,20 +475,23 @@ const App = () => {
             
             if (!formData.name || !formData.discordId || !formData.ninRole) return showNotification('Campos obrigatórios!', 'error');
             
-            if (isCreating && orgId === 'lideres-clas') {
-                const existingLeader = members.find(m => m.org === orgId && m.ninRole === formData.ninRole);
-                if (existingLeader) {
-                    await deleteDoc(doc(db, "membros", existingLeader.id));
-                    // Força isLeader true para clãs
-                    formData.isLeader = true;
+            // --- LÓGICA DE SUBSTITUIÇÃO (CLÃS E SETE LÂMINAS) ---
+            if (isCreating && (orgId === 'lideres-clas' || orgId === 'sete-laminas')) {
+                const existingMember = members.find(m => m.org === orgId && m.ninRole === formData.ninRole);
+                if (existingMember) {
+                    await deleteDoc(doc(db, "membros", existingMember.id));
+                    // Força isLeader true APENAS para clãs
+                    if (orgId === 'lideres-clas') {
+                        formData.isLeader = true;
+                    }
                 }
             }
 
             if (isCreating && ORG_CONFIG[orgId].limit !== null && ORG_CONFIG[orgId].limit > 0) {
                 const currentCount = members.filter(m => m.org === orgId).length;
-                const isClanSubstitution = (orgId === 'lideres-clas') && members.some(m => m.org === orgId && m.ninRole === formData.ninRole);
+                const isSubstitution = (orgId === 'lideres-clas' || orgId === 'sete-laminas') && members.some(m => m.org === orgId && m.ninRole === formData.ninRole);
                 
-                if (!isClanSubstitution && currentCount >= ORG_CONFIG[orgId].limit) {
+                if (!isSubstitution && currentCount >= ORG_CONFIG[orgId].limit) {
                     return showNotification('Limite atingido!', 'error');
                 }
             }
@@ -497,8 +500,8 @@ const App = () => {
             let finalRoleId = formData.specificRoleId || roleConfig[orgId] || ""; 
             let finalRoleName = "Membro";
             
-            // CORREÇÃO: Para promoções/clãs, tenta pegar o cargo específico do mapeamento interno se não vier do form
-            if (!finalRoleId && (orgId === 'promocoes' || orgId === 'lideres-clas')) {
+            // CORREÇÃO: Para promoções/clãs/espadas, tenta pegar o cargo específico do mapeamento interno se não vier do form
+            if (!finalRoleId && (orgId === 'promocoes' || orgId === 'lideres-clas' || orgId === 'sete-laminas')) {
                  finalRoleId = roleConfig[`${orgId}_${formData.ninRole}`] || "";
             }
 
