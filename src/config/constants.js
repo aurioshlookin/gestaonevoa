@@ -121,10 +121,12 @@ export const ORG_CONFIG = {
         bgColor: 'bg-purple-900/20', 
         border: 'border-purple-500/30', 
         limit: 14, 
-        internalRoles: ['Membro', 'Vice-Líder', 'Líder'],
+        // ALTERAÇÃO AQUI: Novos cargos ordenados
+        internalRoles: ['Membro', 'Líder de Esquadrão', 'Vice Capitão', 'Capitão'],
         roleDetails: [
-            { name: 'Líder', desc: 'Comandante supremo das operações especiais.' },
-            { name: 'Vice-Líder', desc: 'Segundo em comando, auxilia na coordenação.' },
+            { name: 'Capitão', desc: 'Comandante supremo das operações especiais.' },
+            { name: 'Vice Capitão', desc: 'Segundo em comando, auxilia na coordenação.' },
+            { name: 'Líder de Esquadrão', desc: 'Responsável por liderar equipes táticas.' },
             { name: 'Membro', desc: 'Agente operacional da ANBU.' }
         ]
     },
